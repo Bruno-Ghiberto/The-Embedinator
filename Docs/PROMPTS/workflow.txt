@@ -6,7 +6,7 @@
 # ─── Phase A: Specify ───────────────────────────────────────────────
 
 # Step 1: Coherence check — ensure the specify prompt aligns with Project Blueprints and prior specs
-/sc:improve "Check that definition of the context prompt @Docs/PROMPTS/spec-15-observability/15-specify.md is coherent with previous specs and following the @"Docs/Project Blueprints/" . In order to read documents at @"Docs/Project Blueprints/" use serena MCP to just read what's necessary and avoid massive token consumption.
+/sc:improve "Check that definition of the context prompt @Docs/PROMPTS/spec-17-infra/17-specify.md is coherent with previous specs and following the @"Docs/Project Blueprints/" . In order to read documents at @"Docs/Project Blueprints/" use serena MCP to just read what's necessary and avoid massive token consumption.
    Use @"technical-writer (agent)" to write it and these MCP: 
    sequential-thinking : For overall reasoning 
    serena : to execute intelligent semantic code search
@@ -14,7 +14,7 @@
 "
 
 # Step 2: Generate spec.md from the improved context prompt
-/speckit.specify "Read @Docs/PROMPTS/spec-15-observability/15-specify.md "
+/speckit.specify "Read @Docs/PROMPTS/spec-17-infra/17-specify.md "
 
 # Step 3: Clarify ambiguities — answer questions, encode answers back into spec
 /speckit.clarify
@@ -22,7 +22,7 @@
 # ─── Phase B: Plan ──────────────────────────────────────────────────
 
 # Step 4: Coherence check — ensure the plan prompt aligns with the actual spec
-/sc:improve "Let's improve the @Docs/PROMPTS/spec-15-observability/15-plan.md context prompt, it needs to be coherent with the actual spec. The plan must include the use of agent teams for Claude Code. Always enforce the use of @scripts/run-tests-external.sh for testing, never test inside Claude Code. 
+/sc:improve "Let's improve the @Docs/PROMPTS/spec-17-infra/17-plan.md context prompt, it needs to be coherent with the actual spec. The plan must include the use of agent teams for Claude Code. Always enforce the use of @scripts/run-tests-external.sh for testing, never test inside Claude Code. 
    Use @"technical-writer (agent)" to write it and these MCP: 
    sequential-thinking : For overall reasoning 
    serena : to execute intelligent semantic code search
@@ -30,7 +30,7 @@
 "
 
 # Step 5: Generate plan.md from the improved context prompt
-/speckit.plan "Read @Docs/PROMPTS/spec-15-observability/15-plan.md "
+/speckit.plan "Read @Docs/PROMPTS/spec-17-infra/17-plan.md "
 
 # Step 6: Generate tasks.md from spec + plan
 /speckit.tasks
@@ -43,8 +43,8 @@
 # ─── Phase D: Agent Design ──────────────────────────────────────────
 
 # Step 8: Design agent team instructions for implementation
-# Creates one .md instruction file per agent in Docs/PROMPTS/spec-15-observability/agents/
-/sc:design "Let's improve the @Docs/PROMPTS/spec-15-observability/15-implement.md context prompt, it needs to be coherent with the actual spec. Remember to enforce the use of Agents Team of Claude Code (https://code.claude.com/docs/en/agent-teams) . I want you to create a brief instruction .md file for each agent member of this team (excluding the orchestrator). The Orchestrator will spawn these agents giving as a first task to read right away this instruction and then await for further instructions. It is quite important that you decide which agent of the already configured should be spawned for this specific spec and declare it on the instruction file, these are my configured agents:
+# Creates one .md instruction file per agent in Docs/PROMPTS/spec-17-infra/agents/
+/sc:design "Let's improve the @Docs/PROMPTS/spec-17-infra/17-implement.md context prompt, it needs to be coherent with the actual spec. Remember to enforce the use of Agents Team of Claude Code (https://code.claude.com/docs/en/agent-teams) . I want you to create a brief instruction .md file for each agent member of this team (excluding the orchestrator). The Orchestrator will spawn these agents giving as a first task to read right away this instruction and then await for further instructions. It is quite important that you decide which agent of the already configured should be spawned for this specific spec and declare it on the instruction file, these are my configured agents:
 
     backend-architect · inherit
     business-panel-experts · inherit
@@ -74,7 +74,7 @@
     Plan · inherit
     statusline-setup · sonnet
 
-Also, these instruction files must specify which model this agent should use: Sonnet 4.6 or Opus 4.6 . Remember, it is a maximum priority that this @Docs/PROMPTS/spec-15-observability/15-implement.md states loudly that tmux multi-pane agents spawning is a must with Agent Teams
+Also, these instruction files must specify which model this agent should use: Sonnet 4.6 or Opus 4.6 . Remember, it is a maximum priority that this @Docs/PROMPTS/spec-17-infra/17-implement.md states loudly that tmux multi-pane agents spawning is a must with Agent Teams
    Use @"technical-writer (agent)" to write it and these MCP: 
    sequential-thinking : For overall reasoning 
    serena : to execute intelligent semantic code search
@@ -84,4 +84,4 @@ Also, these instruction files must specify which model this agent should use: So
 # ─── Phase E: Implement (separate session recommended) ──────────────
 
 # Step 9: Execute implementation — orchestrator reads implement.md and spawns agent team
-/speckit.implement "Read @Docs/PROMPTS/spec-15-observability/15-implement.md THOROUGHLY TO IMPLEMENT"
+/speckit.implement "Read @Docs/PROMPTS/spec-17-infra/17-implement.md THOROUGHLY TO IMPLEMENT"

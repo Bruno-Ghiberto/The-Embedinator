@@ -34,37 +34,56 @@ The Infrastructure specification covers the full project directory structure, Do
 the-embedinator/
   backend/
     api/
+      __init__.py
       collections.py       # Collection CRUD endpoints
-      chat.py              # Chat endpoint + SSE streaming
+      documents.py         # Document listing and management endpoints
+      chat.py              # Chat endpoint + NDJSON streaming
+      health.py            # Health check and stats endpoint
+      ingest.py            # File ingestion trigger endpoint
       models.py            # Ollama model listing proxy
       settings.py          # Settings CRUD
       providers.py         # Provider management endpoints
-      traces.py            # Query trace log + health + stats
+      traces.py            # Query trace log + metrics
     agent/
+      __init__.py
       conversation_graph.py    # Layer 1: ConversationGraph definition
       research_graph.py        # Layer 2: ResearchGraph definition
       meta_reasoning_graph.py  # Layer 3: MetaReasoningGraph definition
-      nodes.py                 # All node functions (stateless, pure)
-      edges.py                 # All conditional edge functions
+      meta_reasoning_nodes.py  # MetaReasoning node functions
+      meta_reasoning_edges.py  # MetaReasoning conditional edge functions
+      nodes.py                 # Conversation node function implementations
+      edges.py                 # Conversation conditional edge functions
+      research_nodes.py        # Research node function implementations
+      research_edges.py        # Research conditional edge functions
+      retrieval.py             # Retrieval orchestration helpers
+      citations.py             # Citation extraction and alignment logic
+      answer_generator.py      # Answer generation helpers
       tools.py                 # LangChain tool definitions + implementations
       prompts.py               # All system and user prompts as constants
       schemas.py               # Pydantic models: QueryAnalysis, SubAnswer, Citation
       state.py                 # TypedDict state schemas for all three graphs
+      confidence.py            # 5-signal confidence scoring
     ingestion/
+      __init__.py
       pipeline.py          # Orchestrator: spawn Rust worker, coordinate flow
       embedder.py          # Ollama embedding calls, ThreadPoolExecutor batching
       chunker.py           # Parent/child splitting, breadcrumb prepending
       incremental.py       # SHA256 hash check, change detection
     retrieval/
-      searcher.py          # Qdrant hybrid search execution
+      __init__.py
+      searcher.py          # Qdrant hybrid search execution + circuit breaker
       reranker.py          # Cross-encoder reranking (sentence-transformers)
-      router.py            # Regex-based collection routing
       score_normalizer.py  # Per-collection min-max normalization before merge
     storage/
+      __init__.py
       qdrant_client.py     # Qdrant connection, collection init, upsert, search
-      sqlite_db.py         # SQLite connection, all table operations
+      sqlite_db.py         # SQLite connection, all table operations (7 tables)
       parent_store.py      # Parent chunk read/write (SQLite-backed)
+      indexing.py          # Storage indexing helpers
+      chunker.py           # Storage-level chunking utilities
+      document_parser.py   # Document parsing utilities
     providers/
+      __init__.py
       base.py             # LLMProvider ABC, EmbeddingProvider ABC
       registry.py         # ProviderRegistry: model name -> provider resolution
       ollama.py           # OllamaProvider (default, no key needed)
@@ -82,12 +101,14 @@ the-embedinator/
       pdf.rs               # PDF extraction
       markdown.rs          # Markdown parsing and splitting
       text.rs              # Plain text chunking
+      code.rs              # Code file handling
       heading_tracker.rs   # Heading hierarchy state machine
       types.rs             # Chunk struct, DocType enum, serde impls
     Cargo.toml
   frontend/
     app/
       layout.tsx
+      globals.css
       chat/
         page.tsx
       collections/
@@ -116,27 +137,51 @@ the-embedinator/
       ConfidenceDistribution.tsx
       HealthDashboard.tsx
       CollectionStats.tsx
+      StageTimingsChart.tsx    # Stage timing breakdown chart (spec-14/15)
+      MetricsTrends.tsx        # Observability metrics trend charts (spec-15)
       Navigation.tsx
+      Toast.tsx
     lib/
       api.ts               # Centralized API client
       types.ts             # Shared TypeScript interfaces
     hooks/
-      useStreamChat.ts     # Custom hook for SSE chat streaming
+      useStreamChat.ts     # Custom hook for NDJSON chat streaming
       useCollections.ts    # SWR hook for collections
       useModels.ts         # SWR hook for model lists
       useTraces.ts         # SWR hook for traces
+      useMetrics.ts        # SWR hook for observability metrics (spec-15)
     next.config.ts
     package.json
-    tailwind.config.ts
     tsconfig.json
-  tests/                   # See Spec 16 (Testing)
+    playwright.config.ts
+    vitest.config.ts
+    Dockerfile
+  tests/
+    conftest.py            # Shared pytest fixtures
+    mocks.py               # Mock ResearchGraph + simple chat graph
+    unit/
+      api/                 # Security and API-specific unit tests
+      retrieval/           # Retrieval-specific unit tests
+      test_*.py            # Unit test modules (60+ files)
+    integration/
+      conftest.py
+      test_*.py            # Integration test modules (20+ files)
+    e2e/
+      test_*.py            # End-to-end test modules (4 files)
+    regression/
+      test_regression.py   # Regression test suite
+    fixtures/              # Sample files for ingestion tests (sample.pdf, .md, .txt)
+  specs/                   # Specification documents for all 16+ implemented specs
   data/                    # gitignored -- runtime data
     uploads/               # temporary file storage during ingestion
     qdrant_db/             # Qdrant persistence volume
     embedinator.db         # SQLite database file
-  docker-compose.yml
-  docker-compose.dev.yml
+  Dockerfile.backend       # Multi-stage backend Dockerfile (Rust build + Python runtime)
+  docker-compose.yml       # Dev compose (Qdrant + Ollama only; backend/frontend run natively)
+  docker-compose.dev.yml   # Alternative dev compose configuration
+  docker-compose.prod.yml  # Production compose (all four services containerized)
   .env.example
+  pytest.ini               # Root pytest config (--cov-fail-under=80)
   Makefile
   requirements.txt         # Python dependencies
   README.md
@@ -145,7 +190,9 @@ the-embedinator/
 ### Pydantic Settings Class
 
 ```python
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     # Server
@@ -154,6 +201,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     debug: bool = False
 
+    # Observability: per-component log level overrides (spec-15, US3, FR-004)
+    # Format: comma-separated module.path=LEVEL pairs
+    # Example: backend.retrieval.reranker=DEBUG,backend.storage.sqlite_db=WARNING
+    log_level_overrides: str = Field(default="", alias="LOG_LEVEL_OVERRIDES")
+
+    # Frontend
+    frontend_port: int = 3000
+
     # Qdrant
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
@@ -161,7 +216,7 @@ class Settings(BaseSettings):
     # Providers
     ollama_base_url: str = "http://localhost:11434"
     default_provider: str = "ollama"
-    default_llm_model: str = "llama3.2"
+    default_llm_model: str = "qwen2.5:7b"
     default_embed_model: str = "nomic-embed-text"
     api_key_encryption_secret: str = ""
 
@@ -181,8 +236,11 @@ class Settings(BaseSettings):
     # Agent
     max_iterations: int = 10
     max_tool_calls: int = 8
-    confidence_threshold: float = 0.6
+    confidence_threshold: int = 60    # Integer 0–100 scale (not float)
+    compression_threshold: float = 0.75
     meta_reasoning_max_attempts: int = 2
+    meta_relevance_threshold: float = 0.2   # Mean cross-encoder score threshold (spec-04)
+    meta_variance_threshold: float = 0.15   # Stdev threshold for noisy results (spec-04)
 
     # Retrieval
     hybrid_dense_weight: float = 0.7
@@ -202,12 +260,16 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_chat_per_minute: int = 30
     rate_limit_ingest_per_minute: int = 10
-    rate_limit_default_per_minute: int = 120
+    rate_limit_provider_keys_per_minute: int = 5
+    rate_limit_general_per_minute: int = 120
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     model_config = SettingsConfigDict(env_file=".env")
+
+
+settings = Settings()
 ```
 
 ### All Dependency Versions
@@ -217,23 +279,23 @@ class Settings(BaseSettings):
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `fastapi` | `>=0.135` | API framework |
-| `uvicorn` | `>=0.34` | ASGI server |
+| `uvicorn[standard]` | `>=0.34` | ASGI server |
 | `langgraph` | `>=1.0.10` | Agent graph orchestration |
-| `langchain` | `>=1.2.10` | LLM abstraction, tool binding |
-| `langchain-community` | `>=1.2` | Ollama integration |
-| `langchain-openai` | `>=1.1.10` | OpenAI / OpenRouter integration |
+| `langchain-core` | `>=1.2.10` | LLM abstraction, tool binding |
+| `langchain-ollama` | `>=0.3` | Ollama LangChain integration |
+| `langchain-openai` | `>=0.3` | OpenAI / OpenRouter integration |
 | `langchain-anthropic` | `>=0.3` | Anthropic integration |
+| `langgraph-checkpoint-sqlite` | `>=2.0` | LangGraph SQLite checkpointing |
 | `qdrant-client` | `>=1.17.0` | Qdrant vector database client |
 | `sentence-transformers` | `>=5.2.3` | Cross-encoder reranking + embeddings |
-| `pydantic` | `>=2.12` | Settings, structured output schemas |
-| `pydantic-settings` | `>=2.8` | Environment variable configuration |
-| `aiosqlite` | `>=0.21` | Async SQLite access |
-| `httpx` | `>=0.28` | Async HTTP (Ollama/provider API calls) |
-| `python-multipart` | `>=0.0.20` | File upload parsing |
-| `tiktoken` | `>=0.12` | Token counting |
-| `tenacity` | `>=9.0` | Retry with exponential backoff + circuit breaker |
+| `pydantic` | `>=2.0` | Settings, structured output schemas |
+| `pydantic-settings` | `>=2.0` | Environment variable configuration |
+| `aiosqlite` | `>=0.20` | Async SQLite access |
+| `httpx` | `>=0.27` | Async HTTP (Ollama/provider API calls) |
+| `python-multipart` | `>=0.0.18` | File upload parsing |
 | `cryptography` | `>=44.0` | Fernet encryption for stored API keys |
 | `structlog` | `>=24.0` | Structured JSON logging |
+| `ruff` | `>=0.9` | Linting |
 
 **Rust 1.93:**
 
@@ -255,11 +317,12 @@ class Settings(BaseSettings):
 | `typescript` | `5.7` | Type safety |
 | `tailwindcss` | `4` | Utility-first CSS |
 | `recharts` | `2` | Latency charts on observability page |
-| `@radix-ui/react-tooltip` | `1` | Citation tooltip primitives |
-| `@radix-ui/react-dialog` | `1` | Modal dialogs |
-| `@radix-ui/react-select` | `2` | Dropdown selects |
+| `@radix-ui/react-tooltip` | `latest` | Citation tooltip primitives |
+| `@radix-ui/react-dialog` | `latest` | Modal dialogs |
+| `@radix-ui/react-select` | `latest` | Dropdown selects |
 | `swr` | `2` | Data fetching with cache for API calls |
 | `react-dropzone` | `14` | File drag-drop upload |
+| `react-hook-form` | `latest` | Form state management |
 
 **Infrastructure:**
 
@@ -276,7 +339,8 @@ class Settings(BaseSettings):
 | `pytest` | `>=8.0` | Test runner |
 | `pytest-asyncio` | `>=0.24` | Async test support |
 | `pytest-cov` | `>=6.0` | Coverage reporting |
-| `httpx` | `>=0.28` | Test HTTP client |
+| `pytest-httpx` | `>=0.35` | Async HTTP mocking in tests |
+| `httpx` | `>=0.27` | Test HTTP client (also production) |
 | `vitest` | `>=3.0` | Frontend unit tests |
 | `@playwright/test` | `>=1.50` | Frontend E2E tests |
 | `@testing-library/react` | `>=16.0` | Component testing |
@@ -317,3 +381,47 @@ class Settings(BaseSettings):
 - **SQLite over PostgreSQL**: Single-file database for simplicity. WAL mode for concurrent reads.
 - **Rust for PDF parsing**: 5-20x throughput improvement. NDJSON streaming interface for overlapping parsing and embedding.
 - **Dev mode separation**: Infrastructure in Docker, application code native, for fast iteration without rebuilds.
+- **`confidence_threshold` as integer (0–100)**: Stored and compared on a 0–100 integer scale throughout the codebase. The agent edge divides by 100 when comparing against the 0.0–1.0 float returned by the confidence scoring function. Do not use a float default of 0.6.
+
+## Changelog
+
+### Corrections applied (verified against actual codebase state after specs 01–16)
+
+| # | Location | Old value | Corrected value | Reason |
+|---|----------|-----------|-----------------|--------|
+| 1 | Settings — `confidence_threshold` | `float = 0.6` | `int = 60` | Actual `config.py` line 49 uses `int = 60  # 0–100 scale`; CLAUDE.md confirms integer 0–100 |
+| 2 | Settings — `default_llm_model` | `"llama3.2"` | `"qwen2.5:7b"` | Actual `config.py` default changed during spec implementation |
+| 3 | Settings — added `log_level_overrides` | missing | `str = Field(default="", alias="LOG_LEVEL_OVERRIDES")` | Added in spec-15 (observability, US3, FR-004) |
+| 4 | Settings — added `frontend_port` | missing | `int = 3000` | Present in actual `config.py` |
+| 5 | Settings — added `compression_threshold` | missing | `float = 0.75` | Present in actual `config.py` |
+| 6 | Settings — added `meta_relevance_threshold` | missing | `float = 0.2` | Added in spec-04 (meta-reasoning, R4) |
+| 7 | Settings — added `meta_variance_threshold` | missing | `float = 0.15` | Added in spec-04 (meta-reasoning, R4) |
+| 8 | Settings — `rate_limit_default_per_minute` | wrong name | `rate_limit_general_per_minute: int = 120` | Actual field name in `config.py` is `rate_limit_general_per_minute` |
+| 9 | Settings — added `rate_limit_provider_keys_per_minute` | missing | `int = 5` | Present in actual `config.py` (spec-10/13 security hardening) |
+| 10 | Directory — `backend/retrieval/router.py` | listed | removed | File does not exist in the codebase; retrieval routing is handled inside `searcher.py` |
+| 11 | Directory — `backend/api/documents.py` | missing | added | File exists (`documents.cpython-314.pyc` confirms it); listed separately from `collections.py` |
+| 12 | Directory — `backend/api/health.py` | missing | added | File exists in actual `backend/api/` directory |
+| 13 | Directory — `backend/storage/` | 3 files only | 6 files | Added `indexing.py`, `chunker.py`, `document_parser.py` which exist in actual codebase |
+| 14 | Directory — `backend/agent/` | 8 files | 17 files | Added `retrieval.py`, `citations.py`, `answer_generator.py`, `confidence.py`, `research_nodes.py`, `research_edges.py`, `meta_reasoning_nodes.py`, `meta_reasoning_edges.py`, `__init__.py` |
+| 15 | Directory — `ingestion-worker/src/code.rs` | missing | added | File `code.rs` exists in `ingestion-worker/src/` |
+| 16 | Directory — frontend components | 3 missing | added `StageTimingsChart.tsx`, `MetricsTrends.tsx`, `Toast.tsx` | All three exist in `frontend/components/`; first two from spec-14/15 |
+| 17 | Directory — frontend hooks | missing `useMetrics.ts` | added | Added in spec-15 (observability); file exists in `frontend/hooks/` |
+| 18 | Directory — root files | incomplete | added `Dockerfile.backend`, `docker-compose.prod.yml`, `pytest.ini`, `specs/` | All exist at project root |
+| 19 | Directory — `frontend/tailwind.config.ts` | listed | removed | File is absent; Tailwind v4 configures via `package.json` and CSS directives |
+| 20 | Directory — frontend | added `globals.css`, `playwright.config.ts`, `vitest.config.ts` | These files exist in the actual frontend tree |
+| 21 | Python deps — `langchain` | `langchain>=1.2.10` | `langchain-core>=1.2.10` | Only `langchain-core` is in `requirements.txt`; the `langchain` meta-package is not used |
+| 22 | Python deps — `langchain-community` | `>=1.2` | removed | Not in `requirements.txt`; Ollama integration uses `langchain-ollama` instead |
+| 23 | Python deps — `langchain-ollama` | missing | `>=0.3` | Added in spec-10; present in `requirements.txt` |
+| 24 | Python deps — `langgraph-checkpoint-sqlite` | missing | `>=2.0` | Present in `requirements.txt` |
+| 25 | Python deps — `pydantic` | `>=2.12` | `>=2.0` | Actual pin in `requirements.txt` |
+| 26 | Python deps — `pydantic-settings` | `>=2.8` | `>=2.0` | Actual pin in `requirements.txt` |
+| 27 | Python deps — `aiosqlite` | `>=0.21` | `>=0.20` | Actual pin in `requirements.txt` |
+| 28 | Python deps — `httpx` | `>=0.28` | `>=0.27` | Actual pin in `requirements.txt` |
+| 29 | Python deps — `python-multipart` | `>=0.0.20` | `>=0.0.18` | Actual pin in `requirements.txt` |
+| 30 | Python deps — `tiktoken` | listed | removed | Not present in `requirements.txt`; token counting not used |
+| 31 | Python deps — `tenacity` | listed | removed | Not present in `requirements.txt`; retry logic is via `tenacity` imported transitively or inlined |
+| 32 | Python deps — `ruff` | missing | `>=0.9` | Present in `requirements.txt` under Linting |
+| 33 | Python deps — `pytest-httpx` | missing | `>=0.35` | Present in `requirements.txt` under Testing |
+| 34 | JS deps — `react-hook-form` | missing | `latest` | Present in `frontend/package.json` dependencies |
+| 35 | JS deps — `@radix-ui/*` versions | `1`, `1`, `2` | all `latest` | Actual `package.json` pins all three to `latest` |
+| 36 | Tests directory | `tests/ # See Spec 16` only | expanded structure | Added subdirectories: `unit/`, `integration/`, `e2e/`, `regression/`, `fixtures/`, `conftest.py`, `mocks.py` |

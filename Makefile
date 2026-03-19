@@ -1,60 +1,50 @@
-.PHONY: dev build test lint docker-up docker-down clean
+.PHONY: help setup build-rust dev-infra dev-backend dev-frontend dev up down pull-models test test-cov test-frontend clean clean-all
 
-# Start all services in development mode with hot reload
-dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+help:  ## Show all available targets with descriptions
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-# Build all Docker images
-build:
-	docker compose build
+setup:  ## Install all dependencies (Python pip, Node npm, Rust binary)
+	pip install -r requirements.txt
+	cd frontend && npm install
+	$(MAKE) build-rust
 
-# Run test suite
-test:
-	pytest tests/ -v
+build-rust:  ## Compile the Rust ingestion worker binary
+	cd ingestion-worker && cargo build --release
 
-# Run backend tests only
-test-unit:
-	pytest tests/unit/ -v
+dev-infra:  ## Start Qdrant + Ollama in Docker (infrastructure only, for dev mode)
+	docker compose up -d qdrant ollama
 
-# Run integration tests
-test-integration:
-	pytest tests/integration/ -v
+dev-backend:  ## Start Python backend with hot reload (uvicorn --reload)
+	uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
-# Lint backend + frontend
-lint:
-	ruff check backend/ tests/
-	cd frontend && npm run lint
+dev-frontend:  ## Start Next.js frontend with hot reload (next dev)
+	cd frontend && npm run dev
 
-# Format code
-format:
-	ruff format backend/ tests/
+dev: dev-infra  ## Start dev-infra then print instructions for backend + frontend
+	@echo "Run in separate terminals: make dev-backend  /  make dev-frontend"
 
-# Start Docker services (detached)
-docker-up:
-	docker compose up -d
+up:  ## Build and start all 4 production Docker services
+	docker compose up --build -d
 
-# Stop Docker services
-docker-down:
+down:  ## Stop all Docker services
 	docker compose down
 
-# Stop and remove volumes (WARNING: removes data)
-docker-clean:
+pull-models:  ## Pull default Ollama models (qwen2.5:7b + nomic-embed-text)
+	docker exec $$(docker compose ps -q ollama) ollama pull qwen2.5:7b
+	docker exec $$(docker compose ps -q ollama) ollama pull nomic-embed-text
+
+test:  ## Run backend tests (no coverage threshold)
+	zsh scripts/run-tests-external.sh -n make-test --no-cov tests/
+
+test-cov:  ## Run backend tests with >=80% coverage gate (exits non-zero if below threshold)
+	zsh scripts/run-tests-external.sh -n make-test-cov tests/
+
+test-frontend:  ## Run frontend tests (vitest)
+	cd frontend && npm run test
+
+clean:  ## Remove runtime data (data/ directory contents)
+	rm -rf data/
+
+clean-all: down  ## Full teardown: stop containers, remove volumes and build outputs
 	docker compose down -v
-
-# View logs
-logs:
-	docker compose logs -f
-
-# View backend logs
-logs-backend:
-	docker compose logs -f backend
-
-# View frontend logs
-logs-frontend:
-	docker compose logs -f frontend
-
-# Clean build artifacts
-clean:
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	rm -rf .pytest_cache
+	rm -rf data/ ingestion-worker/target/ frontend/.next/

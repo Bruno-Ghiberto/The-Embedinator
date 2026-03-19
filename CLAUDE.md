@@ -31,6 +31,10 @@ Auto-generated from all feature plans. Last updated: 2026-03-10
 - SQLite WAL mode (`data/embedinator.db`) — schema migration adds `stage_timings_json TEXT` column to `query_traces` via idempotent `ALTER TABLE` (014-performance-budgets)
 - Python 3.14+ (backend), TypeScript 5.7 (frontend) + structlog >= 24.0 (contextvars, JSONRenderer), FastAPI >= 0.135, recharts 2 (frontend charts), SWR 2 (data fetching) — all already installed (015-observability)
 - SQLite WAL mode (`data/embedinator.db`) — existing `query_traces` table with 15 columns, no schema changes (015-observability)
+- Python 3.14+ (backend tests); TypeScript 5.7 (frontend tests — out of scope, already passing) + pytest >= 8.0, pytest-asyncio >= 0.24, pytest-cov >= 6.0, httpx >= 0.28 — all already installed (016-testing-strategy)
+- In-memory SQLite (`:memory:`) for all unit tests; real Qdrant on `localhost:6333` for `@pytest.mark.require_docker` tests (016-testing-strategy)
+- Python 3.14+, TypeScript 5.7, Rust 1.93 + pydantic-settings, Docker Compose v2, Make, Rust toolchain (017-infra-setup)
+- SQLite WAL mode (`data/embedinator.db`), Qdrant, named Docker volumes (017-infra-setup)
 
 - Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker) + FastAPI >= 0.135, LangGraph >= 1.0.10, LangChain >= 1.2.10, Qdrant Client >= 1.17.0, sentence-transformers >= 5.2.3, Pydantic v2 >= 2.12, aiosqlite >= 0.21, cryptography (Fernet) >= 44.0, structlog >= 24.0, tenacity >= 9.0 | Next.js 16, React 19, Tailwind CSS 4, SWR 2, recharts 2 (001-vision-arch)
 
@@ -84,9 +88,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker): Follow standard conventions
 
 ## Recent Changes
+- 017-infra-setup: Added Python 3.14+, TypeScript 5.7, Rust 1.93 + pydantic-settings, Docker Compose v2, Make, Rust toolchain
+- 016-testing-strategy: Added Python 3.14+ (backend tests); TypeScript 5.7 (frontend tests — out of scope, already passing) + pytest >= 8.0, pytest-asyncio >= 0.24, pytest-cov >= 6.0, httpx >= 0.28 — all already installed
 - 015-observability: Added Python 3.14+ (backend), TypeScript 5.7 (frontend) + structlog >= 24.0 (contextvars, JSONRenderer), FastAPI >= 0.135, recharts 2 (frontend charts), SWR 2 (data fetching) — all already installed
-- 014-performance-budgets: Added Python 3.14+ + LangGraph >= 1.0.10, FastAPI >= 0.135, aiosqlite >= 0.21, structlog >= 24.0
-- 013-security-hardening: Added Python 3.14+ + FastAPI >=0.135, structlog >=24.0, re (stdlib), Pydantic v2 >=2.12
 
 
 <!-- MANUAL ADDITIONS START -->
@@ -95,7 +99,7 @@ Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker): Follow sta
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **The-Embedinator** (2501 symbols, 5814 relationships, 136 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **The-Embedinator** (4955 symbols, 10163 relationships, 160 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

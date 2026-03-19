@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     default_provider: str = "ollama"
     default_llm_model: str = "qwen2.5:7b"
     default_embed_model: str = "nomic-embed-text"
-    api_key_encryption_secret: str = ""
+    api_key_encryption_secret: str = Field(default="", alias="EMBEDINATOR_FERNET_KEY")  # Constitution V
 
     # SQLite
     sqlite_path: str = "data/embedinator.db"
@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", populate_by_name=True)
 
 
 settings = Settings()

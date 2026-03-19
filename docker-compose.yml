@@ -27,6 +27,13 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped
 
   backend:
@@ -38,17 +45,20 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - SQLITE_PATH=/app/data/embedinator.db
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      SQLITE_PATH: /data/embedinator.db
+      UPLOAD_DIR: /data/uploads
+      LOG_LEVEL_OVERRIDES: ${LOG_LEVEL_OVERRIDES:-}
+      RUST_WORKER_PATH: /app/ingestion-worker/target/release/embedinator-worker
     depends_on:
       qdrant:
         condition: service_healthy
       ollama:
         condition: service_healthy
     volumes:
-      - ./data:/app/data
+      - ./data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 10s
