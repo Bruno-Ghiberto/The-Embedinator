@@ -1,0 +1,104 @@
+%PDF-1.4
+% binary marker: ‚„œ”
+
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+
+3 0 obj
+<< /Length 363 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+14 TL
+(Page 1: Sample content for testing chunk extraction and retrieval pipelines.) Tj
+T* (This document demonstrates a minimal valid PDF for use in automated test suites.) Tj
+T* (The Embedinator project uses this file to test ingestion of PDF documents.) Tj
+T* (Vector embeddings are generated from this text and stored in Qdrant.) Tj
+ET
+
+endstream
+endobj
+
+4 0 obj
+<< /Type /Page /Parent 2 0 R
+   /MediaBox [0 0 612 792]
+   /Contents 3 0 R
+   /Resources << /Font << /F1 9 0 R >> >>
+>>
+endobj
+
+5 0 obj
+<< /Length 333 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+14 TL
+(Page 2: Document processing involves several stages of transformation.) Tj
+T* (First, text is extracted from the raw binary format using pdf-extract.) Tj
+T* (Then the text is split into overlapping chunks suitable for embedding.) Tj
+T* (Each chunk is embedded using a sentence transformer model.) Tj
+ET
+
+endstream
+endobj
+
+6 0 obj
+<< /Type /Page /Parent 2 0 R
+   /MediaBox [0 0 612 792]
+   /Contents 5 0 R
+   /Resources << /Font << /F1 9 0 R >> >>
+>>
+endobj
+
+7 0 obj
+<< /Length 328 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+14 TL
+(Page 3: Retrieval uses hybrid dense and sparse vector search.) Tj
+T* (Dense vectors capture semantic similarity between query and document.) Tj
+T* (Sparse BM25 vectors capture lexical overlap and keyword matching.) Tj
+T* (A cross-encoder reranker re-scores the top candidates for precision.) Tj
+ET
+
+endstream
+endobj
+
+8 0 obj
+<< /Type /Page /Parent 2 0 R
+   /MediaBox [0 0 612 792]
+   /Contents 7 0 R
+   /Resources << /Font << /F1 9 0 R >> >>
+>>
+endobj
+
+xref
+0 10
+0000000000 65535 f 
+0000000032 00000 n 
+0000000082 00000 n 
+0000000250 00000 n 
+0000000665 00000 n 
+0000000801 00000 n 
+0000001186 00000 n 
+0000001322 00000 n 
+0000001702 00000 n 
+0000000152 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1838
+%%EOF
