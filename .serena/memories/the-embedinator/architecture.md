@@ -19,38 +19,35 @@ Self-hosted agentic RAG system: Python + Rust + LangGraph + Next.js + Qdrant + S
 
 ## Target Hardware
 i7-12700K, 64GB DDR5, RTX 4070 Ti 12GB VRAM, NVMe SSDs
-→ Can run qwen2.5:32b comfortably (GPU+RAM split)
 
-## Key Files
-- Architecture doc: claudedocs/architecture-design.md (4163 lines, 13 Mermaid diagrams, 27 sections)
-- Analysis report: claudedocs/rag-analysis-report.md
+## Documentation Library (claudedocs/)
+19 files total in claudedocs/:
+- `architecture-design.md` — Full system architecture (4163 lines, 27 sections)
+- `rag-analysis-report.md` — Source system analysis
+- `prd.md` — Product Requirements Document
+- `api-reference.md` — All API endpoints and schemas
+- `data-model.md` — SQLite + Qdrant schemas + ER diagram
+- `security-model.md` — Threat model, encryption, validation
+- `testing-strategy.md` — Test pyramid, coverage targets, CI
+- `performance-budget.md` — Latency/memory/throughput budgets
+- `runbook.md` — Operations: deploy, backup, troubleshoot
+- `changelog.md` — Version history
+- `contributing.md` — Dev setup, code style, extension guides
+- `adr/` — 8 Architecture Decision Records (001-008)
 
 ## Build Phases
-1. MVP: Python FastAPI + 2-layer LangGraph + hybrid retrieval + parent/child + Next.js chat+collections + Ollama + OpenRouter
+1. **MVP (COMPLETE)**: Python FastAPI + 2-layer LangGraph + hybrid retrieval + parent/child + Next.js chat+collections + Ollama + OpenRouter. 75/75 tasks done. 61 tests passing. Docker stack validated.
 2. Performance: Rust worker + MetaReasoningGraph + GAV + parallel embedding + incremental ingest + observability
 3. Polish: Additional providers + per-doc-type chunk profiles + query cache + citation highlighting
 
-## Clarified System Design Decisions (2026-03-04)
-- No authentication on web interface — trusted local network model, any LAN device can access
-- Multiple concurrent query sessions supported — each browser tab is fully independent
-- Document↔Collection: many-to-many (one doc can belong to multiple collections simultaneously)
-- Document deletion: traces retain captured passage text with "source removed" indicator
-- Confidence score: user-facing — displayed in main answer view alongside every response
-
-## Speckit Splitting (17 specs) — COMPLETED
-Location: SPECS/ (51 files, 14,530 lines) — legacy context prompt files
-spec-01-vision, spec-02-conversation-graph, spec-03-research-graph, spec-04-meta-reasoning,
-spec-05-accuracy, spec-06-ingestion, spec-07-storage, spec-08-api, spec-09-frontend,
-spec-10-providers, spec-11-interfaces, spec-12-errors, spec-13-security, spec-14-performance,
-spec-15-observability, spec-16-testing, spec-17-infra
-
-## Speckit Workflow (active)
-Location: specs/ (speckit-managed, with git branches per feature)
-- `001-vision-arch` branch: spec DONE + clarified → ready for /speckit.plan
-  - spec: specs/001-vision-arch/spec.md
-  - checklist: specs/001-vision-arch/checklists/requirements.md
+## Clarified System Design Decisions
+- No authentication on web interface — trusted local network model
+- Multiple concurrent query sessions — each browser tab independent
+- Document↔Collection: many-to-many
+- Document deletion preserves traces with "source removed" marker
+- Confidence score: user-facing, displayed alongside every answer
 
 ## Developer Environment
-- WSL2 Ubuntu on Windows, project lives at /home/bruno_linux/projects/the-embedinator
-- IDE: Cursor via WSL extension (`cursor .` from WSL terminal)
-- Claude Code runs in WSL natively
+- Fedora Linux, project at /home/brunoghiberto/Documents/Projects/The-Embedinator
+- Branch: `001-vision-arch`
+- Claude Code runs natively

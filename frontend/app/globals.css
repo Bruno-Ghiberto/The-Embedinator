@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+}
+
+:root {
+  --foreground: #171717;
+  --background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #ededed;
+    --background: #0a0a0a;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

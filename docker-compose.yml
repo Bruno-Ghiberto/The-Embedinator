@@ -1,0 +1,73 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: embedinator-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/qdrant_db:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo -e \"GET /healthz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: embedinator-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull qwen2.5:7b && wait"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo -e \"GET /api/tags HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/11434'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: embedinator-backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - SQLITE_PATH=/app/data/embedinator.db
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: embedinator-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    restart: unless-stopped
+
+volumes:
+  ollama_models:

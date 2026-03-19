@@ -1,0 +1,40 @@
+{
+  "name": "embedinator-frontend",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "swr": "^2.0.0",
+    "recharts": "^2.0.0",
+    "react-dropzone": "^14.0.0",
+    "@radix-ui/react-tooltip": "latest",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-select": "latest",
+    "react-hook-form": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "latest",
+    "@playwright/test": "^1.50.0",
+    "@vitejs/plugin-react": "latest",
+    "jsdom": "latest",
+    "@vitest/coverage-v8": "^3.0.0"
+  }
+}

@@ -51,7 +51,32 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+frontend/.next/
+frontend/node_modules/
+
+# Docker
+*.log*
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# External test runner output
+Docs/Tests/*.status
+Docs/Tests/*.summary
+Docs/Tests/*.log
+
+# Rust
+target/
+*.rs.bk
+
 # Secrets / API keys
 secrets/
 *.pem
 *.key
+.gitnexus
