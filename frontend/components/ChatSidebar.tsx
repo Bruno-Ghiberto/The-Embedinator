@@ -4,6 +4,8 @@ import React from "react";
 import { useCollections } from "@/hooks/useCollections";
 import { useModels } from "@/hooks/useModels";
 import { LLMModelSelector, EmbedModelSelector } from "./ModelSelector";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChatSidebarProps {
   selectedCollections: string[];
@@ -33,55 +35,54 @@ function ChatSidebarInner({
   };
 
   return (
-    <aside className="flex w-64 flex-col gap-6 border-r border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
+    <aside className="flex w-64 flex-col gap-6 border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Collections
         </h3>
         {collectionsLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-6 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700"
-              />
+              <Skeleton key={i} className="h-6 w-full" />
             ))}
           </div>
         ) : collections && collections.length > 0 ? (
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {collections.map((col) => (
-              <label
-                key={col.id}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedCollections.includes(col.id)}
-                  onChange={() => handleCollectionToggle(col.id)}
-                  className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-600"
-                />
-                <span className="truncate text-neutral-700 dark:text-neutral-300">
-                  {col.name}
-                </span>
-                <span className="ml-auto text-xs text-neutral-400">
-                  {col.document_count}
-                </span>
-              </label>
-            ))}
-          </div>
+          <ScrollArea className="max-h-48">
+            <div className="space-y-1">
+              {collections.map((col) => (
+                <label
+                  key={col.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-background)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCollections.includes(col.id)}
+                    onChange={() => handleCollectionToggle(col.id)}
+                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                  />
+                  <span className="truncate text-[var(--color-text-primary)]">
+                    {col.name}
+                  </span>
+                  <span className="ml-auto text-xs text-[var(--color-text-muted)]">
+                    {col.document_count}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </ScrollArea>
         ) : (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-sm text-[var(--color-text-muted)]">
             No collections available
           </p>
         )}
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           LLM Model
         </h3>
         {modelsLoading ? (
-          <div className="h-10 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
+          <Skeleton className="h-8 w-full" />
         ) : (
           <LLMModelSelector
             models={llmModels ?? []}
@@ -92,11 +93,11 @@ function ChatSidebarInner({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Embedding Model
         </h3>
         {modelsLoading ? (
-          <div className="h-10 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
+          <Skeleton className="h-8 w-full" />
         ) : (
           <EmbedModelSelector
             models={embedModels ?? []}

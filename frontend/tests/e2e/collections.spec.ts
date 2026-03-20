@@ -170,17 +170,20 @@ test.describe("Collections page", () => {
       },
     );
 
-    // Click the Delete button on the collection card
+    // Open the actions dropdown on the collection card
     await page
       .getByRole("button", {
-        name: /Delete collection existing-col/i,
+        name: /Actions for existing-col/i,
       })
       .click();
+
+    // Click "Delete" in the dropdown menu
+    await page.getByRole("menuitem", { name: /Delete/i }).click();
 
     // Confirmation dialog is visible
     await expect(page.getByText("Delete collection?")).toBeVisible();
 
-    // Confirm — the button with text "Delete" (NOT "Delete collection existing-col")
+    // Confirm deletion in the dialog
     await page.getByRole("button", { name: "Delete" }).click();
 
     // DELETE API was called

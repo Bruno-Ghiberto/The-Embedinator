@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useMetrics } from "@/hooks/useMetrics";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +36,35 @@ function formatTimestamp(ts: string): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function resolveCssVar(varName: string): string {
+  if (typeof window === "undefined") return "#7c3aed";
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || "#7c3aed";
+}
+
 // ─── MetricsTrends ────────────────────────────────────────────────────────────
 // Imported via next/dynamic with { ssr: false } in observability/page.tsx
 
 export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
   const [window, setWindow] = useState<MetricsWindow>(defaultWindow);
   const { data, error, isLoading } = useMetrics(window);
+
+  const [chartColors, setChartColors] = useState({
+    accent: "#7c3aed",
+    warning: "#d97706",
+    success: "#059669",
+    axis: "#6b52b5",
+    grid: "#d1c4f5",
+  });
+
+  useEffect(() => {
+    setChartColors({
+      accent: resolveCssVar("--color-accent"),
+      warning: resolveCssVar("--color-warning"),
+      success: resolveCssVar("--color-success"),
+      axis: resolveCssVar("--color-text-muted"),
+      grid: resolveCssVar("--color-border"),
+    });
+  }, []);
 
   const chartData =
     data?.buckets.map((b) => ({
@@ -53,19 +77,20 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
   return (
     <section>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Metrics Trends</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Metrics Trends</h2>
 
         {/* Window selector */}
-        <div className="flex gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+        <div className="flex gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
           {WINDOW_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setWindow(opt.value)}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              className={cn(
+                "rounded-md px-3 py-1 text-sm font-medium transition-colors",
                 window === opt.value
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+                  ? "bg-[var(--color-background)] text-[var(--color-text-primary)] shadow-sm"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              )}
               aria-pressed={window === opt.value}
             >
               {opt.label}
@@ -76,31 +101,31 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="flex h-[250px] items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400">
-            Loading metrics…
+          <div className="flex h-[250px] items-center justify-center rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-muted)]">
+            Loading metrics...
           </div>
-          <div className="flex h-[250px] items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400">
-            Loading metrics…
+          <div className="flex h-[250px] items-center justify-center rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-muted)]">
+            Loading metrics...
           </div>
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-red-100 bg-red-50 p-4">
-          <p className="text-sm text-red-600">
+        <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 p-4">
+          <p className="text-sm text-[var(--color-destructive)]">
             Failed to load metrics data. The backend metrics endpoint may not be
             available yet.
           </p>
         </div>
       ) : chartData.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-400">
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+          <p className="text-sm text-[var(--color-text-muted)]">
             No metrics available for the selected window.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Average & P95 latency trend */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
               Latency Trend
             </h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -108,19 +133,27 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
                 data={chartData}
                 margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: chartColors.axis }} />
                 <YAxis
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: chartColors.axis }}
                   tickFormatter={(v: number) => `${v} ms`}
                 />
-                <Tooltip formatter={(v: number) => [`${v} ms`]} />
+                <Tooltip
+                  formatter={(v: number) => [`${v} ms`]}
+                  contentStyle={{
+                    backgroundColor: "var(--color-surface)",
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-text-primary)",
+                    borderRadius: "0.5rem",
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line
                   type="monotone"
                   dataKey="avg_latency_ms"
                   name="Avg latency"
-                  stroke="#6366f1"
+                  stroke={chartColors.accent}
                   strokeWidth={2}
                   dot={false}
                 />
@@ -128,7 +161,7 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
                   type="monotone"
                   dataKey="p95_latency_ms"
                   name="P95 latency"
-                  stroke="#f59e0b"
+                  stroke={chartColors.warning}
                   strokeWidth={2}
                   dot={false}
                   strokeDasharray="4 2"
@@ -138,8 +171,8 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
           </div>
 
           {/* Average confidence trend */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
               Confidence Trend
             </h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -147,21 +180,27 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
                 data={chartData}
                 margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: chartColors.axis }} />
                 <YAxis
                   domain={[0, 100]}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: chartColors.axis }}
                   tickFormatter={(v: number) => `${v}`}
                 />
                 <Tooltip
                   formatter={(v: number) => [`${v}`, "Avg confidence"]}
+                  contentStyle={{
+                    backgroundColor: "var(--color-surface)",
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-text-primary)",
+                    borderRadius: "0.5rem",
+                  }}
                 />
                 <Line
                   type="monotone"
                   dataKey="avg_confidence"
                   name="Avg confidence"
-                  stroke="#10b981"
+                  stroke={chartColors.success}
                   strokeWidth={2}
                   dot={false}
                 />

@@ -2,8 +2,19 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { Eye, EyeOff } from 'lucide-react';
 import { getProviders, setProviderKey, deleteProviderKey } from '@/lib/api';
 import type { Provider } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 
 // ─── ProviderRow ─────────────────────────────────────────────────────────────
 // Defined outside ProviderHub to avoid re-creating the component on every render
@@ -28,88 +39,108 @@ function ProviderRow({
   onSave,
   onDelete,
 }: ProviderRowProps) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 capitalize">{provider.name}</h3>
-          {provider.base_url !== null ? (
-            <p className="mt-0.5 text-xs text-gray-500">{provider.base_url}</p>
-          ) : null}
-          <p className="mt-0.5 text-xs text-gray-400">{provider.model_count} model{provider.model_count !== 1 ? 's' : ''}</p>
-        </div>
+  const [showKey, setShowKey] = useState(false);
 
-        {/* Indicators — is_active and has_key are independent */}
-        <div className="flex items-center gap-2">
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'inline-block h-2.5 w-2.5 rounded-full',
+                provider.has_key
+                  ? 'bg-[var(--color-success)]'
+                  : 'bg-[var(--color-text-muted)]'
+              )}
+              aria-label={provider.has_key ? 'API key configured' : 'No API key'}
+            />
+            <CardTitle className="capitalize">{provider.name}</CardTitle>
+          </div>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+            className={cn(
+              'rounded-full px-2 py-0.5 text-xs font-medium',
               provider.is_active
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-            title={provider.is_active ? 'Provider is active' : 'Provider is inactive'}
+                ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                : 'text-muted-foreground bg-muted'
+            )}
           >
             {provider.is_active ? 'Active' : 'Inactive'}
           </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              provider.has_key
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-yellow-100 text-yellow-700'
-            }`}
-            title={provider.has_key ? 'API key is stored' : 'No API key stored'}
-          >
-            {provider.has_key ? 'Key set' : 'No key'}
-          </span>
         </div>
-      </div>
+        {provider.base_url !== null ? (
+          <p className="text-xs text-muted-foreground">{provider.base_url}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          {provider.model_count} model{provider.model_count !== 1 ? 's' : ''}
+        </p>
+      </CardHeader>
 
-      {/* Key display and management */}
-      <div className="mt-3">
+      <CardContent>
         {provider.has_key ? (
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               value="••••••••"
               readOnly
               aria-label={`Masked API key for ${provider.name}`}
-              className="flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-500 cursor-not-allowed"
+              className="flex-1 cursor-not-allowed"
             />
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={onDelete}
               disabled={isLoading}
               aria-label={`Delete API key for ${provider.name}`}
-              className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
             >
               {isLoading ? 'Deleting…' : 'Delete key'}
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => onKeyInputChange(e.target.value)}
-              placeholder={`Enter ${provider.name} API key`}
-              aria-label={`API key input for ${provider.name}`}
-              className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <button
+            <div className="relative flex-1">
+              <Input
+                type={showKey ? 'text' : 'password'}
+                value={keyInput}
+                onChange={(e) => onKeyInputChange(e.target.value)}
+                placeholder={`Enter ${provider.name} API key`}
+                aria-label={`API key input for ${provider.name}`}
+                className="pr-9"
+              />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                      onClick={() => setShowKey((prev) => !prev)}
+                      aria-label={showKey ? 'Hide API key' : 'Show API key'}
+                    />
+                  }
+                >
+                  {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </TooltipTrigger>
+                <TooltipContent>{showKey ? 'Hide API key' : 'Show API key'}</TooltipContent>
+              </Tooltip>
+            </div>
+            <Button
+              size="sm"
               onClick={onSave}
               disabled={isLoading || !keyInput.trim()}
               aria-label={`Save API key for ${provider.name}`}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {isLoading ? 'Saving…' : 'Save key'}
-            </button>
+            </Button>
           </div>
         )}
 
         {error ? (
-          <p className="mt-1 text-xs text-red-600" role="alert">{error}</p>
+          <p className="mt-1 text-xs text-[var(--color-destructive)]" role="alert">{error}</p>
         ) : null}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -168,7 +199,7 @@ export default function ProviderHub() {
     return (
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-100" />
+          <Skeleton key={i} className="h-24 rounded-lg" />
         ))}
       </div>
     );

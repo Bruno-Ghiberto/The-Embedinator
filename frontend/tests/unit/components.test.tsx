@@ -20,129 +20,221 @@ vi.mock("next/link", () => {
   };
 });
 
-vi.mock("@radix-ui/react-tooltip", () => {
+// Mock base-ui Popover so Portal renders inline and content is always visible
+vi.mock("@base-ui/react/popover", () => {
   const React = require("react") as typeof import("react");
-  return {
-    Provider: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
+  const Popover = {
     Root: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
+      React.createElement("div", { "data-slot": "popover" }, children),
     Trigger: ({
       children,
-      asChild,
+      className,
+      ...props
     }: {
-      children: React.ReactElement;
-      asChild?: boolean;
-    }) => {
-      if (asChild && React.isValidElement(children)) return children;
-      return React.createElement("span", null, children);
-    },
-    // Portal renders inline so tooltip content is visible in DOM
-    Portal: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
-    Content: ({ children }: { children: React.ReactNode }) =>
+      children: React.ReactNode;
+      className?: string;
+      "aria-label"?: string;
+    }) =>
       React.createElement(
-        "div",
-        { "data-testid": "tooltip-content" },
+        "button",
+        { type: "button", className, ...props },
         children,
       ),
-    Arrow: () => null,
+    Portal: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Positioner: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Popup: ({
+      children,
+      className,
+    }: {
+      children: React.ReactNode;
+      className?: string;
+    }) =>
+      React.createElement("div", { "data-slot": "popover-content", className }, children),
+    Title: ({ children, ...props }: { children: React.ReactNode }) =>
+      React.createElement("h3", props, children),
+    Description: ({ children, ...props }: { children: React.ReactNode }) =>
+      React.createElement("p", props, children),
   };
+  return { Popover };
 });
 
-vi.mock("@radix-ui/react-dialog", () => {
+// Mock base-ui Dialog so Portal renders inline and content shows when open
+vi.mock("@base-ui/react/dialog", () => {
   const React = require("react") as typeof import("react");
-
-  // Context shares open/onOpenChange between Root, Trigger, Portal, Close
   const DialogCtx = React.createContext<{
     open: boolean;
     onOpenChange: (v: boolean) => void;
   }>({ open: false, onOpenChange: () => {} });
 
-  return {
+  const Dialog = {
     Root: ({
       children,
       open,
       onOpenChange,
     }: {
       children: React.ReactNode;
-      open: boolean;
-      onOpenChange: (v: boolean) => void;
+      open?: boolean;
+      onOpenChange?: (v: boolean) => void;
     }) =>
       React.createElement(
         DialogCtx.Provider,
-        { value: { open, onOpenChange } },
+        { value: { open: open ?? false, onOpenChange: onOpenChange ?? (() => {}) } },
         children,
       ),
-
     Trigger: ({
       children,
-      asChild,
+      render,
+      ...props
     }: {
-      children: React.ReactElement;
-      asChild?: boolean;
+      children?: React.ReactNode;
+      render?: React.ReactElement;
     }) => {
       const ctx = React.useContext(DialogCtx);
-      if (asChild && React.isValidElement(children)) {
+      if (render && React.isValidElement(render)) {
         return React.cloneElement(
-          children as React.ReactElement<Record<string, unknown>>,
-          { onClick: () => ctx.onOpenChange(true) },
+          render as React.ReactElement<Record<string, unknown>>,
+          { onClick: () => ctx.onOpenChange(true), ...props },
+          children,
         );
       }
       return React.createElement(
         "button",
-        { onClick: () => ctx.onOpenChange(true) },
+        { type: "button", onClick: () => ctx.onOpenChange(true), ...props },
         children,
       );
     },
-
-    // Portal renders children only when open; null otherwise
     Portal: ({ children }: { children: React.ReactNode }) => {
       const { open } = React.useContext(DialogCtx);
-      return open
-        ? React.createElement(React.Fragment, null, children)
-        : null;
+      return open ? React.createElement(React.Fragment, null, children) : null;
     },
-
-    Overlay: () => null,
-
-    Content: ({ children }: { children: React.ReactNode }) =>
-      React.createElement("div", { role: "dialog" }, children),
-
+    Backdrop: () => null,
+    Popup: ({
+      children,
+      className,
+    }: {
+      children: React.ReactNode;
+      className?: string;
+      showCloseButton?: boolean;
+    }) =>
+      React.createElement("div", { role: "dialog", className }, children),
     Title: ({ children }: { children: React.ReactNode }) =>
       React.createElement("h2", null, children),
-
+    Description: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("p", null, children),
     Close: ({
       children,
-      asChild,
+      render,
+      disabled,
     }: {
-      children: React.ReactElement;
-      asChild?: boolean;
+      children?: React.ReactNode;
+      render?: React.ReactElement;
+      disabled?: boolean;
     }) => {
       const ctx = React.useContext(DialogCtx);
-      if (asChild && React.isValidElement(children)) {
+      if (render && React.isValidElement(render)) {
         return React.cloneElement(
-          children as React.ReactElement<Record<string, unknown>>,
-          { onClick: () => ctx.onOpenChange(false) },
+          render as React.ReactElement<Record<string, unknown>>,
+          { onClick: () => ctx.onOpenChange(false), disabled },
+          children,
         );
       }
       return React.createElement(
         "button",
-        { onClick: () => ctx.onOpenChange(false) },
+        { type: "button", onClick: () => ctx.onOpenChange(false), disabled },
         children,
       );
     },
-
-    Description: ({ children }: { children: React.ReactNode }) =>
-      React.createElement("p", null, children),
   };
+  return { Dialog };
 });
 
-vi.mock("@radix-ui/react-select", () => {
+// Mock base-ui Menu so DropdownMenu items are always visible
+vi.mock("@base-ui/react/menu", () => {
   const React = require("react") as typeof import("react");
-  return {
+  const Menu = {
     Root: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { "data-slot": "dropdown-menu" }, children),
+    Trigger: ({
+      children,
+      render,
+      ...props
+    }: {
+      children?: React.ReactNode;
+      render?: React.ReactElement;
+    }) => {
+      if (render && React.isValidElement(render)) {
+        return React.cloneElement(
+          render as React.ReactElement<Record<string, unknown>>,
+          { "aria-haspopup": "menu", ...props },
+          children,
+        );
+      }
+      return React.createElement(
+        "button",
+        { type: "button", "aria-haspopup": "menu", ...props },
+        children,
+      );
+    },
+    Portal: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
+    Positioner: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Popup: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { role: "menu" }, children),
+    Item: ({
+      children,
+      render,
+      onClick,
+      ...props
+    }: {
+      children?: React.ReactNode;
+      render?: React.ReactElement;
+      onClick?: () => void;
+      variant?: string;
+    }) => {
+      if (render && React.isValidElement(render)) {
+        return React.cloneElement(
+          render as React.ReactElement<Record<string, unknown>>,
+          { role: "menuitem", onClick, ...props },
+          children,
+        );
+      }
+      return React.createElement(
+        "div",
+        { role: "menuitem", onClick, ...props },
+        children,
+      );
+    },
+    Separator: () => React.createElement("hr"),
+    Group: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { role: "group" }, children),
+    GroupLabel: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("span", null, children),
+    CheckboxItem: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { role: "menuitemcheckbox" }, children),
+    RadioGroup: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { role: "radiogroup" }, children),
+    RadioItem: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { role: "menuitemradio" }, children),
+    ItemIndicator: () => null,
+    Arrow: () => null,
+  };
+  return { Menu };
+});
+
+// Mock base-ui Select
+vi.mock("@base-ui/react/select", () => {
+  const React = require("react") as typeof import("react");
+  const Select = {
+    Root: ({
+      children,
+    }: {
+      children: React.ReactNode;
+      value?: string;
+      onValueChange?: (v: string) => void;
+    }) => React.createElement(React.Fragment, null, children),
     Trigger: ({
       children,
       id,
@@ -150,18 +242,29 @@ vi.mock("@radix-ui/react-select", () => {
     }: {
       children: React.ReactNode;
       id?: string;
+      className?: string;
       "aria-label"?: string;
     }) =>
-      React.createElement("button", { id, "aria-label": ariaLabel }, children),
+      React.createElement("button", { id, "aria-label": ariaLabel, type: "button" }, children),
     Value: ({ placeholder }: { placeholder?: string }) =>
       React.createElement("span", null, placeholder ?? ""),
-    Icon: () => null,
+    Icon: ({ render }: { render?: React.ReactElement }) =>
+      render ? render : null,
     Portal: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
-    Content: ({ children }: { children: React.ReactNode }) =>
+    Positioner: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    ScrollUpArrow: () => null,
+    ScrollDownArrow: () => null,
+    Popup: ({ children }: { children: React.ReactNode }) =>
       React.createElement("div", null, children),
-    Viewport: ({ children }: { children: React.ReactNode }) =>
+    List: ({ children }: { children: React.ReactNode }) =>
       React.createElement("div", null, children),
+    Group: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", null, children),
+    GroupLabel: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("span", null, children),
+    Separator: () => React.createElement("hr"),
     Item: ({
       children,
       value,
@@ -172,9 +275,64 @@ vi.mock("@radix-ui/react-select", () => {
       React.createElement("div", { "data-value": value }, children),
     ItemText: ({ children }: { children: React.ReactNode }) =>
       React.createElement("span", null, children),
-    ItemIndicator: () => null,
+    ItemIndicator: ({ render, children }: { render?: React.ReactElement; children?: React.ReactNode }) =>
+      render ? React.cloneElement(render as React.ReactElement<Record<string, unknown>>, {}, children) : null,
+  };
+  return { Select };
+});
+
+// Mock base-ui Tooltip to render inline
+vi.mock("@base-ui/react/tooltip", () => {
+  const React = require("react") as typeof import("react");
+  const Tooltip = {
+    Provider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Root: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Trigger: ({
+      children,
+      render,
+      ...props
+    }: {
+      children?: React.ReactNode;
+      render?: React.ReactElement;
+    }) => {
+      if (render && React.isValidElement(render)) {
+        return React.cloneElement(
+          render as React.ReactElement<Record<string, unknown>>,
+          props,
+          children,
+        );
+      }
+      return React.createElement("span", props, children);
+    },
+    Portal: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Positioner: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Popup: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { "data-testid": "tooltip-content" }, children),
+    Arrow: () => null,
+  };
+  return { Tooltip };
+});
+
+// Mock base-ui useRender and mergeProps for breadcrumb components
+vi.mock("@base-ui/react/use-render", () => {
+  const React = require("react") as typeof import("react");
+  return {
+    useRender: ({ defaultTagName, props, render }: { defaultTagName: string; props: Record<string, unknown>; render?: React.ReactElement; state?: Record<string, unknown> }) => {
+      if (render && React.isValidElement(render)) {
+        return React.cloneElement(render as React.ReactElement<Record<string, unknown>>, props);
+      }
+      return React.createElement(defaultTagName, props);
+    },
   };
 });
+
+vi.mock("@base-ui/react/merge-props", () => ({
+  mergeProps: (...args: Record<string, unknown>[]) => Object.assign({}, ...args),
+}));
 
 vi.mock("@/lib/api", () => {
   class ApiError extends Error {
@@ -297,9 +455,9 @@ describe("CitationTooltip — source_removed rendering", () => {
     expect(screen.queryByText("Source removed")).not.toBeInTheDocument();
   });
 
-  test("source_removed: false renders document_name in tooltip", () => {
+  test("source_removed: false renders document_name in popover", () => {
     render(<CitationTooltip citation={MOCK_CITATION_PRESENT} index={1} />);
-    // document_name appears in the tooltip content
+    // document_name appears in the popover content
     expect(screen.getByText("report.pdf")).toBeInTheDocument();
   });
 
@@ -316,19 +474,16 @@ describe("CollectionCard — delete confirmation dialog", () => {
     vi.mocked(deleteCollection).mockClear();
   });
 
-  test("Delete button opens dialog showing 'Delete collection?' before deleteCollection is called", () => {
+  test("Delete menu item opens dialog showing 'Delete collection?' before deleteCollection is called", () => {
     const onDelete = vi.fn();
     render(<CollectionCard collection={MOCK_COLLECTION} onDelete={onDelete} />);
 
     // Dialog content not shown initially
     expect(screen.queryByText("Delete collection?")).not.toBeInTheDocument();
 
-    // Click the Delete trigger (aria-label set by CollectionCard)
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Delete collection My Collection/i,
-      }),
-    );
+    // Click the Delete menu item (rendered inline by menu mock)
+    const deleteItem = screen.getByText("Delete");
+    fireEvent.click(deleteItem);
 
     // Dialog title must appear in DOM
     expect(screen.getByText("Delete collection?")).toBeInTheDocument();
@@ -341,17 +496,21 @@ describe("CollectionCard — delete confirmation dialog", () => {
     const onDelete = vi.fn();
     render(<CollectionCard collection={MOCK_COLLECTION} onDelete={onDelete} />);
 
-    // Open dialog
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Delete collection My Collection/i,
-      }),
-    );
+    // Open dialog by clicking Delete menu item
+    fireEvent.click(screen.getByText("Delete"));
 
     // Wrap in act to flush async state updates from handleConfirmDelete
     const { act } = await import("@testing-library/react");
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      // Click the "Delete" button inside the dialog (not the menu item)
+      const deleteButtons = screen.getAllByText("Delete");
+      // The last one is the confirm button in the dialog
+      const confirmButton = deleteButtons.find(
+        (el) => el.closest("[role='dialog']") !== null,
+      );
+      if (confirmButton) {
+        fireEvent.click(confirmButton);
+      }
     });
 
     expect(vi.mocked(deleteCollection)).toHaveBeenCalledWith("col-1");

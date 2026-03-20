@@ -2,17 +2,47 @@
 
 import React from 'react';
 import type { Document, DocumentStatus } from '@/lib/types';
-import { deleteDocument } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 // Defined outside DocumentList to satisfy rerender-no-inline-components rule.
 
-const STATUS_STYLES: Record<DocumentStatus, { bg: string; text: string; label: string }> = {
-  pending:    { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  ingesting:  { bg: 'bg-blue-100',   text: 'text-blue-800',   label: 'Ingesting' },
-  completed:  { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Completed' },
-  failed:     { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Failed' },
-  duplicate:  { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Duplicate' },
+const STATUS_CONFIG: Record<
+  DocumentStatus,
+  { variant: 'outline' | 'default' | 'secondary' | 'destructive'; label: string; className?: string; showSpinner?: boolean }
+> = {
+  pending: {
+    variant: 'outline',
+    label: 'Pending',
+  },
+  ingesting: {
+    variant: 'default',
+    label: 'Ingesting',
+    showSpinner: true,
+  },
+  completed: {
+    variant: 'secondary',
+    label: 'Completed',
+    className: 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20',
+  },
+  failed: {
+    variant: 'destructive',
+    label: 'Failed',
+  },
+  duplicate: {
+    variant: 'outline',
+    label: 'Duplicate',
+    className: 'text-[var(--color-text-muted)]',
+  },
 };
 
 interface StatusBadgeProps {
@@ -20,13 +50,17 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge = React.memo(function StatusBadge({ status }: StatusBadgeProps) {
-  const { bg, text, label } = STATUS_STYLES[status] ?? STATUS_STYLES.pending;
+  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}
-    >
-      {label}
-    </span>
+    <Badge variant={config.variant} className={cn('gap-1.5', config.className)}>
+      {config.showSpinner ? (
+        <span
+          className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"
+          aria-hidden="true"
+        />
+      ) : null}
+      {config.label}
+    </Badge>
   );
 });
 
@@ -41,29 +75,29 @@ const DocumentRow = React.memo(function DocumentRow({ document: doc, onDelete }:
   const handleDelete = () => onDelete(doc.id);
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <td className="py-3 px-4 text-sm text-gray-900 font-medium max-w-xs truncate">
+    <TableRow>
+      <TableCell className="font-medium max-w-xs truncate">
         {doc.filename}
-      </td>
-      <td className="py-3 px-4">
+      </TableCell>
+      <TableCell>
         <StatusBadge status={doc.status} />
-      </td>
-      <td className="py-3 px-4 text-sm text-gray-500 text-right">
-        {doc.chunk_count !== null ? doc.chunk_count.toLocaleString() : '—'}
-      </td>
-      <td className="py-3 px-4 text-sm text-gray-500">
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {doc.chunk_count !== null ? doc.chunk_count.toLocaleString() : '\u2014'}
+      </TableCell>
+      <TableCell className="text-[var(--color-text-muted)]">
         {new Date(doc.created_at).toLocaleDateString()}
-      </td>
-      <td className="py-3 px-4 text-right">
+      </TableCell>
+      <TableCell className="text-right">
         <button
           onClick={handleDelete}
-          className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+          className="text-sm text-[var(--color-destructive)] hover:text-[var(--color-destructive)]/80 font-medium transition-colors"
           aria-label={`Delete ${doc.filename}`}
         >
           Delete
         </button>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 });
 
@@ -77,38 +111,38 @@ export interface DocumentListProps {
 const DocumentList = React.memo(function DocumentList({ documents, onDelete }: DocumentListProps) {
   if (documents.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-[var(--color-text-muted)]">
         <p className="text-sm">No documents yet. Upload a file to get started.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
-      <table className="w-full text-left">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+    <div className="rounded-lg border border-[var(--color-border)]">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="text-xs uppercase tracking-wider">
               Filename
-            </th>
-            <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            </TableHead>
+            <TableHead className="text-xs uppercase tracking-wider">
               Status
-            </th>
-            <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+            </TableHead>
+            <TableHead className="text-xs uppercase tracking-wider text-right">
               Chunks
-            </th>
-            <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            </TableHead>
+            <TableHead className="text-xs uppercase tracking-wider">
               Uploaded
-            </th>
-            <th className="py-3 px-4" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
+            </TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {documents.map((doc) => (
             <DocumentRow key={doc.id} document={doc} onDelete={onDelete} />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 });

@@ -3,7 +3,25 @@
 import React from "react";
 import useSWR from "swr";
 import { getHealth } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { HealthService, HealthStatus } from "@/lib/types";
+
+// ─── Status dot color mapping ─────────────────────────────────────────────────
+
+function statusDotClass(status: string): string {
+  switch (status) {
+    case "ok":
+      return "bg-[var(--color-success)]";
+    case "degraded":
+      return "bg-[var(--color-warning)]";
+    case "error":
+      return "bg-[var(--color-destructive)]";
+    default:
+      return "bg-[var(--color-text-muted)]";
+  }
+}
 
 // ─── ServiceCard ──────────────────────────────────────────────────────────────
 
@@ -12,36 +30,36 @@ interface ServiceCardProps {
 }
 
 const ServiceCard = React.memo(function ServiceCard({ service }: ServiceCardProps) {
-  const isOk = service.status === "ok";
-
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold capitalize text-gray-700">{service.name}</h3>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            isOk
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
-        >
-          {service.status}
-        </span>
-      </div>
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span className="capitalize">{service.name}</span>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+            <span
+              className={cn("inline-block h-2 w-2 rounded-full", statusDotClass(service.status))}
+              aria-label={`Status: ${service.status}`}
+            />
+            {service.status}
+          </span>
+        </CardTitle>
+      </CardHeader>
 
-      {service.latency_ms !== null ? (
-        <p className="mt-2 text-sm text-gray-500">
-          Latency:{" "}
-          <span className="font-medium text-gray-800">{service.latency_ms} ms</span>
-        </p>
-      ) : null}
+      <CardContent>
+        {service.latency_ms !== null ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Latency:{" "}
+            <span className="font-medium text-[var(--color-text-primary)]">{service.latency_ms} ms</span>
+          </p>
+        ) : null}
 
-      {service.status === "error" && service.error_message ? (
-        <p className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
-          {service.error_message}
-        </p>
-      ) : null}
-    </div>
+        {service.status === "error" && service.error_message ? (
+          <p className="mt-2 rounded bg-[var(--color-destructive)]/10 px-2 py-1 text-xs text-[var(--color-destructive)]">
+            {service.error_message}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 });
 
@@ -60,13 +78,10 @@ export function HealthDashboard() {
   if (isLoading) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">System Health</h2>
+        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {["sqlite", "qdrant", "ollama"].map((name) => (
-            <div
-              key={name}
-              className="h-24 animate-pulse rounded-lg bg-gray-100"
-            />
+            <Skeleton key={name} className="h-24 rounded-lg" />
           ))}
         </div>
       </section>
@@ -76,8 +91,8 @@ export function HealthDashboard() {
   if (error) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">System Health</h2>
-        <p className="text-sm text-red-600">Failed to load health status.</p>
+        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
+        <p className="text-sm text-[var(--color-destructive)]">Failed to load health status.</p>
       </section>
     );
   }
@@ -87,13 +102,13 @@ export function HealthDashboard() {
   }
 
   const overallColor =
-    health.status === "healthy" ? "text-green-600" : "text-red-600";
+    health.status === "healthy" ? "text-[var(--color-success)]" : "text-[var(--color-destructive)]";
 
   return (
     <section>
       <div className="mb-4 flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-gray-900">System Health</h2>
-        <span className={`text-sm font-medium capitalize ${overallColor}`}>
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
+        <span className={cn("text-sm font-medium capitalize", overallColor)}>
           {health.status}
         </span>
       </div>

@@ -6,6 +6,7 @@ import { HealthDashboard } from "@/components/HealthDashboard";
 import { TraceTable } from "@/components/TraceTable";
 import { CollectionStats } from "@/components/CollectionStats";
 import { useTraces } from "@/hooks/useTraces";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { LatencyChartProps } from "@/components/LatencyChart";
 import type { ConfidenceDistributionProps } from "@/components/ConfidenceDistribution";
 import type { MetricsTrendsProps } from "@/components/MetricsTrends";
@@ -17,9 +18,7 @@ const LatencyChart = dynamic<LatencyChartProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[250px] items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400">
-        Loading chart…
-      </div>
+      <Skeleton className="h-[250px] w-full rounded-lg" />
     ),
   },
 );
@@ -32,9 +31,7 @@ const ConfidenceDistribution = dynamic<ConfidenceDistributionProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[250px] items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400">
-        Loading chart…
-      </div>
+      <Skeleton className="h-[250px] w-full rounded-lg" />
     ),
   },
 );
@@ -45,9 +42,7 @@ const MetricsTrends = dynamic<MetricsTrendsProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[250px] items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400">
-        Loading metrics…
-      </div>
+      <Skeleton className="h-[250px] w-full rounded-lg" />
     ),
   },
 );
@@ -80,35 +75,35 @@ export default function ObservabilityPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-gray-900">Observability</h1>
+      <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Observability</h1>
 
       {/* ── Section 1: Health Dashboard — fetches its own data independently ── */}
       <HealthDashboard />
 
       {/* ── Section 2 & 3: Charts — loaded via dynamic import (ssr: false) ── */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">
           Query Analytics
         </h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
             {tracesLoading ? (
-              <div className="flex h-[275px] items-center justify-center text-sm text-gray-400">
-                Loading traces…
+              <div className="flex h-[275px] items-center justify-center text-sm text-[var(--color-text-muted)]">
+                Loading traces...
               </div>
             ) : tracesError ? (
-              <p className="text-sm text-red-600">Failed to load trace data.</p>
+              <p className="text-sm text-[var(--color-destructive)]">Failed to load trace data.</p>
             ) : (
               <LatencyChart traces={traces ?? []} />
             )}
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
             {tracesLoading ? (
-              <div className="flex h-[275px] items-center justify-center text-sm text-gray-400">
-                Loading traces…
+              <div className="flex h-[275px] items-center justify-center text-sm text-[var(--color-text-muted)]">
+                Loading traces...
               </div>
             ) : tracesError ? (
-              <p className="text-sm text-red-600">Failed to load trace data.</p>
+              <p className="text-sm text-[var(--color-destructive)]">Failed to load trace data.</p>
             ) : (
               <ConfidenceDistribution traces={traces ?? []} />
             )}
@@ -122,13 +117,13 @@ export default function ObservabilityPage() {
       {/* ── Section 4: Trace Table ── */}
       {tracesLoading ? (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Query Traces</h2>
-          <div className="h-40 animate-pulse rounded-lg bg-gray-100" />
+          <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">Query Traces</h2>
+          <Skeleton className="h-40 w-full rounded-lg" />
         </section>
       ) : tracesError ? (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Query Traces</h2>
-          <p className="text-sm text-red-600">Failed to load traces.</p>
+          <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">Query Traces</h2>
+          <p className="text-sm text-[var(--color-destructive)]">Failed to load traces.</p>
         </section>
       ) : (
         <TraceTable

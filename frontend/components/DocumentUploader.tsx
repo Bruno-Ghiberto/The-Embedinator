@@ -5,6 +5,9 @@ import { useDropzone } from 'react-dropzone';
 import { ingestFile, getIngestionJob } from '@/lib/api';
 import { UPLOAD_CONSTRAINTS, TERMINAL_JOB_STATES } from '@/lib/types';
 import type { IngestionJob } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,20 +42,16 @@ const ProgressBar = React.memo(function ProgressBar({
 
   return (
     <div className="mt-3">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-gray-600">
+      <Progress value={pct ?? 0} aria-label="Ingestion progress">
+        <ProgressLabel className="text-xs text-[var(--color-text-muted)]">
           {chunksProcessed} / {chunksTotal !== null ? chunksTotal : '?'} chunks
-        </span>
+        </ProgressLabel>
         {pct !== null ? (
-          <span className="text-xs font-medium text-blue-700">{pct}%</span>
+          <ProgressValue className="text-xs font-medium text-[var(--color-accent)]">
+            {() => `${pct}%`}
+          </ProgressValue>
         ) : null}
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-1.5">
-        <div
-          className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: pct !== null ? `${pct}%` : '0%' }}
-        />
-      </div>
+      </Progress>
     </div>
   );
 });
@@ -64,33 +63,33 @@ interface JobStatusProps {
 }
 
 const JOB_STATUS_LABEL: Record<string, string> = {
-  pending:   'Queued…',
-  started:   'Starting…',
-  streaming: 'Processing…',
-  embedding: 'Embedding…',
+  pending:   'Queued\u2026',
+  started:   'Starting\u2026',
+  streaming: 'Processing\u2026',
+  embedding: 'Embedding\u2026',
   completed: 'Completed',
   failed:    'Failed',
   paused:    'Paused',
 };
 
+const JOB_STATUS_STYLE: Record<string, string> = {
+  completed: 'bg-[var(--color-success)]/10 border-[var(--color-success)]/20 text-[var(--color-success)]',
+  failed:    'bg-[var(--color-destructive)]/10 border-[var(--color-destructive)]/20 text-[var(--color-destructive)]',
+};
+
+const JOB_STATUS_DEFAULT_STYLE = 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/20 text-[var(--color-accent)]';
+
 const JobStatus = React.memo(function JobStatus({ job }: JobStatusProps) {
   const label = JOB_STATUS_LABEL[job.status] ?? job.status;
   const isTerminal = TERMINAL_JOB_STATES.includes(job.status);
+  const statusStyle = JOB_STATUS_STYLE[job.status] ?? JOB_STATUS_DEFAULT_STYLE;
 
   return (
-    <div
-      className={`mt-4 p-3 rounded-lg text-sm ${
-        job.status === 'completed'
-          ? 'bg-green-50 border border-green-200 text-green-800'
-          : job.status === 'failed'
-          ? 'bg-red-50 border border-red-200 text-red-800'
-          : 'bg-blue-50 border border-blue-200 text-blue-800'
-      }`}
-    >
+    <div className={cn('mt-4 p-3 rounded-lg text-sm border', statusStyle)}>
       <div className="flex items-center gap-2">
         {!isTerminal ? (
           <span
-            className="inline-block w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
+            className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"
             aria-hidden="true"
           />
         ) : null}
@@ -105,7 +104,7 @@ const JobStatus = React.memo(function JobStatus({ job }: JobStatusProps) {
       ) : null}
 
       {job.status === 'failed' && job.error_message ? (
-        <p className="mt-1 text-xs text-red-700">{job.error_message}</p>
+        <p className="mt-1 text-xs text-[var(--color-destructive)]">{job.error_message}</p>
       ) : null}
     </div>
   );
@@ -245,30 +244,31 @@ export default function DocumentUploader({
 
   return (
     <div className="mt-6">
-      <h3 className="text-sm font-semibold text-gray-700 mb-2">Upload Document</h3>
+      <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Upload Document</h3>
 
       {/* Drop zone */}
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        className={cn(
+          'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
           isDragActive
-            ? 'border-blue-400 bg-blue-50'
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
             : isActive
-            ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-            : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50'
-        }`}
+            ? 'border-[var(--color-border)] bg-[var(--color-surface)] cursor-not-allowed opacity-60'
+            : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5'
+        )}
         aria-label="File upload drop zone"
       >
         <input {...getInputProps()} />
         {isDragActive ? (
-          <p className="text-sm text-blue-600 font-medium">Drop the file here…</p>
+          <p className="text-sm text-[var(--color-accent)] font-medium">Drop the file here\u2026</p>
         ) : (
           <div>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--color-text-muted)]">
               Drag and drop a file here, or{' '}
-              <span className="text-blue-600 font-medium">browse</span>
+              <span className="text-[var(--color-accent)] font-medium">browse</span>
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
               PDF, Markdown, TXT, RST — max 50 MB
             </p>
           </div>
@@ -277,26 +277,26 @@ export default function DocumentUploader({
 
       {/* Client-side file error — shown without network request */}
       {state.fileError !== null ? (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-[var(--color-destructive)]">
           {state.fileError}
         </p>
       ) : null}
 
       {/* Upload / API error */}
       {state.uploadError !== null ? (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-[var(--color-destructive)]">
           {state.uploadError}
         </p>
       ) : null}
 
       {/* Uploading spinner */}
       {state.isUploading ? (
-        <p className="mt-3 text-sm text-gray-500 flex items-center gap-2">
+        <p className="mt-3 text-sm text-[var(--color-text-muted)] flex items-center gap-2">
           <span
-            className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
+            className="inline-block w-4 h-4 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
             aria-hidden="true"
           />
-          Uploading…
+          Uploading\u2026
         </p>
       ) : null}
 

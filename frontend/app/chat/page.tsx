@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useStreamChat } from "@/hooks/useStreamChat";
+import { useChatStorage } from "@/hooks/useChatStorage";
 import ChatPanel from "@/components/ChatPanel";
 import ChatInput from "@/components/ChatInput";
 import ChatSidebar from "@/components/ChatSidebar";
@@ -10,6 +12,14 @@ import ChatSidebar from "@/components/ChatSidebar";
 const DEFAULT_LLM = "qwen2.5:7b";
 
 export default function ChatPage() {
+  return (
+    <Suspense>
+      <ChatPageContent />
+    </Suspense>
+  );
+}
+
+function ChatPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -24,7 +34,34 @@ export default function ChatPage() {
     () => searchParams.get("embed") ?? null,
   );
 
-  const { messages, isStreaming, sendMessage } = useStreamChat();
+  const { messages, isStreaming, sendMessage, setMessages } = useStreamChat();
+  const { storedMessages, storedSessionId, saveMessages, clearChat } =
+    useChatStorage();
+
+  // Track page session ID for localStorage persistence
+  const sessionIdRef = useRef<string>(
+    storedSessionId ?? crypto.randomUUID(),
+  );
+
+  // Hydrate stored messages on mount
+  useEffect(() => {
+    if (storedMessages.length > 0) {
+      setMessages(storedMessages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save messages to localStorage on changes (skip initial render)
+  const isInitialRender = useRef(true);
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    if (messages.length > 0) {
+      saveMessages(messages, sessionIdRef.current);
+    }
+  }, [messages, saveMessages]);
 
   // Sync state to URL params
   const updateUrlParams = useCallback(
@@ -82,7 +119,7 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-dvh">
       <ChatSidebar
         selectedCollections={selectedCollections}
         onCollectionsChange={handleCollectionsChange}
@@ -92,7 +129,11 @@ export default function ChatPage() {
         onEmbedModelChange={handleEmbedModelChange}
       />
       <div className="flex flex-1 flex-col">
-        <ChatPanel messages={messages} isStreaming={isStreaming} />
+        <ChatPanel
+          messages={messages}
+          isStreaming={isStreaming}
+          onSubmit={handleSubmit}
+        />
         <ChatInput
           isStreaming={isStreaming}
           selectedCollections={selectedCollections}

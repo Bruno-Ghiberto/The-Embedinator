@@ -35,6 +35,10 @@ Auto-generated from all feature plans. Last updated: 2026-03-10
 - In-memory SQLite (`:memory:`) for all unit tests; real Qdrant on `localhost:6333` for `@pytest.mark.require_docker` tests (016-testing-strategy)
 - Python 3.14+, TypeScript 5.7, Rust 1.93 + pydantic-settings, Docker Compose v2, Make, Rust toolchain (017-infra-setup)
 - SQLite WAL mode (`data/embedinator.db`), Qdrant, named Docker volumes (017-infra-setup)
+- TypeScript 5.7, Node.js LTS + Next.js 16, React 19, Tailwind CSS 4, shadcn/ui (new), next-themes (new), lucide-react (new), SWR 2, recharts 2, react-dropzone 14 (018-ux-redesign)
+- localStorage (browser-side: chat persistence, sidebar state, theme preference) (018-ux-redesign)
+- Python 3.14+ (backend), TypeScript 5.7 (frontend), Rust 1.93 (ingestion worker — compiled in Docker, unchanged), Bash/PowerShell (launcher scripts) + FastAPI >= 0.135, Next.js 16, React 19, SWR 2, Docker Compose v2 — all existing, no new dependencies added (019-cross-platform-dx)
+- SQLite WAL mode (existing), Qdrant (existing) — no schema changes (019-cross-platform-dx)
 
 - Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker) + FastAPI >= 0.135, LangGraph >= 1.0.10, LangChain >= 1.2.10, Qdrant Client >= 1.17.0, sentence-transformers >= 5.2.3, Pydantic v2 >= 2.12, aiosqlite >= 0.21, cryptography (Fernet) >= 44.0, structlog >= 24.0, tenacity >= 9.0 | Next.js 16, React 19, Tailwind CSS 4, SWR 2, recharts 2 (001-vision-arch)
 
@@ -88,9 +92,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker): Follow standard conventions
 
 ## Recent Changes
+- 019-cross-platform-dx: Added Python 3.14+ (backend), TypeScript 5.7 (frontend), Rust 1.93 (ingestion worker — compiled in Docker, unchanged), Bash/PowerShell (launcher scripts) + FastAPI >= 0.135, Next.js 16, React 19, SWR 2, Docker Compose v2 — all existing, no new dependencies added
+- 018-ux-redesign: Added TypeScript 5.7, Node.js LTS + Next.js 16, React 19, Tailwind CSS 4, shadcn/ui (new), next-themes (new), lucide-react (new), SWR 2, recharts 2, react-dropzone 14
 - 017-infra-setup: Added Python 3.14+, TypeScript 5.7, Rust 1.93 + pydantic-settings, Docker Compose v2, Make, Rust toolchain
-- 016-testing-strategy: Added Python 3.14+ (backend tests); TypeScript 5.7 (frontend tests — out of scope, already passing) + pytest >= 8.0, pytest-asyncio >= 0.24, pytest-cov >= 6.0, httpx >= 0.28 — all already installed
-- 015-observability: Added Python 3.14+ (backend), TypeScript 5.7 (frontend) + structlog >= 24.0 (contextvars, JSONRenderer), FastAPI >= 0.135, recharts 2 (frontend charts), SWR 2 (data fetching) — all already installed
 
 
 <!-- MANUAL ADDITIONS START -->
@@ -99,7 +103,7 @@ Python 3.14+, TypeScript 5.7, Rust 1.93.1 (Phase 2 ingestion worker): Follow sta
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **The-Embedinator** (4955 symbols, 10163 relationships, 160 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **The-Embedinator** (5000 symbols, 10200 relationships, 160 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

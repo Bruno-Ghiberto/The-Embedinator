@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -35,14 +36,54 @@ function buildChartData(
   }));
 }
 
-const FILL_SUCCESS = "#3b82f6";
-const FILL_FAILED = "#ef4444";
+// Stage color map — uses CSS variable values for theme compatibility.
+// Keys are lowercase stage names; fallback to accent color.
+const STAGE_COLOR_MAP: Record<string, string> = {
+  retrieval: "var(--color-accent)",
+  rerank: "var(--color-success)",
+  compress: "var(--color-warning)",
+  "meta-reasoning": "var(--chart-2)",
+  inference: "var(--chart-4)",
+};
+
+const FILL_FAILED = "var(--color-destructive)";
+
+function getStageColor(stage: string, failed: boolean): string {
+  if (failed) return FILL_FAILED;
+  return STAGE_COLOR_MAP[stage.toLowerCase()] ?? "var(--color-accent)";
+}
+
+// Resolve CSS variable to actual color value for recharts fill
+function resolveCssVar(cssVar: string): string {
+  if (typeof window === "undefined") return "#7c3aed";
+  if (!cssVar.startsWith("var(")) return cssVar;
+  const varName = cssVar.slice(4, -1).trim();
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || "#7c3aed";
+}
 
 // ─── StageTimingsChart ────────────────────────────────────────────────────────
 // Imported via next/dynamic with { ssr: false } in TraceTable.tsx
 
 export function StageTimingsChart({ timings }: StageTimingsChartProps) {
   const data = buildChartData(timings);
+
+  // Resolve CSS vars to actual colors for recharts (which needs real color values)
+  const [resolvedColors, setResolvedColors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const colors: Record<string, string> = {};
+    for (const entry of data) {
+      const cssVar = getStageColor(entry.stage, entry.failed);
+      colors[`${entry.stage}-${entry.failed}`] = resolveCssVar(cssVar);
+    }
+    // Also resolve the axis label color
+    colors["__axis"] = resolveCssVar("var(--color-text-muted)");
+    colors["__grid"] = resolveCssVar("var(--color-border)");
+    setResolvedColors(colors);
+  }, [data]);
+
+  const axisColor = resolvedColors["__axis"] || "#6b52b5";
+  const gridColor = resolvedColors["__grid"] || "#d1c4f5";
 
   return (
     <div>
@@ -52,35 +93,41 @@ export function StageTimingsChart({ timings }: StageTimingsChartProps) {
           data={data}
           margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
           <XAxis
             type="number"
             dataKey="duration_ms"
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: axisColor }}
             tickFormatter={(v: number) => `${v} ms`}
             label={{
               value: "Duration (ms)",
               position: "insideBottomRight",
               offset: -4,
               fontSize: 11,
-              fill: "#6b7280",
+              fill: axisColor,
             }}
           />
           <YAxis
             type="category"
             dataKey="stage"
             width={120}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: axisColor }}
           />
           <Tooltip
             formatter={(value: number) => [`${value} ms`, "Duration"]}
             labelFormatter={(label: string) => `Stage: ${label}`}
+            contentStyle={{
+              backgroundColor: "var(--color-surface)",
+              borderColor: "var(--color-border)",
+              color: "var(--color-text-primary)",
+              borderRadius: "0.5rem",
+            }}
           />
           <Bar dataKey="duration_ms" name="Duration" radius={[0, 3, 3, 0]}>
             {data.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.failed ? FILL_FAILED : FILL_SUCCESS}
+                fill={resolvedColors[`${entry.stage}-${entry.failed}`] || "#7c3aed"}
               />
             ))}
           </Bar>
