@@ -151,6 +151,23 @@ export interface HealthService {
   error_message: string | null;
 }
 
+// ─── Backend Status (FR-046) ──────────────────────────────────────────────
+
+export type BackendStatus = "unreachable" | "degraded" | "ready";
+
+export interface BackendHealthServiceStatus {
+  name: string;
+  status: "ok" | "error";
+  latency_ms: number | null;
+  error_message: string | null;
+  models?: Record<string, boolean>;
+}
+
+export interface BackendHealthResponse {
+  status: "healthy" | "degraded" | "starting";
+  services: BackendHealthServiceStatus[];
+}
+
 export interface SystemStats {
   total_collections: number;
   total_documents: number;

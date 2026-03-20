@@ -3,7 +3,11 @@
 import logging
 import logging as stdlib_logging
 import sys
+import tempfile
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+import aiosqlite
 
 import structlog
 from fastapi import FastAPI, Request
@@ -122,6 +126,20 @@ async def lifespan(app: FastAPI):
     _configure_logging(settings.log_level, settings.log_level_overrides)
     logger = structlog.get_logger().bind(component=__name__)
 
+    # FR-044: Ensure upload directory exists before any I/O
+    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+    logger.info("startup_upload_dir_ensured", path=settings.upload_dir)
+
+    # FR-045: Verify data directory is writable; abort with clear error if not
+    data_dir = Path(settings.upload_dir).parent
+    try:
+        _tmp = tempfile.NamedTemporaryFile(dir=data_dir, prefix=".writetest_", delete=False)
+        _tmp.close()
+        Path(_tmp.name).unlink()
+    except PermissionError:
+        logger.error("startup_data_dir_not_writable", path=str(data_dir))
+        raise SystemExit(1)
+
     # Startup
     db = SQLiteDB(settings.sqlite_path)
     await db.connect()
@@ -221,10 +239,25 @@ async def lifespan(app: FastAPI):
         note="SC-005: backend idle memory target <600 MB excluding inference engine",
     )
 
+    # FR-050: Initialize shutdown flag — False during normal operation
+    app.state.shutting_down = False
+
     yield
 
-    # Shutdown
+    # FR-050: Signal all in-flight requests to reject new work
+    app.state.shutting_down = True
+
+    # FR-051: WAL checkpoint for main database before closing
+    await db.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     await db.close()
+
+    # FR-051: WAL checkpoint for checkpoints database
+    async with aiosqlite.connect(checkpoint_path) as ckpt_conn:
+        await ckpt_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    # FR-052: Explicitly close the LangGraph checkpointer connection
+    await checkpointer.conn.close()
+
     await qdrant.close()
     logger.info("storage_shutdown_complete")
 

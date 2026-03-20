@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { useBackendStatus } from "@/components/BackendStatusProvider";
 
 interface ChatInputProps {
   isStreaming: boolean;
@@ -15,17 +18,23 @@ function ChatInputInner({
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { state: backendState } = useBackendStatus();
+
+  const backendReady = backendState === "ready";
 
   const canSend =
-    !isStreaming && message.trim().length > 0 && selectedCollections.length > 0;
+    backendReady &&
+    !isStreaming &&
+    message.trim().length > 0 &&
+    selectedCollections.length > 0;
 
   const handleSubmit = useCallback(() => {
     const trimmed = message.trim();
-    if (!trimmed || isStreaming || selectedCollections.length === 0) return;
+    if (!trimmed || isStreaming || selectedCollections.length === 0 || !backendReady) return;
     onSubmit(trimmed);
     setMessage("");
     textareaRef.current?.focus();
-  }, [message, isStreaming, selectedCollections.length, onSubmit]);
+  }, [message, isStreaming, selectedCollections.length, backendReady, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -37,30 +46,35 @@ function ChatInputInner({
     [handleSubmit],
   );
 
+  function getPlaceholder(): string {
+    if (backendState === "unreachable") return "Waiting for backend to start...";
+    if (backendState === "degraded") {
+      // Placeholder will be refined by StatusBanner which shows the specific service
+      return "AI models are still loading...";
+    }
+    if (selectedCollections.length === 0) return "Select at least one collection to start...";
+    return "Ask a question... (Shift+Enter for newline)";
+  }
+
   return (
-    <div className="flex gap-2 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-      <textarea
+    <div className="flex gap-2 border-t border-[var(--color-border)] bg-[var(--color-background)] p-4">
+      <Textarea
         ref={textareaRef}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={
-          selectedCollections.length === 0
-            ? "Select at least one collection to start..."
-            : "Ask a question... (Shift+Enter for newline)"
-        }
+        placeholder={getPlaceholder()}
         rows={2}
-        className="flex-1 resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm placeholder:text-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
-        disabled={isStreaming}
+        className="flex-1 resize-none"
+        disabled={isStreaming || !backendReady}
       />
-      <button
-        type="button"
+      <Button
         onClick={handleSubmit}
         disabled={!canSend}
-        className="self-end rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+        className="self-end"
       >
         {isStreaming ? "Sending..." : "Send"}
-      </button>
+      </Button>
     </div>
   );
 }

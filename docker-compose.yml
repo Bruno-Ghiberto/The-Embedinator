@@ -3,37 +3,40 @@ services:
     image: qdrant/qdrant:latest
     container_name: embedinator-qdrant
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "${EMBEDINATOR_PORT_QDRANT:-6333}:6333"
+      - "${EMBEDINATOR_PORT_QDRANT_GRPC:-6334}:6334"
     volumes:
-      - ./data/qdrant_db:/qdrant/storage
+      - ./data/qdrant_db:/qdrant/storage:z
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo -e \"GET /healthz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/6333'"]
       interval: 10s
       timeout: 5s
       retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
     container_name: embedinator-ollama
     ports:
-      - "11434:11434"
+      - "${EMBEDINATOR_PORT_OLLAMA:-11434}:11434"
     volumes:
       - ollama_models:/root/.ollama
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull qwen2.5:7b && wait"]
+    entrypoint: ["ollama", "serve"]
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo -e \"GET /api/tags HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/11434'"]
       interval: 15s
       timeout: 10s
       retries: 5
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
 
   backend:
@@ -42,7 +45,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: embedinator-backend
     ports:
-      - "8000:8000"
+      - "${EMBEDINATOR_PORT_BACKEND:-8000}:8000"
     env_file: .env
     environment:
       QDRANT_HOST: qdrant
@@ -58,12 +61,18 @@ services:
       ollama:
         condition: service_healthy
     volumes:
-      - ./data:/data
+      - ./data:/data:z
+    stop_grace_period: 15s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/live"]
       interval: 10s
       timeout: 5s
       retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
 
   frontend:
@@ -72,11 +81,23 @@ services:
       dockerfile: Dockerfile
     container_name: embedinator-frontend
     ports:
-      - "3000:3000"
+      - "${EMBEDINATOR_PORT_FRONTEND:-3000}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8000
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
 
 volumes:

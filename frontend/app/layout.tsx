@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Geist } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
-import Navigation from "@/components/Navigation";
+import { cn } from "@/lib/utils";
+import { SidebarLayout } from "@/components/SidebarLayout";
+import { BackendStatusProvider } from "@/components/BackendStatusProvider";
+import { Toaster } from "@/components/ui/sonner";
+import CommandPalette from "@/components/CommandPalette";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,10 +26,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body className={`${inter.variable} antialiased`}>
-        <Navigation />
-        <main className="pt-16">{children}</main>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <BackendStatusProvider>
+            <SidebarLayout>
+              {children}
+            </SidebarLayout>
+          </BackendStatusProvider>
+          <Toaster />
+          <CommandPalette />
+        </ThemeProvider>
       </body>
     </html>
   );

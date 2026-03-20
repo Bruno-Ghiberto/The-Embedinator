@@ -16,7 +16,7 @@ RUN cargo build --release
 FROM python:3.14-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+RUN apt-get update && apt-get install -y --no-install-recommends curl tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy compiled Rust binary — path must match rust_worker_path default in Settings
@@ -26,12 +26,17 @@ COPY --from=rust-builder /build/target/release/embedinator-worker \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download cross-encoder model at build time (FR-040)
+ENV HF_HOME=/app/.cache/huggingface
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+
 COPY backend/ ./backend/
 
-# Non-root user (FR-015)
-RUN addgroup --system appgroup && \
-    adduser --system --ingroup appgroup --no-create-home appuser
+# Non-root user with fixed UID/GID 1000 (FR-038)
+RUN addgroup --system --gid 1000 appgroup && \
+    adduser --system --uid 1000 --gid 1000 --no-create-home appuser
 USER appuser
 
 EXPOSE 8000
+ENTRYPOINT ["tini", "--"]
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

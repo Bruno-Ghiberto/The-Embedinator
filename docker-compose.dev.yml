@@ -15,8 +15,17 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: deps
     volumes:
-      - ./frontend/src:/app/src
+      - ./frontend/app:/app/app
+      - ./frontend/components:/app/components
+      - ./frontend/hooks:/app/hooks
+      - ./frontend/lib:/app/lib
+      - ./frontend/public:/app/public
+      - ./frontend/next.config.ts:/app/next.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+      - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    command: npm run dev
+      - BACKEND_URL=http://backend:8000
+    command: npx next dev --hostname 0.0.0.0

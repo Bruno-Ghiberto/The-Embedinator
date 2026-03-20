@@ -1,4 +1,9 @@
-"""System health check endpoint with per-service latency measurements."""
+"""System health check endpoint with per-service latency measurements.
+
+FR-037: All health probes in this module use direct httpx.AsyncClient calls.
+They intentionally bypass the HybridSearcher circuit breaker so that health
+checks always reflect actual service availability rather than circuit state.
+"""
 
 import time
 
@@ -11,10 +16,29 @@ from backend.config import settings
 
 router = APIRouter()
 
+# Module-level flag: True until the first readiness probe completes (FR-035).
+# Callers see "starting" on the very first /api/health call so orchestrators
+# (e.g. docker-compose depends_on) know the backend is still initialising.
+_first_probe = True
+
+
+@router.get("/api/health/live")
+async def health_live():
+    """Liveness probe — returns alive unconditionally, no dependency checks (FR-032)."""
+    return {"status": "alive"}
+
 
 @router.get("/api/health")
 async def health(request: Request):
-    """Probe SQLite, Qdrant, and Ollama with latency measurements."""
+    """Readiness probe: probe SQLite, Qdrant, and Ollama with latency measurements."""
+    global _first_probe
+
+    # FR-035: On the very first call return "starting" without probing dependencies.
+    if _first_probe:
+        _first_probe = False
+        response = HealthResponse(status="starting", services=[])
+        return JSONResponse(content=response.model_dump(), status_code=200)
+
     services = []
     all_ok = True
 
@@ -31,6 +55,8 @@ async def health(request: Request):
         all_ok = False
 
     # 3. Ollama probe
+    # NOTE FR-037: Uses direct httpx call — intentionally bypasses HybridSearcher
+    # circuit breaker so this probe always reflects true Ollama availability.
     ollama_status = await _probe_ollama()
     services.append(ollama_status)
     if ollama_status.status == "error":
@@ -78,14 +104,26 @@ async def _probe_qdrant(request: Request) -> HealthServiceStatus:
 
 
 async def _probe_ollama() -> HealthServiceStatus:
-    """Probe Ollama via /api/tags endpoint."""
+    """Probe Ollama via /api/tags and check model availability (FR-034).
+
+    NOTE FR-037: Uses direct httpx call — intentionally bypasses HybridSearcher
+    circuit breaker so this probe always reflects true Ollama availability.
+    """
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(f"{settings.ollama_base_url}/api/tags")
             latency = round((time.monotonic() - start) * 1000, 1)
             if resp.status_code == 200:
-                return HealthServiceStatus(name="ollama", status="ok", latency_ms=latency)
+                data = resp.json()
+                available_names = {m["name"] for m in data.get("models", [])}
+                models = {
+                    settings.default_llm_model: settings.default_llm_model in available_names,
+                    settings.default_embed_model: settings.default_embed_model in available_names,
+                }
+                return HealthServiceStatus(
+                    name="ollama", status="ok", latency_ms=latency, models=models
+                )
             else:
                 return HealthServiceStatus(
                     name="ollama", status="error",

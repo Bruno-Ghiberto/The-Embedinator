@@ -1,0 +1,11 @@
+# NVIDIA GPU overlay — merge with docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu-nvidia.yml up
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

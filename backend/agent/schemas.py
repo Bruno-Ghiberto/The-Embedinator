@@ -174,10 +174,11 @@ class HealthServiceStatus(BaseModel):
     status: Literal["ok", "error"]
     latency_ms: float | None = None
     error_message: str | None = None
+    models: dict[str, bool] | None = None  # Ollama model availability (FR-034)
 
 
 class HealthResponse(BaseModel):
-    status: Literal["healthy", "degraded"]
+    status: Literal["healthy", "degraded", "starting"]
     services: list[HealthServiceStatus]
 
 

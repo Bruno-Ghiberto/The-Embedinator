@@ -15,6 +15,7 @@ from backend.config import settings
 logger = structlog.get_logger().bind(component=__name__)
 
 _PROVIDER_KEY_PATTERN = re.compile(r"^/api/providers/[^/]+/key$")
+_HEALTH_LOG_EXCLUDE = {"/api/health", "/api/health/live"}  # FR-036: suppress health poll noise
 
 
 class TraceIDMiddleware(BaseHTTPMiddleware):
@@ -36,6 +37,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log every request with structured JSON fields (T073)."""
 
     async def dispatch(self, request: Request, call_next):
+        if request.url.path in _HEALTH_LOG_EXCLUDE:
+            return await call_next(request)
+
         start = time.monotonic()
         trace_id = getattr(request.state, "trace_id", "unknown")
 

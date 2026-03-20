@@ -1,0 +1,17 @@
+# Enforce LF line endings for cross-platform compatibility (FR-053)
+* text=auto
+
+# Unix scripts — always LF
+*.sh        text eol=lf
+*.py        text eol=lf
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+Makefile    text eol=lf
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf
+
+# Windows scripts — always CRLF
+*.ps1       text eol=crlf

@@ -58,6 +58,15 @@ async def chat(body: ChatRequest, request: Request):
     embed_model = body.embed_model or settings.default_embed_model
 
     async def generate():
+        # FR-050: Reject requests during graceful shutdown
+        if getattr(request.app.state, "shutting_down", False):
+            yield json.dumps({
+                "type": "error",
+                "code": "SHUTTING_DOWN",
+                "message": "Server is shutting down. Please retry in a moment.",
+            }) + "\n"
+            return
+
         start_time = time.monotonic()
 
         # Empty-collections guard
