@@ -1,0 +1,124 @@
+# .goreleaser.yml
+# goreleaser v2 configuration for the embedinator CLI binary.
+# Run from the cli/ directory: goreleaser release --clean
+#
+# Tag format: cli/v<semver>  (e.g., cli/v0.1.0)
+version: 2
+
+project_name: embedinator
+
+before:
+  hooks:
+    - go mod tidy
+
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
+builds:
+  - id: embedinator
+    dir: .
+    main: ./cmd/embedinator
+    binary: embedinator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/Bruno-Ghiberto/The-Embedinator/cli/internal/version.Version={{.Version}}
+      - -X github.com/Bruno-Ghiberto/The-Embedinator/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/Bruno-Ghiberto/The-Embedinator/cli/internal/version.Date={{.Date}}
+
+# ---------------------------------------------------------------------------
+# Archives
+# ---------------------------------------------------------------------------
+archives:
+  - id: default
+    ids:
+      - embedinator
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      # Include only the binary — install scripts are added as extra_files on the release
+      - none*
+
+# ---------------------------------------------------------------------------
+# Checksums
+# ---------------------------------------------------------------------------
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# ---------------------------------------------------------------------------
+# Changelog (used for GitHub Release body)
+# ---------------------------------------------------------------------------
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^style:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: "New Features"
+      regexp: "^feat"
+      order: 0
+    - title: "Bug Fixes"
+      regexp: "^fix"
+      order: 1
+    - title: "Performance"
+      regexp: "^perf"
+      order: 2
+    - title: "Other Changes"
+      order: 999
+
+# ---------------------------------------------------------------------------
+# Homebrew tap
+# ---------------------------------------------------------------------------
+brews:
+  - name: embedinator
+    ids:
+      - default
+    repository:
+      owner: Bruno-Ghiberto
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/Bruno-Ghiberto/The-Embedinator"
+    description: "TUI installer and manager for The Embedinator RAG system"
+    license: "Apache-2.0"
+    skip_upload: auto
+    install: |
+      bin.install "embedinator"
+    test: |
+      assert_match "embedinator", shell_output("#{bin}/embedinator version")
+
+# ---------------------------------------------------------------------------
+# GitHub Release
+# ---------------------------------------------------------------------------
+release:
+  github:
+    owner: Bruno-Ghiberto
+    name: The-Embedinator
+  name_template: "CLI v{{.Version}}"
+  draft: false
+  prerelease: auto
+  # Include install scripts as downloadable assets on the release page
+  extra_files:
+    - glob: scripts/install.sh
+    - glob: scripts/install.ps1

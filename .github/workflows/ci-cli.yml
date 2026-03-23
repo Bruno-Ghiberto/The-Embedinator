@@ -27,7 +27,7 @@ jobs:
           - macos-latest
           - windows-latest
         go:
-          - "1.23"
+          - "1.24"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +36,14 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache-dependency-path: cli/go.sum
+
+      - name: Vet
+        working-directory: cli
+        run: go vet ./...
+
+      - name: Build
+        working-directory: cli
+        run: go build ./...
 
       - name: Test with race detector and coverage
         working-directory: cli
@@ -49,10 +57,6 @@ jobs:
           path: cli/coverage.out
           retention-days: 7
 
-      - name: Build verification
-        working-directory: cli
-        run: go build -o embedinator${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -61,7 +65,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
           cache-dependency-path: cli/go.sum
 
       - name: Run golangci-lint
