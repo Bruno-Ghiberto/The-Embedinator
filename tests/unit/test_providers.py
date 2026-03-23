@@ -396,3 +396,34 @@ class TestOllamaEmbedModelParam:
 
         called_json = mock_client.post.call_args[1]["json"]
         assert called_json["model"] == "all-MiniLM-L6-v2"
+
+    @pytest.mark.asyncio
+    async def test_embed_single_falls_back_to_legacy_embeddings_endpoint_on_404(self):
+        from backend.providers.ollama import OllamaEmbeddingProvider
+
+        primary_response = MagicMock()
+        primary_response.status_code = 404
+
+        fallback_response = MagicMock()
+        fallback_response.raise_for_status = MagicMock()
+        fallback_response.json.return_value = {"embedding": [0.9, 0.8, 0.7]}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=[primary_response, fallback_response])
+
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_client)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("httpx.AsyncClient") as MockClient:
+            MockClient.return_value = ctx
+            provider = OllamaEmbeddingProvider(base_url="http://localhost:11434", model="nomic-embed-text")
+            embedding = await provider.embed_single("test text")
+
+        assert mock_client.post.call_count == 2
+        first_call = mock_client.post.call_args_list[0]
+        assert "/api/embed" in first_call[0][0]
+        second_call = mock_client.post.call_args_list[1]
+        assert "/api/embeddings" in second_call[0][0]
+        assert second_call[1]["json"] == {"model": "nomic-embed-text", "prompt": "test text"}
+        assert embedding == [0.9, 0.8, 0.7]

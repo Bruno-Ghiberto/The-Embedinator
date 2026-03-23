@@ -71,9 +71,7 @@ class TestBatchEmbedder:
         batch = ["hello", "world"]
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "embeddings": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-        }
+        mock_response.json.return_value = {"embeddings": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]}
         mock_response.raise_for_status = MagicMock()
 
         with patch("backend.ingestion.embedder.httpx.Client") as mock_client_cls:
@@ -114,6 +112,44 @@ class TestBatchEmbedder:
 
             with pytest.raises(httpx.HTTPStatusError):
                 embedder._embed_batch(["test"])
+
+    def test_embed_batch_falls_back_to_legacy_embeddings_endpoint_on_404(self):
+        """If /api/embed returns 404, _embed_batch falls back to /api/embeddings."""
+        embedder = BatchEmbedder(model="test-model")
+
+        primary_response = MagicMock()
+        primary_response.status_code = 404
+
+        fallback_response_1 = MagicMock()
+        fallback_response_1.raise_for_status = MagicMock()
+        fallback_response_1.json.return_value = {"embedding": [0.11, 0.22]}
+
+        fallback_response_2 = MagicMock()
+        fallback_response_2.raise_for_status = MagicMock()
+        fallback_response_2.json.return_value = {"embedding": [0.33, 0.44]}
+
+        with patch("backend.ingestion.embedder.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.side_effect = [
+                primary_response,
+                fallback_response_1,
+                fallback_response_2,
+            ]
+            mock_client_cls.return_value = mock_client
+
+            result = embedder._embed_batch(["hello", "world"])
+
+        assert mock_client.post.call_count == 3
+        first_call = mock_client.post.call_args_list[0]
+        assert "/api/embed" in first_call[0][0]
+        second_call = mock_client.post.call_args_list[1]
+        assert "/api/embeddings" in second_call[0][0]
+        assert second_call[1]["json"] == {"model": "test-model", "prompt": "hello"}
+        third_call = mock_client.post.call_args_list[2]
+        assert third_call[1]["json"] == {"model": "test-model", "prompt": "world"}
+        assert result == [[0.11, 0.22], [0.33, 0.44]]
 
     def test_default_settings_used(self):
         """BatchEmbedder uses settings defaults when no args provided."""

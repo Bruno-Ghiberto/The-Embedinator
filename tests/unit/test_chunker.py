@@ -28,7 +28,16 @@ def test_empty_input_returns_no_parents(splitter):
 
 def test_single_short_chunk_produces_one_parent(splitter):
     """A single raw chunk shorter than parent_size creates one parent."""
-    raw = [{"text": "Hello world. " * 50, "page": 1, "section": "", "heading_path": [], "doc_type": "prose", "chunk_index": 0}]
+    raw = [
+        {
+            "text": "Hello world. " * 50,
+            "page": 1,
+            "section": "",
+            "heading_path": [],
+            "doc_type": "prose",
+            "chunk_index": 0,
+        }
+    ]
     parents = splitter.split_into_parents(raw, "test.pdf")
     assert len(parents) == 1
     assert isinstance(parents[0], ParentChunkData)
@@ -60,8 +69,22 @@ def test_parent_chunks_respect_size_bounds(splitter):
 def test_heading_change_triggers_new_parent(splitter):
     """A change in heading_path forces a new parent chunk."""
     raw_chunks = [
-        {"text": "Content A. " * 20, "page": 1, "section": "A", "heading_path": ["Chapter 1", "A"], "doc_type": "prose", "chunk_index": 0},
-        {"text": "Content B. " * 20, "page": 1, "section": "B", "heading_path": ["Chapter 1", "B"], "doc_type": "prose", "chunk_index": 1},
+        {
+            "text": "Content A. " * 20,
+            "page": 1,
+            "section": "A",
+            "heading_path": ["Chapter 1", "A"],
+            "doc_type": "prose",
+            "chunk_index": 0,
+        },
+        {
+            "text": "Content B. " * 20,
+            "page": 1,
+            "section": "B",
+            "heading_path": ["Chapter 1", "B"],
+            "doc_type": "prose",
+            "chunk_index": 1,
+        },
     ]
     parents = splitter.split_into_parents(raw_chunks, "doc.pdf")
     assert len(parents) == 2
@@ -71,7 +94,16 @@ def test_heading_change_triggers_new_parent(splitter):
 
 def test_parent_has_children(splitter):
     """Each parent has child chunks with text, point_id, and chunk_index."""
-    raw = [{"text": "This is a test sentence. " * 80, "page": 1, "section": "", "heading_path": [], "doc_type": "prose", "chunk_index": 0}]
+    raw = [
+        {
+            "text": "This is a test sentence. " * 80,
+            "page": 1,
+            "section": "",
+            "heading_path": [],
+            "doc_type": "prose",
+            "chunk_index": 0,
+        }
+    ]
     parents = splitter.split_into_parents(raw, "test.pdf")
     assert len(parents) == 1
     children = parents[0].children
@@ -111,7 +143,12 @@ def test_child_split_preserves_sentence_boundaries(splitter):
     children = splitter.split_parent_into_children(text, target_size=50)
     for child in children:
         # Each child should end with a complete sentence (period at end)
-        assert child.rstrip().endswith(".") or child.rstrip().endswith("!") or child.rstrip().endswith("?") or len(children) == 1
+        assert (
+            child.rstrip().endswith(".")
+            or child.rstrip().endswith("!")
+            or child.rstrip().endswith("?")
+            or len(children) == 1
+        )
 
 
 def test_short_text_returns_single_child(splitter):
@@ -199,7 +236,7 @@ def test_uuid5_uniqueness_different_chunk_index():
 def test_uuid5_uses_embedinator_namespace():
     """Point ID matches manual UUID5 computation with EMBEDINATOR_NAMESPACE."""
     point_id = ChunkSplitter.compute_point_id("test.pdf", 5, 10)
-    expected = str(uuid.uuid5(EMBEDINATOR_NAMESPACE, "test.pdf:5:10"))
+    expected = str(uuid.uuid5(EMBEDINATOR_NAMESPACE, "global:test.pdf:5:10"))
     assert point_id == expected
 
 
@@ -208,3 +245,10 @@ def test_uuid5_is_version_5():
     point_id = ChunkSplitter.compute_point_id("doc.pdf", 1, 0)
     parsed = uuid.UUID(point_id)
     assert parsed.version == 5
+
+
+def test_uuid5_namespace_changes_output():
+    """Different id_namespace should produce different deterministic IDs."""
+    id1 = ChunkSplitter.compute_point_id("doc.pdf", 1, 0, id_namespace="collection-a")
+    id2 = ChunkSplitter.compute_point_id("doc.pdf", 1, 0, id_namespace="collection-b")
+    assert id1 != id2
