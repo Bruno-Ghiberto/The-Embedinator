@@ -2,11 +2,10 @@
 
 **Self-hosted agentic RAG system for private document intelligence.**
 
-<!-- Badges placeholder -->
-<!-- ![Build](https://img.shields.io/github/actions/workflow/status/...) -->
-<!-- ![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen) -->
-<!-- ![Python](https://img.shields.io/badge/python-3.14%2B-blue) -->
-<!-- ![License](https://img.shields.io/badge/license-TBD-lightgrey) -->
+![CI](https://github.com/Bruno-Ghiberto/The-Embedinator/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
+![Python](https://img.shields.io/badge/python-3.14%2B-blue)
 
 ---
 
@@ -29,6 +28,29 @@ The entire stack runs locally: Python backend, Rust ingestion worker, Next.js
 frontend, Qdrant vector database, and Ollama for local LLM inference. Cloud
 providers (OpenAI, Anthropic, OpenRouter) are supported as optional
 alternatives.
+
+
+## Screenshots
+
+![Chat Interface](docs/images/chat-light.png)
+
+![Dark Mode](docs/images/chat-dark.png)
+
+![Collections](docs/images/collections.png)
+
+![Observability Dashboard](docs/images/observability.png)
+
+
+## Why The Embedinator?
+
+Most RAG tools do a single vector lookup and pass the results to an LLM. The Embedinator goes further:
+
+- **3-layer agent architecture** — ConversationGraph manages sessions and intent, ResearchGraph performs multi-step retrieval with six tools, and MetaReasoningGraph detects failures and applies recovery strategies. This is not a single-shot pipeline; it is an iterative, self-correcting agent system.
+- **Meta-reasoning recovery** — When initial retrieval produces poor results (low relevance, high variance, poor coverage), the system automatically tries alternative strategies: query reformulation, broader collection search, or question decomposition.
+- **Grounded answer verification** — Every claim in the generated answer is checked against the retrieved evidence. Unsupported claims are marked `[unverified]` so you know exactly what is backed by your documents.
+- **5-signal confidence scoring** — Confidence is computed from retrieval quality, reranker agreement, coverage breadth, coherence, and source diversity — not just raw similarity scores.
+- **Hybrid search with cross-encoder reranking** — Dense vector search and BM25 sparse retrieval run in parallel via Qdrant, then a cross-encoder reranker re-orders the top results for precision.
+- **Parent/child chunking with breadcrumbs** — Small child chunks are used for precise retrieval, while their parent chunks provide the LLM with broader document context. Structural breadcrumbs (heading hierarchy) are prepended so the model knows where each chunk lives in the original document.
 
 
 ## Key Features
@@ -109,44 +131,40 @@ collection search, or question decomposition.
 | Cloud providers| OpenAI, Anthropic, OpenRouter (optional)             |
 
 
-## Prerequisites
-
-- **Python 3.14+** with pip
-- **Rust 1.93+** with cargo (for the ingestion worker)
-- **Node.js LTS** (22+) with npm (for the frontend)
-- **Docker** and **Docker Compose v2**
-- **Ollama** (runs via Docker or standalone)
-- ~8 GB RAM minimum (models load ~700 MB for reranker + embeddings)
-- GPU recommended for Ollama inference (NVIDIA with CUDA support)
-
-
 ## Quick Start
+
+The only prerequisite is [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/Bruno-Ghiberto/The-Embedinator.git
 cd The-Embedinator
 
-# 2. Copy and configure environment
-cp .env.example .env
-# Edit .env — defaults work for local-only setup
-
-# 3. Start all services with Docker Compose
-make up
-
-# 4. Pull the default Ollama models
-make pull-models
-
-# 5. Access the application
-#    Frontend: http://localhost:3000
-#    Backend API: http://localhost:8000
-#    API docs: http://localhost:8000/docs
+# 2. Launch everything
+./embedinator.sh          # macOS / Linux
+# .\embedinator.ps1       # Windows (PowerShell)
 ```
 
-For local development without Docker (backend and frontend run natively):
+The launcher script will:
+
+1. Check that Docker is running
+2. Generate a `.env` file with a Fernet encryption key (first run only)
+3. Detect GPU availability (NVIDIA, AMD, Intel) and configure Docker accordingly
+4. Build and start all four services (Qdrant, Ollama, backend, frontend)
+5. Pull the default AI models (~4 GB on first run: qwen2.5:7b + nomic-embed-text)
+6. Open the application in your browser at `http://localhost:3000`
+
+The backend API is available at `http://localhost:8000` with interactive docs at `http://localhost:8000/docs`.
+
+
+## Development Setup
+
+For contributors who want to work on individual components with hot reload.
+
+**Prerequisites:** Python 3.14+, Node.js 22+, Docker, Git
 
 ```bash
-# Install all dependencies
+# Install all dependencies (Python, Node, Rust)
 make setup
 
 # Start infrastructure (Qdrant + Ollama in Docker)
@@ -156,6 +174,45 @@ make dev-infra
 make dev-backend    # Python backend with hot reload on :8000
 make dev-frontend   # Next.js frontend with hot reload on :3000
 ```
+
+### Backend (Python)
+
+```bash
+# Create and activate a virtual environment
+python3.14 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start infrastructure services
+make dev-infra
+
+# Run the backend with hot reload
+make dev-backend
+# Backend is available at http://localhost:8000
+```
+
+### Frontend (Next.js)
+
+```bash
+cd frontend
+npm install
+npm run dev
+# Frontend is available at http://localhost:3000
+```
+
+### Rust Ingestion Worker
+
+```bash
+cd ingestion-worker
+cargo build --release
+# Binary output: target/release/embedinator-worker
+```
+
+The ingestion worker is a CLI binary invoked by the Python backend during
+document processing. It reads a file path from its arguments and outputs
+structured JSON chunks to stdout.
 
 
 ## Makefile Targets
@@ -344,8 +401,20 @@ The-Embedinator/
 |   |   |-- documents/             # Document browser
 |   |   |-- settings/              # Application settings
 |   |   +-- observability/         # Traces, metrics, health dashboard
-|   |-- components/             # 21 React components
+|   |-- components/             # Application components
+|   |   |-- ui/                    # shadcn/ui primitives (20+ components)
+|   |   |-- ChatPanel.tsx          # Chat message rendering
+|   |   |-- CollectionCard.tsx     # Collection card display
+|   |   |-- DocumentUploader.tsx   # Drag-and-drop upload
+|   |   |-- ProviderHub.tsx        # LLM provider management
+|   |   |-- CommandPalette.tsx     # Cmd+K command palette
+|   |   |-- ThemeToggle.tsx        # Dark/light mode toggle
+|   |   +-- SidebarLayout.tsx      # Collapsible sidebar navigation
 |   |-- hooks/                  # Custom React hooks (SWR-based)
+|   |   |-- useStreamChat.ts       # Streaming chat hook
+|   |   |-- useCollections.ts      # Collection data fetching
+|   |   |-- useTraces.ts           # Trace data fetching
+|   |   +-- useMetrics.ts          # Metrics data fetching
 |   +-- lib/                    # API client + shared types
 |-- ingestion-worker/           # Rust document parser
 |   +-- src/
@@ -362,60 +431,32 @@ The-Embedinator/
 |   |-- e2e/                    # End-to-end tests (4 files)
 |   |-- regression/             # Regression test suite
 |   +-- fixtures/               # Sample PDF, Markdown, text files
-|-- specs/                      # 17 feature specifications
+|-- docs/                       # Project documentation
+|   |-- adr/                       # 8 Architecture Decision Records
+|   |-- architecture-design.md     # System architecture overview
+|   |-- api-reference.md           # API endpoint documentation
+|   |-- data-model.md              # Database schema reference
+|   |-- security-model.md          # Security architecture
+|   |-- performance-budget.md      # Performance targets
+|   |-- testing-strategy.md        # Testing approach and coverage
+|   +-- runbook.md                 # Operations runbook
+|-- .github/                    # GitHub configuration
+|   |-- workflows/                 # CI, release, security workflows
+|   |-- ISSUE_TEMPLATE/            # Bug report and feature request forms
+|   +-- PULL_REQUEST_TEMPLATE.md   # PR template
 |-- scripts/                    # Development and test scripts
-|-- Docs/                       # Project documentation and reports
+|-- specs/                      # Feature specifications (001-019)
 |-- docker-compose.yml          # Production: 4 services
 |-- docker-compose.dev.yml      # Development overrides
 |-- docker-compose.prod.yml     # Production overrides
 |-- Dockerfile.backend          # Multi-stage: Rust build + Python runtime
 |-- Makefile                    # 15 development targets
+|-- embedinator.sh              # Cross-platform launcher (macOS/Linux)
+|-- embedinator.ps1             # Cross-platform launcher (Windows)
 |-- requirements.txt            # Python dependencies
 |-- .env.example                # Environment variable reference
 +-- pytest.ini                  # Test configuration
 ```
-
-
-## Development Setup
-
-### Backend (Python)
-
-```bash
-# Create and activate a virtual environment
-python3.14 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start infrastructure services
-make dev-infra
-
-# Run the backend with hot reload
-make dev-backend
-# Backend is available at http://localhost:8000
-```
-
-### Frontend (Next.js)
-
-```bash
-cd frontend
-npm install
-npm run dev
-# Frontend is available at http://localhost:3000
-```
-
-### Rust Ingestion Worker
-
-```bash
-cd ingestion-worker
-cargo build --release
-# Binary output: target/release/embedinator-worker
-```
-
-The ingestion worker is a CLI binary invoked by the Python backend during
-document processing. It reads a file path from its arguments and outputs
-structured JSON chunks to stdout.
 
 
 ## Testing
@@ -446,24 +487,6 @@ make test-frontend
 cd frontend && npm run test
 ```
 
-### External Test Runner
-
-For CI or agent-driven workflows, use the external test runner that writes
-results to files instead of stdout:
-
-```bash
-# Launch in background (returns immediately)
-zsh scripts/run-tests-external.sh -n myrun tests/
-
-# Check status
-cat Docs/Tests/myrun.status    # RUNNING | PASSED | FAILED | ERROR
-
-# Read summary (~20 lines)
-cat Docs/Tests/myrun.summary
-```
-
-See [`scripts/README.md`](scripts/README.md) for full runner documentation.
-
 ### Test Markers
 
 ```ini
@@ -475,8 +498,8 @@ require_docker  # Tests requiring Qdrant on localhost:6333
 
 ## Specifications
 
-The project is built from 17 detailed specifications covering every subsystem.
-Each spec lives in [`specs/`](specs/README.md) and includes user stories,
+The project is built from 19 detailed specifications covering every subsystem.
+Each spec lives in [`specs/`](specs/) and includes user stories,
 functional requirements, success criteria, and implementation tasks.
 
 | Spec | Name                    | Status     |
@@ -498,6 +521,8 @@ functional requirements, success criteria, and implementation tasks.
 | 015  | Observability           | Complete   |
 | 016  | Testing Strategy        | Complete   |
 | 017  | Infrastructure Setup    | Complete   |
+| 018  | UX/UI Redesign          | Complete   |
+| 019  | Cross-Platform DX       | Complete   |
 
 
 ## Docker Services
@@ -518,9 +543,9 @@ and runs as a non-root user.
 
 ## License
 
-TBD
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 
 ## Contributing
 
-TBD
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.

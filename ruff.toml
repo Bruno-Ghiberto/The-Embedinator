@@ -1,0 +1,28 @@
+target-version = "py314"
+line-length = 120
+
+exclude = [
+    ".venv",
+    "venv",
+    "data",
+    ".git",
+    "frontend",
+    "ingestion-worker",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line too long — handled by line-length setting
+    "E712",  # comparison to True/False — common in test assertions
+    "F401",  # unused import — sometimes needed for re-exports
+]
+
+[lint.isort]
+known-first-party = ["backend"]
