@@ -79,4 +79,16 @@ target/
 secrets/
 *.pem
 *.key
+
+# Dev tooling (internal, not for public repo)
+CLAUDE.md
+AGENTS.md
+skills-lock.json
+.agents/
+.claude/
+.specify/
+.serena/
+.gitnexus/
 .gitnexus
+Docs/PROMPTS/
+frontend/test-results/
