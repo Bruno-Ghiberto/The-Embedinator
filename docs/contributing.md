@@ -15,7 +15,7 @@
 
 ```bash
 # Clone the repository
-git clone <repo-url> the-embedinator
+git clone https://github.com/Bruno-Ghiberto/The-Embedinator.git the-embedinator
 cd the-embedinator
 
 # Create Python virtual environment
@@ -75,7 +75,7 @@ the-embedinator/
     unit/         # Fast tests, mocked dependencies
     integration/  # Tests requiring Docker services
     e2e/          # Playwright browser tests
-  claudedocs/     # Technical blueprint documents
+  docs/     # Technical blueprint documents
   data/           # Runtime data (gitignored)
 ```
 
@@ -169,13 +169,13 @@ docs: add API reference document
 3. Register router in `backend/main.py` `create_app()`
 4. Add error handling using exceptions from `backend/errors.py`
 5. Add unit tests and integration tests
-6. Update `claudedocs/api-reference.md`
+6. Update `docs/api-reference.md`
 
 ---
 
 ## Key Technical Decisions
 
-All major architecture decisions are documented as ADRs in `claudedocs/adr/`. Read these before proposing changes to core architecture:
+All major architecture decisions are documented as ADRs in `docs/adr/`. Read these before proposing changes to core architecture:
 
 - ADR-001: SQLite over PostgreSQL
 - ADR-002: Three-layer LangGraph agent
@@ -188,4 +188,4 @@ All major architecture decisions are documented as ADRs in `claudedocs/adr/`. Re
 
 ---
 
-*For full architecture details, see `claudedocs/architecture-design.md`. For the product requirements, see `claudedocs/prd.md`.*
+*For full architecture details, see `docs/architecture-design.md`. For the product requirements, see `docs/prd.md`.*

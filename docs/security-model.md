@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: 2026-03-10
-**Source**: `claudedocs/architecture-design.md` Section 16 (Security Specification)
+**Source**: `docs/architecture-design.md` Section 16 (Security Specification)
 
 ---
 
@@ -179,4 +179,4 @@ When rate limited, response includes `Retry-After` header.
 
 ---
 
-*Extracted from `claudedocs/architecture-design.md` Section 16 (Security Specification).*
+*Extracted from `docs/architecture-design.md` Section 16 (Security Specification).*

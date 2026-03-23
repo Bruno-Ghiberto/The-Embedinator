@@ -4,7 +4,7 @@
 **Date**: 2026-03-10
 **Status**: Draft
 **Author**: Architecture Design Team
-**Source**: `claudedocs/architecture-design.md` v2.0
+**Source**: `docs/architecture-design.md` v2.0
 
 ---
 
@@ -348,7 +348,7 @@ Browser <--HTTP/SSE--> Next.js :3000 <--REST/SSE--> FastAPI :8000
 
 **Storage**: Qdrant for vector search, SQLite for metadata/parent chunks/traces/settings/providers
 
-See `claudedocs/architecture-design.md` for the complete system architecture specification.
+See `docs/architecture-design.md` for the complete system architecture specification.
 
 ---
 
@@ -544,4 +544,4 @@ See `claudedocs/architecture-design.md` for the complete system architecture spe
 
 ---
 
-*This PRD is derived from the system architecture design document (`claudedocs/architecture-design.md` v2.0) and the RAG analysis report (`claudedocs/rag-analysis-report.md`). For detailed technical specifications, interface contracts, and implementation guidance, refer to the architecture document.*
+*This PRD is derived from the system architecture design document (`docs/architecture-design.md` v2.0) and the RAG analysis report (`docs/rag-analysis-report.md`). For detailed technical specifications, interface contracts, and implementation guidance, refer to the architecture document.*

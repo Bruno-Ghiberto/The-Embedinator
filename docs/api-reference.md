@@ -561,4 +561,4 @@ Retry-After: <seconds>
 
 ---
 
-*Extracted and expanded from `claudedocs/architecture-design.md` Section 11 (API Reference). For Pydantic schema definitions and SSE event type details, see the architecture document.*
+*Extracted and expanded from `docs/architecture-design.md` Section 11 (API Reference). For Pydantic schema definitions and SSE event type details, see the architecture document.*

@@ -1,14 +1,14 @@
 # Development Status Report
 
 **Project:** The Embedinator
-**Date:** 2026-03-19
-**Branch:** `017-infra-setup`
+**Date:** 2026-03-20
+**Branch:** `020-open-source-launch`
 
 ---
 
 ## Specification Completion Status
 
-All 17 specifications have been implemented. The table below summarizes
+All 19 specifications have been implemented. The table below summarizes
 each spec's status, test coverage contribution, and any open notes.
 
 | #   | Specification             | Status   | Tests Added | Notes                          |
@@ -30,6 +30,8 @@ each spec's status, test coverage contribution, and any open notes.
 | 015 | Observability             | Complete | Yes         | Structured logging, metrics    |
 | 016 | Testing Strategy          | Complete | 82 new      | 87% coverage, 1487 total tests |
 | 017 | Infrastructure Setup      | Complete | --          | Docker, Makefile, CI audit     |
+| 018 | UX/UI Redesign            | Complete | Yes         | shadcn/ui, dark mode, sidebar, 53 frontend tests |
+| 019 | Cross-Platform DX         | Complete | --          | Single-command launcher, GPU overlays, Docker-only prereq |
 
 
 ## Test Suite Summary

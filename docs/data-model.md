@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: 2026-03-10
-**Source**: `claudedocs/architecture-design.md` Section 10 (Storage Architecture)
+**Source**: `docs/architecture-design.md` Section 10 (Storage Architecture)
 
 ---
 
@@ -263,4 +263,4 @@ This enables idempotent re-ingestion — the same logical chunk always gets the 
 
 ---
 
-*Extracted from `claudedocs/architecture-design.md` Section 10 (Storage Architecture).*
+*Extracted from `docs/architecture-design.md` Section 10 (Storage Architecture).*

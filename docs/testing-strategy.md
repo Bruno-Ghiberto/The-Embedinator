@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: 2026-03-10
-**Source**: `claudedocs/architecture-design.md` Section 19 (Testing Strategy)
+**Source**: `docs/architecture-design.md` Section 19 (Testing Strategy)
 
 ---
 
@@ -257,4 +257,4 @@ jobs:
 
 ---
 
-*Extracted from `claudedocs/architecture-design.md` Section 19 (Testing Strategy), supplemented with current test implementation details.*
+*Extracted from `docs/architecture-design.md` Section 19 (Testing Strategy), supplemented with current test implementation details.*

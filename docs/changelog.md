@@ -92,4 +92,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-*For detailed architecture, see `claudedocs/architecture-design.md`. For API reference, see `claudedocs/api-reference.md`.*
+*For detailed architecture, see `docs/architecture-design.md`. For API reference, see `docs/api-reference.md`.*
