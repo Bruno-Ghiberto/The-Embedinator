@@ -1,0 +1,7 @@
+PYTHON="$VENV_DIR/bin/python"
+    local sys_python
+    sys_python="$(command -v python3 2>/dev/null || true)"
+    if [[ -z "$sys_python" ]]; then
+        echo "FATAL: python3 not found on PATH" >&2
+        "$sys_python" -m venv "$VENV_DIR"
+        echo "Try manually: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"

@@ -1,0 +1,58 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node.js / Frontend build artifacts
+node_modules/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Test/Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+Docs/Tests/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.log*
+logs/
+
+# Data (handled via volumes)
+data/
+
+# Docs (not needed in container)
+Docs/
+specs/
+claudedocs/
