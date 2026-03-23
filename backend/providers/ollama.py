@@ -54,6 +54,7 @@ class OllamaLLMProvider(LLMProvider):
                 ) as response:
                     response.raise_for_status()
                     import json
+
                     async for line in response.aiter_lines():
                         if line:
                             data = json.loads(line)
@@ -105,9 +106,30 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
                     f"{self.base_url}/api/embed",
                     json={"model": effective_model, "input": text},
                 )
-                response.raise_for_status()
-                data = response.json()
-                embedding = data["embeddings"][0]
+
+                if response.status_code != 404:
+                    response.raise_for_status()
+                    data = response.json()
+                    embedding = data["embeddings"][0]
+                else:
+                    logger.warning(
+                        "ollama_embed_endpoint_fallback",
+                        primary_endpoint="/api/embed",
+                        fallback_endpoint="/api/embeddings",
+                    )
+                    fallback_response = await client.post(
+                        f"{self.base_url}/api/embeddings",
+                        json={"model": effective_model, "prompt": text},
+                    )
+                    fallback_response.raise_for_status()
+                    payload = fallback_response.json()
+                    embedding = payload.get("embedding")
+                    if embedding is None:
+                        embeddings = payload.get("embeddings") or []
+                        if not embeddings:
+                            raise EmbeddingError("Ollama fallback response missing embedding payload")
+                        embedding = embeddings[0]
+
                 if self._dimension is None:
                     self._dimension = len(embedding)
                 return embedding

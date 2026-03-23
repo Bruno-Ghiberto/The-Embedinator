@@ -74,9 +74,12 @@ class ProviderRegistry:
         active = await db.get_active_provider()
         if not active or active["name"] == "ollama":
             from langchain_ollama import ChatOllama
+            # Prefer model from DB config_json over settings default
+            ollama_config = json.loads(active["config_json"] or "{}") if active else {}
+            ollama_model = ollama_config.get("model") or self.settings.default_llm_model
             return ChatOllama(
                 base_url=self.settings.ollama_base_url,
-                model=self.settings.default_llm_model,
+                model=ollama_model,
             )
 
         config = json.loads(active["config_json"] or "{}")

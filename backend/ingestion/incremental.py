@@ -32,7 +32,7 @@ class IncrementalChecker:
         Returns (is_duplicate, existing_document_id).
         A document with status 'failed' is NOT a duplicate (allows re-ingestion per FR-004).
         """
-        result = await self.db.find_document_by_hash(collection_id, file_hash)
+        result = await self.db.get_document_by_hash(collection_id, file_hash)
         if result is None:
             return (False, None)
 

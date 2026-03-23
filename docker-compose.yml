@@ -50,6 +50,7 @@ services:
     environment:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      META_REASONING_MAX_ATTEMPTS: 0
       OLLAMA_BASE_URL: http://ollama:11434
       SQLITE_PATH: /data/embedinator.db
       UPLOAD_DIR: /data/uploads
@@ -64,7 +65,7 @@ services:
       - ./data:/data:z
     stop_grace_period: 15s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -79,6 +80,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:8000
     container_name: embedinator-frontend
     ports:
       - "${EMBEDINATOR_PORT_FRONTEND:-3000}:3000"
@@ -88,7 +91,7 @@ services:
     environment:
       - BACKEND_URL=http://backend:8000
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3

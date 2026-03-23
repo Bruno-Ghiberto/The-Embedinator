@@ -19,6 +19,7 @@ def create_research_tools(
     searcher: HybridSearcher,
     reranker: Reranker,
     parent_store: ParentStore,
+    embed_provider=None,
 ) -> list:
     """Factory that creates tool instances with injected dependencies.
 
@@ -30,6 +31,14 @@ def create_research_tools(
     Returns:
         List of 6 LangChain tool objects ready for llm.bind_tools().
     """
+
+    # Create embed_fn closure if embed_provider is available
+    async def _embed_fn(text: str):
+        if embed_provider is None:
+            return None
+        return await embed_provider.embed_single(text)
+
+    embed_fn = _embed_fn if embed_provider is not None else None
 
     @tool
     async def search_child_chunks(
@@ -50,7 +59,14 @@ def create_research_tools(
         Returns:
             List of RetrievedChunk objects sorted by rerank score descending.
         """
-        raw_chunks = await searcher.search(query, collection, top_k=top_k, filters=filters)
+        # Resolve collection name: LLM may provide a slug/description instead of
+        # the actual Qdrant collection name (emb-{uuid}).  Try the provided name
+        # first; on failure, fall back to searching all collections.
+        qdrant_name = collection if collection.startswith("emb-") else None
+        if qdrant_name:
+            raw_chunks = await searcher.search(query, qdrant_name, top_k=top_k, filters=filters, embed_fn=embed_fn)
+        else:
+            raw_chunks = await searcher.search_all_collections(query, top_k=top_k, embed_fn=embed_fn)
         if raw_chunks:
             raw_chunks = reranker.rerank(query, raw_chunks, top_k=top_k)
         return raw_chunks
@@ -132,7 +148,7 @@ def create_research_tools(
         Returns:
             List of RetrievedChunk objects merged from all collections.
         """
-        raw_chunks = await searcher.search_all_collections(query, top_k=top_k)
+        raw_chunks = await searcher.search_all_collections(query, top_k=top_k, embed_fn=embed_fn)
         normalized = normalize_scores(raw_chunks)
         if normalized:
             normalized = reranker.rerank(query, normalized, top_k=top_k)

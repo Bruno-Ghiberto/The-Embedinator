@@ -13,10 +13,7 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     FieldCondition,
     Filter,
-    Fusion,
-    FusionQuery,
     MatchValue,
-    Prefetch,
 )
 
 from backend.agent.schemas import RetrievedChunk
@@ -145,22 +142,12 @@ class HybridSearcher:
             # Build optional filter
             query_filter = self._build_filter(filters)
 
-            # Hybrid search: dense + sparse prefetch with RRF fusion (R4)
+            # Dense-only search — sparse prefetch requires pre-encoded sparse vectors
+            # which are not available at query time (BM25 encoding not implemented).
             results = await self.client.query_points(
                 collection_name=collection,
-                prefetch=[
-                    Prefetch(
-                        query=dense_vector,
-                        using="dense",
-                        limit=top_k,
-                    ),
-                    Prefetch(
-                        query=query,  # Qdrant BM25 handles text query directly for sparse
-                        using="sparse",
-                        limit=top_k,
-                    ),
-                ],
-                query=FusionQuery(fusion=Fusion.RRF),
+                query=dense_vector,
+                using="dense",
                 limit=top_k,
                 with_payload=True,
                 query_filter=query_filter,

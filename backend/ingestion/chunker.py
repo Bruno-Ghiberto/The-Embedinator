@@ -38,7 +38,10 @@ class ChunkSplitter:
         self.child_size = child_size or settings.child_chunk_size
 
     def split_into_parents(
-        self, raw_chunks: list[dict], source_file: str
+        self,
+        raw_chunks: list[dict],
+        source_file: str,
+        id_namespace: str | None = None,
     ) -> list[ParentChunkData]:
         """Accumulate raw worker chunks into parent chunks (2000-4000 chars).
 
@@ -64,7 +67,10 @@ class ChunkSplitter:
 
             breadcrumb = " > ".join(current_heading_path) if current_heading_path else None
             chunk_id = self.compute_point_id(
-                source_file, current_page or 0, current_chunk_indices[0]
+                source_file,
+                current_page or 0,
+                current_chunk_indices[0],
+                id_namespace=id_namespace,
             )
 
             # Split parent text into children
@@ -72,10 +78,13 @@ class ChunkSplitter:
             children = []
             for i, child_text in enumerate(child_texts):
                 child_idx = current_chunk_indices[0] + i
-                point_id = self.compute_point_id(source_file, current_page or 0, child_idx)
-                children.append(
-                    {"text": child_text, "point_id": point_id, "chunk_index": child_idx}
+                point_id = self.compute_point_id(
+                    source_file,
+                    current_page or 0,
+                    child_idx,
+                    id_namespace=id_namespace,
                 )
+                children.append({"text": child_text, "point_id": point_id, "chunk_index": child_idx})
 
             parent = ParentChunkData(
                 chunk_id=chunk_id,
@@ -135,9 +144,7 @@ class ChunkSplitter:
         )
         return parents
 
-    def split_parent_into_children(
-        self, parent_text: str, target_size: int | None = None
-    ) -> list[str]:
+    def split_parent_into_children(self, parent_text: str, target_size: int | None = None) -> list[str]:
         """Split a parent chunk into child chunks (~target_size chars) on sentence boundaries."""
         target = target_size or self.child_size
         if not parent_text.strip():
@@ -174,7 +181,13 @@ class ChunkSplitter:
         return f"[{prefix}] {text}"
 
     @staticmethod
-    def compute_point_id(source_file: str, page: int, chunk_index: int) -> str:
+    def compute_point_id(
+        source_file: str,
+        page: int,
+        chunk_index: int,
+        id_namespace: str | None = None,
+    ) -> str:
         """Deterministic UUID5 for idempotent upserts (FR-008)."""
-        key = f"{source_file}:{page}:{chunk_index}"
+        namespace = id_namespace or "global"
+        key = f"{namespace}:{source_file}:{page}:{chunk_index}"
         return str(uuid.uuid5(EMBEDINATOR_NAMESPACE, key))

@@ -174,9 +174,11 @@ async def lifespan(app: FastAPI):
 
     # LangGraph checkpointer — separate DB for checkpoint state
     checkpoint_path = settings.sqlite_path.replace("embedinator.db", "checkpoints.db")
-    checkpointer = AsyncSqliteSaver.from_conn_string(checkpoint_path)
+    checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
+    checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
     app.state.checkpointer = checkpointer
+    app.state._checkpointer_cm = checkpointer_cm
     logger.info("storage_checkpointer_initialized", path=checkpoint_path)
 
     # --- Spec 03: ResearchGraph infrastructure ---
@@ -200,7 +202,8 @@ async def lifespan(app: FastAPI):
     logger.info("storage_parent_store_initialized")
 
     # Build tool list via closure-based factory (R6)
-    research_tools = create_research_tools(hybrid_searcher, reranker_instance, parent_store)
+    embed_provider = registry._ollama_embed
+    research_tools = create_research_tools(hybrid_searcher, reranker_instance, parent_store, embed_provider=embed_provider)
     app.state.research_tools = research_tools
     logger.info("agent_research_tools_created", count=len(research_tools))
 
@@ -256,7 +259,7 @@ async def lifespan(app: FastAPI):
         await ckpt_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     # FR-052: Explicitly close the LangGraph checkpointer connection
-    await checkpointer.conn.close()
+    await app.state._checkpointer_cm.__aexit__(None, None, None)
 
     await qdrant.close()
     logger.info("storage_shutdown_complete")

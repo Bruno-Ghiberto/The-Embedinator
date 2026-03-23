@@ -37,13 +37,18 @@ def should_clarify(state: ConversationState) -> bool:
 def route_after_rewrite(state: ConversationState) -> list[Send] | str:
     """Combined routing from rewrite_query: clarify or fan-out to research.
 
-    If clarification is needed (query unclear + iteration_count < 2), returns
-    "request_clarification". Otherwise, delegates to route_fan_out() which
-    returns Send() objects for parallel ResearchGraph dispatch.
+    If the user has already specified collections to search, skip clarification
+    and go straight to research — we have enough context to retrieve.
+    Otherwise, if clarification is needed (query unclear + iteration_count < 2),
+    returns "request_clarification". Otherwise, delegates to route_fan_out()
+    which returns Send() objects for parallel ResearchGraph dispatch.
 
     This combined function is necessary because LangGraph does not support
     two add_conditional_edges from the same source node.
     """
+    # User-specified collections mean we have enough context to search
+    if state.get("selected_collections"):
+        return route_fan_out(state)
     if should_clarify(state):
         return "request_clarification"
     return route_fan_out(state)

@@ -120,27 +120,39 @@ async def ingest_file(
     registry = getattr(request.app.state, "registry", None)
     embedding_provider = await registry.get_embedding_provider() if registry is not None else None
     pipeline = IngestionPipeline(db=db, qdrant=qdrant, embedding_provider=embedding_provider)
+    qdrant_collection_name = collection["qdrant_collection_name"]
     is_changed, old_doc_id = await checker.check_change(collection_id, filename, file_hash)
     if is_changed and old_doc_id:
         await pipeline.delete_old_document_data(
-            collection_name=collection_id,
+            collection_name=qdrant_collection_name,
             source_file=filename,
             old_document_id=old_doc_id,
         )
         await db.update_document(old_doc_id, status="deleted")
 
     # 7. Create document and job records
-    doc_id = str(uuid.uuid4())
+    # If a prior failed/pending document exists with the same hash, reuse it
+    # (avoids UNIQUE constraint on collection_id+file_hash)
+    existing_doc = await db.get_document_by_hash(collection_id, file_hash)
+    if existing_doc and existing_doc["status"] != "completed":
+        doc_id = existing_doc["id"]
+        await db.update_document(
+            doc_id,
+            status="pending",
+            filename=filename,
+            file_path=str(file_path),
+        )
+    else:
+        doc_id = str(uuid.uuid4())
+        await db.create_document(
+            id=doc_id,
+            collection_id=collection_id,
+            filename=filename,
+            file_hash=file_hash,
+            file_path=str(file_path),
+            status="pending",
+        )
     job_id = str(uuid.uuid4())
-
-    await db.create_document(
-        id=doc_id,
-        collection_id=collection_id,
-        filename=filename,
-        file_hash=file_hash,
-        file_path=str(file_path),
-        status="pending",
-    )
     await db.create_ingestion_job(id=job_id, document_id=doc_id)
 
     # 8. Launch background ingestion
@@ -152,6 +164,7 @@ async def ingest_file(
             document_id=doc_id,
             job_id=job_id,
             file_hash=file_hash,
+            qdrant_collection_name=qdrant_collection_name,
         )
     )
 

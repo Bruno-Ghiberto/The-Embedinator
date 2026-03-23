@@ -3,7 +3,8 @@
 ConversationGraph → ResearchGraph → MetaReasoningGraph
 """
 
-from typing import TypedDict
+import operator
+from typing import Annotated, TypedDict
 
 from backend.agent.schemas import (
     Citation,
@@ -14,41 +15,54 @@ from backend.agent.schemas import (
 )
 
 
+def _keep_last(existing, new):
+    """Reducer for LangGraph fan-out: keep the latest value."""
+    return new
+
+
+def _merge_dicts(existing, new):
+    """Reducer for dicts: merge new keys into existing."""
+    merged = dict(existing) if existing else {}
+    if new:
+        merged.update(new)
+    return merged
+
+
 class ConversationState(TypedDict):
-    session_id: str
-    messages: list  # List[BaseMessage] — deferred import to avoid LangGraph dep at import time
-    query_analysis: QueryAnalysis | None
-    sub_answers: list[SubAnswer]
-    selected_collections: list[str]
-    llm_model: str
-    embed_model: str
-    intent: str  # "rag_query" | "collection_mgmt" | "ambiguous"
-    final_response: str | None
-    citations: list[Citation]
-    groundedness_result: GroundednessResult | None
-    confidence_score: int  # 0–100 scale (user-facing)
-    iteration_count: int
-    stage_timings: dict  # FR-005: per-stage timing data accumulated by nodes
+    session_id: Annotated[str, _keep_last]
+    messages: Annotated[list, operator.add]
+    query_analysis: Annotated[QueryAnalysis | None, _keep_last]
+    sub_answers: Annotated[list[SubAnswer], operator.add]
+    selected_collections: Annotated[list[str], _keep_last]
+    llm_model: Annotated[str, _keep_last]
+    embed_model: Annotated[str, _keep_last]
+    intent: Annotated[str, _keep_last]
+    final_response: Annotated[str | None, _keep_last]
+    citations: Annotated[list[Citation], operator.add]
+    groundedness_result: Annotated[GroundednessResult | None, _keep_last]
+    confidence_score: Annotated[int, _keep_last]
+    iteration_count: Annotated[int, _keep_last]
+    stage_timings: Annotated[dict, _merge_dicts]
 
 
 class ResearchState(TypedDict):
-    sub_question: str
-    session_id: str
-    selected_collections: list[str]
-    llm_model: str
-    embed_model: str
-    retrieved_chunks: list[RetrievedChunk]
+    sub_question: Annotated[str, _keep_last]
+    session_id: Annotated[str, _keep_last]
+    selected_collections: Annotated[list[str], _keep_last]
+    llm_model: Annotated[str, _keep_last]
+    embed_model: Annotated[str, _keep_last]
+    retrieved_chunks: Annotated[list[RetrievedChunk], operator.add]
     retrieval_keys: set[str]
-    tool_call_count: int
-    iteration_count: int
-    confidence_score: float  # Internal computation (0.0–1.0)
-    answer: str | None
-    citations: list[Citation]
-    context_compressed: bool
-    messages: list  # AIMessage/ToolMessage for orchestrator↔tools communication
-    _no_new_tools: bool  # Flag: orchestrator produced no tool calls (F4)
-    _needs_compression: bool  # Flag: context token count exceeds threshold (F3)
-    stage_timings: dict  # FR-005: per-stage timing data accumulated by research nodes
+    tool_call_count: Annotated[int, _keep_last]
+    iteration_count: Annotated[int, _keep_last]
+    confidence_score: Annotated[float, _keep_last]
+    answer: Annotated[str | None, _keep_last]
+    citations: Annotated[list[Citation], operator.add]
+    context_compressed: Annotated[bool, _keep_last]
+    messages: Annotated[list, operator.add]
+    _no_new_tools: Annotated[bool, _keep_last]
+    _needs_compression: Annotated[bool, _keep_last]
+    stage_timings: Annotated[dict, _merge_dicts]
 
 
 class MetaReasoningState(TypedDict):
@@ -62,4 +76,4 @@ class MetaReasoningState(TypedDict):
     modified_state: dict | None
     answer: str | None
     uncertainty_reason: str | None
-    attempted_strategies: set[str]  # FR-015: dedup across attempts
+    attempted_strategies: set[str]

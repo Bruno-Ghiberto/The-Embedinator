@@ -39,9 +39,7 @@ class UpsertBuffer:
             return False
         return True
 
-    async def flush(
-        self, qdrant: QdrantClientWrapper, collection_id: str
-    ) -> int:
+    async def flush(self, qdrant: QdrantClientWrapper, collection_id: str) -> int:
         """Batch upsert all buffered points and clear buffer.
 
         Returns count of points flushed.
@@ -95,6 +93,7 @@ class IngestionPipeline:
         document_id: str,
         job_id: str,
         file_hash: str | None = None,
+        qdrant_collection_name: str | None = None,
     ) -> IngestionResult:
         """Full ingestion pipeline for a single document.
 
@@ -123,7 +122,7 @@ class IngestionPipeline:
 
             # Step 1: Update job status -> started
             await self.db.update_ingestion_job(job_id, status="started")
-            await self.db.update_document_status(document_id, "ingesting")
+            await self.db.update_document(document_id, status="ingesting")
 
             # Step 2: Spawn Rust worker subprocess
             proc = await self._spawn_worker(file_path)
@@ -155,7 +154,7 @@ class IngestionPipeline:
                         error_msg=worker_error,
                         chunks_processed=0,
                     )
-                    await self.db.update_document_status(document_id, "failed")
+                    await self.db.update_document(document_id, status="failed")
                     return IngestionResult(
                         document_id=document_id,
                         job_id=job_id,
@@ -164,12 +163,8 @@ class IngestionPipeline:
                     )
                 # Worker succeeded but produced no chunks
                 now = datetime.now(timezone.utc).isoformat()
-                await self.db.update_document_status(
-                    document_id, "completed", chunk_count=0, ingested_at=now
-                )
-                await self.db.update_ingestion_job(
-                    job_id, status="completed", chunks_processed=0
-                )
+                await self.db.update_document(document_id, status="completed", chunk_count=0, ingested_at=now)
+                await self.db.update_ingestion_job(job_id, status="completed", chunks_processed=0)
                 return IngestionResult(
                     document_id=document_id,
                     job_id=job_id,
@@ -178,7 +173,11 @@ class IngestionPipeline:
                 )
 
             # Step 4: Pass raw chunks to ChunkSplitter
-            parent_chunks = self.chunker.split_into_parents(raw_chunks, filename)
+            parent_chunks = self.chunker.split_into_parents(
+                raw_chunks,
+                filename,
+                id_namespace=collection_id,
+            )
 
             # Step 5: Embed children via BatchEmbedder
             await self.db.update_ingestion_job(job_id, status="embedding")
@@ -203,9 +202,7 @@ class IngestionPipeline:
 
             if all_children:
                 texts_to_embed = [c["text"] for c in all_children]
-                embeddings, embed_skipped = await self._embed_with_retry(
-                    texts_to_embed, job_id
-                )
+                embeddings, embed_skipped = await self._embed_with_retry(texts_to_embed, job_id)
                 chunks_skipped += embed_skipped
 
                 # Build Qdrant points (skip None entries from validation)
@@ -218,7 +215,7 @@ class IngestionPipeline:
                     points.append(
                         {
                             "id": child_info["point_id"],
-                            "vector": embedding,
+                            "vector": {"dense": embedding},
                             "payload": {
                                 "parent_id": parent.chunk_id,
                                 "source_file": parent.source_file,
@@ -234,20 +231,23 @@ class IngestionPipeline:
 
                 # Step 6: Batch upsert to Qdrant
                 if points:
-                    chunks_processed = await self._batch_upsert(
-                        collection_id, points, job_id=job_id
-                    )
+                    qdrant_coll = qdrant_collection_name or collection_id
+                    chunks_processed = await self._batch_upsert(qdrant_coll, points, job_id=job_id)
 
             # Step 7: Store parents in SQLite parent_chunks table
             for parent in parent_chunks:
-                await self.db.insert_parent_chunk(
-                    chunk_id=parent.chunk_id,
+                await self.db.create_parent_chunk(
+                    id=parent.chunk_id,
                     collection_id=collection_id,
                     document_id=document_id,
                     text=parent.text,
-                    source_file=parent.source_file,
-                    page=parent.page,
-                    breadcrumb=parent.breadcrumb,
+                    metadata_json=json.dumps(
+                        {
+                            "source_file": parent.source_file,
+                            "page": parent.page,
+                            "breadcrumb": parent.breadcrumb,
+                        }
+                    ),
                 )
 
             # If worker failed, process chunks but mark as failed (R4: partial output)
@@ -259,9 +259,7 @@ class IngestionPipeline:
                     chunks_processed=chunks_processed,
                     chunks_skipped=chunks_skipped,
                 )
-                await self.db.update_document_status(
-                    document_id, "failed", chunk_count=chunks_processed
-                )
+                await self.db.update_document(document_id, status="failed", chunk_count=chunks_processed)
                 return IngestionResult(
                     document_id=document_id,
                     job_id=job_id,
@@ -273,8 +271,8 @@ class IngestionPipeline:
 
             # Step 8: Update document chunk_count and status -> completed
             now = datetime.now(timezone.utc).isoformat()
-            await self.db.update_document_status(
-                document_id, "completed", chunk_count=chunks_processed, ingested_at=now
+            await self.db.update_document(
+                document_id, status="completed", chunk_count=chunks_processed, ingested_at=now
             )
 
             # Step 9: Update job status -> completed
@@ -317,7 +315,7 @@ class IngestionPipeline:
                 chunks_processed=chunks_processed,
                 chunks_skipped=chunks_skipped,
             )
-            await self.db.update_document_status(document_id, "failed")
+            await self.db.update_document(document_id, status="failed")
             return IngestionResult(
                 document_id=document_id,
                 job_id=job_id,
@@ -392,16 +390,13 @@ class IngestionPipeline:
             raise
 
         # Delete old parent chunks from SQLite
-        deleted_count = await self.db.delete_parent_chunks_by_document(old_document_id)
+        await self.db.delete_parent_chunks(old_document_id)
         logger.info(
             "ingestion_old_parent_chunks_deleted",
             document_id=old_document_id,
-            count=deleted_count,
         )
 
-    async def _embed_with_retry(
-        self, texts: list[str], job_id: str
-    ) -> tuple[list[list[float] | None], int]:
+    async def _embed_with_retry(self, texts: list[str], job_id: str) -> tuple[list[list[float] | None], int]:
         """Embed texts with Ollama outage handling (FR-013).
 
         On CircuitOpenError or httpx connection errors: pause job, retry with
@@ -412,7 +407,7 @@ class IngestionPipeline:
         while True:
             try:
                 return await self.embedder.embed_chunks(texts)
-            except (CircuitOpenError, httpx.ConnectError, httpx.ConnectTimeout):
+            except CircuitOpenError, httpx.ConnectError, httpx.ConnectTimeout:
                 await self.db.update_ingestion_job(job_id, status="paused")
                 logger.warning(
                     "ingestion_ollama_outage_paused",
@@ -453,15 +448,11 @@ class IngestionPipeline:
                 has_capacity = buffer.add(batch)
                 if not has_capacity:
                     # Buffer full — pause and wait for recovery
-                    upserted += await self._wait_and_flush(
-                        buffer, collection_id, job_id
-                    )
+                    upserted += await self._wait_and_flush(buffer, collection_id, job_id)
 
         # Flush any remaining buffered points
         if buffer.pending_count > 0:
-            upserted += await self._wait_and_flush(
-                buffer, collection_id, job_id
-            )
+            upserted += await self._wait_and_flush(buffer, collection_id, job_id)
 
         return upserted
 

@@ -137,17 +137,21 @@ class SQLiteDB:
         await self._migrate_query_traces_columns()
 
     async def _migrate_providers_columns(self) -> None:
-        """Add provider_type and config_json columns if not present."""
+        """Add missing columns to providers table if not present."""
         cursor = await self.db.execute("PRAGMA table_info(providers)")
         columns = {row[1] for row in await cursor.fetchall()}
-        if "provider_type" not in columns:
-            await self.db.execute(
-                "ALTER TABLE providers ADD COLUMN provider_type TEXT"
-            )
-        if "config_json" not in columns:
-            await self.db.execute(
-                "ALTER TABLE providers ADD COLUMN config_json TEXT"
-            )
+        for col, col_def in [
+            ("api_key_encrypted", "TEXT"),
+            ("base_url", "TEXT"),
+            ("is_active", "INTEGER DEFAULT 0"),
+            ("created_at", "TEXT"),
+            ("provider_type", "TEXT"),
+            ("config_json", "TEXT"),
+        ]:
+            if col not in columns:
+                await self.db.execute(
+                    f"ALTER TABLE providers ADD COLUMN {col} {col_def}"
+                )
         await self.db.commit()
 
     async def _migrate_query_traces_columns(self) -> None:

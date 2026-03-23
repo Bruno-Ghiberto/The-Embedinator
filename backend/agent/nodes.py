@@ -15,6 +15,7 @@ from typing import Any
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 from pydantic import ValidationError
 
@@ -182,14 +183,15 @@ async def init_session(state: ConversationState, **kwargs: Any) -> dict:
     except Exception as exc:
         log.warning("agent_init_session_failed", error=type(exc).__name__)
         return {
-            "messages": [],
+            "messages": state.get("messages", []),  # preserve incoming messages
             "selected_collections": state.get("selected_collections", []),
             "llm_model": state.get("llm_model", ""),
             "embed_model": state.get("embed_model", ""),
         }
 
 
-async def classify_intent(state: ConversationState, *, llm: Any) -> dict:
+async def classify_intent(state: ConversationState, config: RunnableConfig = None) -> dict:
+    llm = (config or {}).get("configurable", {}).get("llm")
     """Classify user message as rag_query, collection_mgmt, or ambiguous.
 
     Calls the LLM with CLASSIFY_INTENT prompts, parses JSON response.
@@ -259,7 +261,8 @@ async def classify_intent(state: ConversationState, *, llm: Any) -> dict:
         }
 
 
-async def rewrite_query(state: ConversationState, *, llm: Any) -> dict:
+async def rewrite_query(state: ConversationState, config: RunnableConfig = None) -> dict:
+    llm = (config or {}).get("configurable", {}).get("llm")
     """Decompose query into sub-questions with Pydantic structured output.
 
     Uses llm.with_structured_output(QueryAnalysis) for Pydantic parsing.
@@ -482,7 +485,8 @@ def _apply_groundedness_annotations(response: str, result: GroundednessResult) -
     return annotated
 
 
-async def verify_groundedness(state: ConversationState, *, llm: Any = None) -> dict:
+async def verify_groundedness(state: ConversationState, config: RunnableConfig = None) -> dict:
+    llm = (config or {}).get("configurable", {}).get("llm")
     """NLI-based claim verification against retrieved context (GAV).
 
     Evaluates every factual claim in the generated answer against retrieved

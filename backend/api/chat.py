@@ -30,12 +30,12 @@ def _get_or_build_graph(app_state) -> object:
     The graph is cached on app.state to avoid recompiling per request.
     The checkpointer and research_graph stub are taken from app.state.
     """
+    # Prefer the graph built by lifespan (stored as conversation_graph, no underscore)
+    if hasattr(app_state, "conversation_graph") and app_state.conversation_graph is not None:
+        return app_state.conversation_graph
+
     if not hasattr(app_state, "_conversation_graph") or app_state._conversation_graph is None:
         research_graph = getattr(app_state, "research_graph", None)
-        if research_graph is None:
-            from tests.mocks import build_mock_research_graph
-            research_graph = build_mock_research_graph()
-
         checkpointer = getattr(app_state, "checkpointer", None)
         app_state._conversation_graph = build_conversation_graph(
             research_graph=research_graph,
@@ -145,7 +145,8 @@ async def chat(body: ChatRequest, request: Request):
                     return  # Stream ends on clarification
 
             # 3. Get final state after stream completes
-            final_state = graph.get_state(config).values
+            snapshot = await graph.aget_state(config)
+            final_state = snapshot.values
             latency_ms = int((time.monotonic() - start_time) * 1000)
             stage_timings = final_state.get("stage_timings", {})  # FR-005
 

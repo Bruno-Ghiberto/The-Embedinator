@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Qdrant
     qdrant_host: str = "localhost"
-    qdrant_port: int = 6333
+    qdrant_port: int = Field(default=6333, alias="EMBEDINATOR_PORT_QDRANT")
 
     # Providers
     ollama_base_url: str = "http://localhost:11434"
@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     confidence_threshold: int = 60  # 0–100 scale
     compression_threshold: float = 0.75
     meta_reasoning_max_attempts: int = 2
-    meta_relevance_threshold: float = 0.2   # R4: mean cross-encoder score threshold
-    meta_variance_threshold: float = 0.15   # R4: stdev threshold for noisy results
+    meta_relevance_threshold: float = 0.2  # R4: mean cross-encoder score threshold
+    meta_variance_threshold: float = 0.15  # R4: stdev threshold for noisy results
 
     # Retrieval
     hybrid_dense_weight: float = 0.7
@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
-    model_config = SettingsConfigDict(env_file=".env", populate_by_name=True)
+    model_config = SettingsConfigDict(env_file=".env", populate_by_name=True, extra="ignore")
 
 
 settings = Settings()

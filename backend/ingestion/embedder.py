@@ -53,9 +53,7 @@ class BatchEmbedder:
         self.base_url = settings.ollama_base_url
         self._embedding_provider = embedding_provider
 
-    async def embed_chunks(
-        self, texts: list[str]
-    ) -> tuple[list[list[float] | None], int]:
+    async def embed_chunks(self, texts: list[str]) -> tuple[list[list[float] | None], int]:
         """Embed a list of texts in parallel batches with validation.
 
         Returns (embeddings, chunks_skipped) where embeddings preserves input
@@ -65,10 +63,7 @@ class BatchEmbedder:
             return [], 0
 
         # Split texts into batches
-        batches = [
-            texts[i : i + self.batch_size]
-            for i in range(0, len(texts), self.batch_size)
-        ]
+        batches = [texts[i : i + self.batch_size] for i in range(0, len(texts), self.batch_size)]
 
         logger.info(
             "ingestion_embedding_chunks",
@@ -81,10 +76,7 @@ class BatchEmbedder:
         loop = asyncio.get_running_loop()
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [
-                loop.run_in_executor(executor, self._embed_batch, batch)
-                for batch in batches
-            ]
+            futures = [loop.run_in_executor(executor, self._embed_batch, batch) for batch in batches]
             batch_results = await asyncio.gather(*futures)
 
         # Flatten batch results into a single list preserving order
@@ -128,7 +120,32 @@ class BatchEmbedder:
                 json={"model": self.model, "input": batch},
                 timeout=60.0,
             )
-            response.raise_for_status()
-            data = response.json()
 
-        return data["embeddings"]
+            if response.status_code != 404:
+                response.raise_for_status()
+                return response.json()["embeddings"]
+
+            logger.warning(
+                "ingestion_embedding_endpoint_fallback",
+                primary_endpoint="/api/embed",
+                fallback_endpoint="/api/embeddings",
+            )
+
+            embeddings: list[list[float]] = []
+            for text in batch:
+                fallback_response = client.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={"model": self.model, "prompt": text},
+                    timeout=60.0,
+                )
+                fallback_response.raise_for_status()
+                payload = fallback_response.json()
+                vector = payload.get("embedding")
+                if vector is None:
+                    vectors = payload.get("embeddings") or []
+                    if not vectors:
+                        raise ValueError("Ollama fallback response missing embedding payload")
+                    vector = vectors[0]
+                embeddings.append(vector)
+
+        return embeddings
