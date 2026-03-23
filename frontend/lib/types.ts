@@ -61,6 +61,7 @@ export interface ChatMessage {
   groundedness?: GroundednessData;
   clarification?: string;
   isStreaming: boolean;
+  isError?: boolean;
   traceId?: string;
 }
 

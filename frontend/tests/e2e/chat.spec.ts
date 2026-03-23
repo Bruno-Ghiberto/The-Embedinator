@@ -173,7 +173,7 @@ test.describe("Chat page — streaming workflow", () => {
       timeout: 5000,
     });
 
-    // CitationTooltip renders a button with aria-label "Citation 1: test-doc.pdf"
+    // CitationHoverCard renders a trigger with aria-label "Citation 1: test-doc.pdf"
     await expect(
       page.getByRole("button", { name: /Citation 1/i }),
     ).toBeVisible();

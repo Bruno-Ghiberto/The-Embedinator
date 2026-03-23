@@ -32,7 +32,7 @@ const StageTimingsChart = dynamic<StageTimingsChartProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-16 items-center justify-center text-sm text-[var(--color-text-muted)]">
+      <div className="flex h-16 items-center justify-center text-sm text-muted-foreground">
         Loading chart...
       </div>
     ),
@@ -104,49 +104,49 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
         </SheetHeader>
 
         {loading ? (
-          <div className="px-4 py-6 text-sm text-[var(--color-text-muted)]">Loading trace detail...</div>
+          <div className="px-4 py-6 text-sm text-muted-foreground">Loading trace detail...</div>
         ) : error ? (
-          <div className="px-4 py-6 text-sm text-[var(--color-destructive)]">{error}</div>
+          <div className="px-4 py-6 text-sm text-destructive">{error}</div>
         ) : trace && detail ? (
           <div className="space-y-5 px-4 pb-6">
             {/* Query text */}
             <div>
-              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Query</h4>
-              <p className="text-sm text-[var(--color-text-primary)]">{trace.query}</p>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Query</h4>
+              <p className="text-sm text-foreground">{trace.query}</p>
             </div>
 
             {/* Response metadata */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Confidence</h4>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Confidence</h4>
                 <span className={cn(
                   "text-sm font-medium",
                   trace.confidence_score === null
-                    ? "text-[var(--color-text-muted)]"
+                    ? "text-muted-foreground"
                     : trace.confidence_score >= 70
-                      ? "text-[var(--color-success)]"
+                      ? "text-success"
                       : trace.confidence_score >= 40
-                        ? "text-[var(--color-warning)]"
-                        : "text-[var(--color-destructive)]"
+                        ? "text-warning"
+                        : "text-destructive"
                 )}>
                   {trace.confidence_score !== null ? trace.confidence_score : "\u2014"}
                 </span>
               </div>
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Latency</h4>
-                <span className="text-sm text-[var(--color-text-primary)]">{trace.latency_ms} ms</span>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latency</h4>
+                <span className="text-sm text-foreground">{trace.latency_ms} ms</span>
               </div>
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Model</h4>
-                <span className="text-sm text-[var(--color-text-primary)]">{trace.llm_model ?? "\u2014"}</span>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Model</h4>
+                <span className="text-sm text-foreground">{trace.llm_model ?? "\u2014"}</span>
               </div>
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Meta-Reasoning</h4>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Meta-Reasoning</h4>
                 <span className={cn(
                   "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
                   trace.meta_reasoning_triggered
-                    ? "bg-[var(--color-accent)]/15 text-[var(--color-accent)]"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-card text-muted-foreground"
                 )}>
                   {trace.meta_reasoning_triggered ? "Triggered" : "Not triggered"}
                 </span>
@@ -156,7 +156,7 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {/* Stage Timings */}
             {detail.stage_timings && Object.keys(detail.stage_timings).length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Stage Timings</h4>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stage Timings</h4>
                 <StageTimingsChart timings={detail.stage_timings} />
               </div>
             )}
@@ -164,10 +164,10 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {/* Sub-questions */}
             {detail.sub_questions.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Sub-questions ({detail.sub_questions.length})
                 </h4>
-                <ul className="list-inside list-disc space-y-0.5 text-sm text-[var(--color-text-primary)]">
+                <ul className="list-inside list-disc space-y-0.5 text-sm text-foreground">
                   {detail.sub_questions.map((q, i) => (
                     <li key={i}>{q}</li>
                   ))}
@@ -178,10 +178,10 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {/* Reasoning steps */}
             {detail.reasoning_steps.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Reasoning Steps ({detail.reasoning_steps.length})
                 </h4>
-                <ol className="list-inside list-decimal space-y-0.5 text-sm text-[var(--color-text-primary)]">
+                <ol className="list-inside list-decimal space-y-0.5 text-sm text-foreground">
                   {detail.reasoning_steps.map((step, i) => (
                     <li key={i}>
                       <code className="text-xs">{JSON.stringify(step)}</code>
@@ -194,10 +194,10 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {/* Strategy switches */}
             {detail.strategy_switches.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Strategy Switches ({detail.strategy_switches.length})
                 </h4>
-                <ul className="list-inside list-disc space-y-0.5 text-sm text-[var(--color-text-primary)]">
+                <ul className="list-inside list-disc space-y-0.5 text-sm text-foreground">
                   {detail.strategy_switches.map((sw, i) => (
                     <li key={i}>
                       <code className="text-xs">{JSON.stringify(sw)}</code>
@@ -210,10 +210,10 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {/* Citations / chunks retrieved */}
             {detail.chunks_retrieved.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Citations ({detail.chunks_retrieved.length})
                 </h4>
-                <ul className="list-inside list-disc space-y-0.5 text-sm text-[var(--color-text-primary)]">
+                <ul className="list-inside list-disc space-y-0.5 text-sm text-foreground">
                   {detail.chunks_retrieved.map((chunk, i) => (
                     <li key={i}>
                       <code className="text-xs">{JSON.stringify(chunk)}</code>
@@ -228,7 +228,7 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             detail.strategy_switches.length === 0 &&
             detail.chunks_retrieved.length === 0 &&
             !(detail.stage_timings && Object.keys(detail.stage_timings).length > 0) ? (
-              <p className="text-sm text-[var(--color-text-muted)]">No additional detail available.</p>
+              <p className="text-sm text-muted-foreground">No additional detail available.</p>
             ) : null}
           </div>
         ) : null}
@@ -264,9 +264,9 @@ export function TraceTable({
   return (
     <section>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+        <h2 className="text-lg font-semibold text-foreground">
           Query Traces{" "}
-          <span className="text-sm font-normal text-[var(--color-text-muted)]">({total} total)</span>
+          <span className="text-sm font-normal text-muted-foreground">({total} total)</span>
         </h2>
 
         {/* Session filter */}
@@ -279,10 +279,10 @@ export function TraceTable({
         />
       </div>
 
-      <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[var(--color-surface)] hover:bg-[var(--color-surface)]">
+            <TableRow className="bg-card hover:bg-card">
               <TableHead className="w-8 px-4 py-3" />
               <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                 Query
@@ -306,7 +306,7 @@ export function TraceTable({
               <TableRow>
                 <TableCell
                   colSpan={6}
-                  className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]"
+                  className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   No traces found.
                 </TableCell>
@@ -315,12 +315,12 @@ export function TraceTable({
               traces.map((trace) => {
                 const confidenceColor =
                   trace.confidence_score === null
-                    ? "text-[var(--color-text-muted)]"
+                    ? "text-muted-foreground"
                     : trace.confidence_score >= 70
-                      ? "text-[var(--color-success)]"
+                      ? "text-success"
                       : trace.confidence_score >= 40
-                        ? "text-[var(--color-warning)]"
-                        : "text-[var(--color-destructive)]";
+                        ? "text-warning"
+                        : "text-destructive";
 
                 return (
                   <TableRow
@@ -328,23 +328,23 @@ export function TraceTable({
                     className="cursor-pointer"
                     onClick={() => handleRowClick(trace)}
                   >
-                    <TableCell className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
                       ▶
                     </TableCell>
                     <TableCell
-                      className="max-w-[200px] truncate px-4 py-3 text-sm text-[var(--color-text-primary)]"
+                      className="max-w-[200px] truncate px-4 py-3 text-sm text-foreground"
                       title={trace.query}
                     >
                       {trace.query}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
                       {trace.session_id.slice(0, 8)}...
                     </TableCell>
                     <TableCell className={cn("px-4 py-3 text-sm font-medium", confidenceColor)}>
                       {trace.confidence_score !== null ? `${trace.confidence_score}` : "\u2014"}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-[var(--color-text-primary)]">{trace.latency_ms} ms</TableCell>
-                    <TableCell className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                    <TableCell className="px-4 py-3 text-sm text-foreground">{trace.latency_ms} ms</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(trace.created_at).toLocaleString()}
                     </TableCell>
                   </TableRow>
@@ -357,7 +357,7 @@ export function TraceTable({
 
       {/* Pagination */}
       {totalPages > 1 ? (
-        <div className="mt-4 flex items-center justify-between text-sm text-[var(--color-text-muted)]">
+        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>
             Page {currentPage + 1} of {totalPages}
           </span>

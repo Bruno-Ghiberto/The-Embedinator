@@ -58,11 +58,11 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
 
   useEffect(() => {
     setChartColors({
-      accent: resolveCssVar("--color-accent"),
-      warning: resolveCssVar("--color-warning"),
-      success: resolveCssVar("--color-success"),
-      axis: resolveCssVar("--color-text-muted"),
-      grid: resolveCssVar("--color-border"),
+      accent: resolveCssVar("--primary"),
+      warning: resolveCssVar("--warning"),
+      success: resolveCssVar("--success"),
+      axis: resolveCssVar("--muted-foreground"),
+      grid: resolveCssVar("--border"),
     });
   }, []);
 
@@ -77,10 +77,10 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
   return (
     <section>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Metrics Trends</h2>
+        <h2 className="text-lg font-semibold text-foreground">Metrics Trends</h2>
 
         {/* Window selector */}
-        <div className="flex gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+        <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
           {WINDOW_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -88,8 +88,8 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
               className={cn(
                 "rounded-md px-3 py-1 text-sm font-medium transition-colors",
                 window === opt.value
-                  ? "bg-[var(--color-background)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               aria-pressed={window === opt.value}
             >
@@ -101,31 +101,31 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="flex h-[250px] items-center justify-center rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-muted)]">
+          <div className="flex h-[250px] items-center justify-center rounded-lg bg-card text-sm text-muted-foreground">
             Loading metrics...
           </div>
-          <div className="flex h-[250px] items-center justify-center rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-muted)]">
+          <div className="flex h-[250px] items-center justify-center rounded-lg bg-card text-sm text-muted-foreground">
             Loading metrics...
           </div>
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 p-4">
-          <p className="text-sm text-[var(--color-destructive)]">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+          <p className="text-sm text-destructive">
             Failed to load metrics data. The backend metrics endpoint may not be
             available yet.
           </p>
         </div>
       ) : chartData.length === 0 ? (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
-          <p className="text-sm text-[var(--color-text-muted)]">
+        <div className="rounded-lg border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">
             No metrics available for the selected window.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Average & P95 latency trend */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+          <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
               Latency Trend
             </h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -142,9 +142,9 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
                 <Tooltip
                   formatter={(v: number) => [`${v} ms`]}
                   contentStyle={{
-                    backgroundColor: "var(--color-surface)",
-                    borderColor: "var(--color-border)",
-                    color: "var(--color-text-primary)",
+                    backgroundColor: "var(--card)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
                     borderRadius: "0.5rem",
                   }}
                 />
@@ -171,8 +171,8 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
           </div>
 
           {/* Average confidence trend */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+          <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
               Confidence Trend
             </h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -190,9 +190,9 @@ export function MetricsTrends({ defaultWindow = "24h" }: MetricsTrendsProps) {
                 <Tooltip
                   formatter={(v: number) => [`${v}`, "Avg confidence"]}
                   contentStyle={{
-                    backgroundColor: "var(--color-surface)",
-                    borderColor: "var(--color-border)",
-                    color: "var(--color-text-primary)",
+                    backgroundColor: "var(--card)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
                     borderRadius: "0.5rem",
                   }}
                 />

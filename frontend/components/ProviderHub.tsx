@@ -50,8 +50,8 @@ function ProviderRow({
               className={cn(
                 'inline-block h-2.5 w-2.5 rounded-full',
                 provider.has_key
-                  ? 'bg-[var(--color-success)]'
-                  : 'bg-[var(--color-text-muted)]'
+                  ? 'bg-success'
+                  : 'bg-muted-foreground'
               )}
               aria-label={provider.has_key ? 'API key configured' : 'No API key'}
             />
@@ -61,7 +61,7 @@ function ProviderRow({
             className={cn(
               'rounded-full px-2 py-0.5 text-xs font-medium',
               provider.is_active
-                ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                ? 'bg-success/10 text-success'
                 : 'text-muted-foreground bg-muted'
             )}
           >
@@ -137,7 +137,7 @@ function ProviderRow({
         )}
 
         {error ? (
-          <p className="mt-1 text-xs text-[var(--color-destructive)]" role="alert">{error}</p>
+          <p className="mt-1 text-xs text-destructive" role="alert">{error}</p>
         ) : null}
       </CardContent>
     </Card>

@@ -17,9 +17,9 @@ interface ConfidenceIndicatorProps {
 }
 
 const TIER_STYLES: Record<ConfidenceTier, string> = {
-  green: "bg-[var(--color-success)] text-white",
-  yellow: "bg-[var(--color-warning)] text-white",
-  red: "bg-[var(--color-destructive)] text-white",
+  green: "bg-success text-white",
+  yellow: "bg-warning text-white",
+  red: "bg-destructive text-white",
 };
 
 const TIER_LABELS: Record<ConfidenceTier, string> = {
@@ -46,14 +46,14 @@ function ConfidenceIndicatorInner({ score }: ConfidenceIndicatorProps) {
         <PopoverHeader>
           <PopoverTitle>{TIER_LABELS[tier]}</PopoverTitle>
         </PopoverHeader>
-        <div className="space-y-1 text-sm text-[var(--color-text-muted)]">
+        <div className="space-y-1 text-sm text-muted-foreground">
           <div className="flex justify-between">
             <span>Score</span>
-            <span className="font-medium text-[var(--color-text-primary)]">{score}/100</span>
+            <span className="font-medium text-foreground">{score}/100</span>
           </div>
           <div className="flex justify-between">
             <span>Tier</span>
-            <span className="font-medium text-[var(--color-text-primary)] capitalize">{tier}</span>
+            <span className="font-medium text-foreground capitalize">{tier}</span>
           </div>
         </div>
       </PopoverContent>

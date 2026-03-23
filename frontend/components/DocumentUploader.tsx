@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { ingestFile, getIngestionJob } from '@/lib/api';
-import { UPLOAD_CONSTRAINTS, TERMINAL_JOB_STATES } from '@/lib/types';
-import type { IngestionJob } from '@/lib/types';
+import { FileText, FileType } from 'lucide-react';
+import { ingestFile } from '@/lib/api';
+import { UPLOAD_CONSTRAINTS } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import IngestionProgress from '@/components/IngestionProgress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,98 +15,29 @@ export interface DocumentUploaderProps {
   onUploadComplete: () => void;
 }
 
-interface UploadState {
-  job: IngestionJob | null;
-  isUploading: boolean;
-  fileError: string | null;
-  uploadError: string | null;
+interface QueuedFile {
+  file: File;
+  status: 'waiting' | 'uploading' | 'ingesting' | 'done' | 'error';
+  jobId?: string;
+  error?: string;
 }
 
-// ─── ProgressBar ──────────────────────────────────────────────────────────────
-// Defined outside DocumentUploader — rerender-no-inline-components
+// ─── Helpers (module-level — rerender-no-inline-components) ───────────────────
 
-interface ProgressBarProps {
-  chunksProcessed: number;
-  chunksTotal: number | null;
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ProgressBar = React.memo(function ProgressBar({
-  chunksProcessed,
-  chunksTotal,
-}: ProgressBarProps) {
-  const pct =
-    chunksTotal !== null && chunksTotal > 0
-      ? Math.round((chunksProcessed / chunksTotal) * 100)
-      : null;
-
-  return (
-    <div className="mt-3">
-      <Progress value={pct ?? 0} aria-label="Ingestion progress">
-        <ProgressLabel className="text-xs text-[var(--color-text-muted)]">
-          {chunksProcessed} / {chunksTotal !== null ? chunksTotal : '?'} chunks
-        </ProgressLabel>
-        {pct !== null ? (
-          <ProgressValue className="text-xs font-medium text-[var(--color-accent)]">
-            {() => `${pct}%`}
-          </ProgressValue>
-        ) : null}
-      </Progress>
-    </div>
-  );
-});
-
-// ─── JobStatus ────────────────────────────────────────────────────────────────
-
-interface JobStatusProps {
-  job: IngestionJob;
+interface FileIconProps {
+  filename: string;
 }
 
-const JOB_STATUS_LABEL: Record<string, string> = {
-  pending:   'Queued\u2026',
-  started:   'Starting\u2026',
-  streaming: 'Processing\u2026',
-  embedding: 'Embedding\u2026',
-  completed: 'Completed',
-  failed:    'Failed',
-  paused:    'Paused',
-};
-
-const JOB_STATUS_STYLE: Record<string, string> = {
-  completed: 'bg-[var(--color-success)]/10 border-[var(--color-success)]/20 text-[var(--color-success)]',
-  failed:    'bg-[var(--color-destructive)]/10 border-[var(--color-destructive)]/20 text-[var(--color-destructive)]',
-};
-
-const JOB_STATUS_DEFAULT_STYLE = 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/20 text-[var(--color-accent)]';
-
-const JobStatus = React.memo(function JobStatus({ job }: JobStatusProps) {
-  const label = JOB_STATUS_LABEL[job.status] ?? job.status;
-  const isTerminal = TERMINAL_JOB_STATES.includes(job.status);
-  const statusStyle = JOB_STATUS_STYLE[job.status] ?? JOB_STATUS_DEFAULT_STYLE;
-
-  return (
-    <div className={cn('mt-4 p-3 rounded-lg text-sm border', statusStyle)}>
-      <div className="flex items-center gap-2">
-        {!isTerminal ? (
-          <span
-            className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"
-            aria-hidden="true"
-          />
-        ) : null}
-        <span className="font-medium">{label}</span>
-      </div>
-
-      {!isTerminal ? (
-        <ProgressBar
-          chunksProcessed={job.chunks_processed}
-          chunksTotal={job.chunks_total}
-        />
-      ) : null}
-
-      {job.status === 'failed' && job.error_message ? (
-        <p className="mt-1 text-xs text-[var(--color-destructive)]">{job.error_message}</p>
-      ) : null}
-    </div>
-  );
+const FileIcon = React.memo(function FileIcon({ filename }: FileIconProps) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return <FileType className="h-4 w-4 shrink-0 text-red-500" />;
+  return <FileText className="h-4 w-4 shrink-0 text-blue-500" />;
 });
 
 // ─── DocumentUploader ─────────────────────────────────────────────────────────
@@ -116,135 +46,111 @@ export default function DocumentUploader({
   collectionId,
   onUploadComplete,
 }: DocumentUploaderProps) {
-  const [state, setState] = useState<UploadState>({
-    job: null,
-    isUploading: false,
-    fileError: null,
-    uploadError: null,
-  });
+  const [queue, setQueue] = useState<QueuedFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
 
-  // Primitive jobId stored in a ref so the polling effect dep array stays stable.
-  // rerender-dependencies: use primitive string, not object reference.
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Derived — is any file currently uploading?
+  const isUploading = queue.some((f) => f.status === 'uploading');
+  // Derived — is any file still in-progress (uploading or ingesting)?
+  const hasActiveWork = queue.some(
+    (f) => f.status === 'uploading' || f.status === 'ingesting' || f.status === 'waiting',
+  );
 
-  // Store collectionId in ref to avoid stale closures in polling callback
-  const collectionIdRef = useRef(collectionId);
+  // ─── Sequential upload effect ────────────────────────────────────────────
   useEffect(() => {
-    collectionIdRef.current = collectionId;
-  }, [collectionId]);
+    if (isUploading) return;
+    const nextIdx = queue.findIndex((f) => f.status === 'waiting');
+    if (nextIdx === -1) return;
 
-  // ─── Polling effect ──────────────────────────────────────────────────────
-  // Dep array uses primitive `activeJobId` string — rerender-dependencies rule.
-  useEffect(() => {
-    if (activeJobId === null) return;
+    // Mark as uploading
+    setQueue((prev) =>
+      prev.map((f, i) => (i === nextIdx ? { ...f, status: 'uploading' as const } : f)),
+    );
 
-    const jobId = activeJobId; // capture primitive
+    const item = queue[nextIdx];
 
-    intervalRef.current = setInterval(async () => {
-      try {
-        const job = await getIngestionJob(collectionIdRef.current, jobId);
-
-        // rerender-functional-setstate: use functional update for stable callbacks
-        setState((prev) => ({ ...prev, job }));
-
-        if (TERMINAL_JOB_STATES.includes(job.status)) {
-          if (intervalRef.current !== null) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          setActiveJobId(null);
-
-          if (job.status === 'completed') {
-            onUploadComplete();
-          }
-        }
-      } catch {
-        if (intervalRef.current !== null) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        setActiveJobId(null);
-        setState((prev) => ({
-          ...prev,
-          uploadError: 'Failed to poll ingestion status.',
-        }));
-      }
-    }, 2000);
-
-    return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [activeJobId, onUploadComplete]);
-
-  // ─── Drop handler ────────────────────────────────────────────────────────
-  const handleDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
-
-      // Client-side size guard — NO network request on violation
-      if (file.size > UPLOAD_CONSTRAINTS.maxSizeBytes) {
-        setState((prev) => ({
-          ...prev,
-          fileError: `${file.name} exceeds the 50 MB limit. Choose a smaller file.`,
-          uploadError: null,
-        }));
-        return;
-      }
-
-      // Extension allowlist guard — NO network request on violation
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (!ext || !(UPLOAD_CONSTRAINTS.allowedExtensions as readonly string[]).includes(ext)) {
-        setState((prev) => ({
-          ...prev,
-          fileError: `${file.name}: unsupported file type. Allowed: pdf, md, txt, rst`,
-          uploadError: null,
-        }));
-        return;
-      }
-
-      // Valid file — proceed with upload
-      setState((prev) => ({
-        ...prev,
-        fileError: null,
-        uploadError: null,
-        isUploading: true,
-        job: null,
-      }));
-
-      try {
-        const job = await ingestFile(collectionId, file);
-        setState((prev) => ({ ...prev, isUploading: false, job }));
-        setActiveJobId(job.job_id); // primitive string — starts polling
-      } catch (err: unknown) {
+    ingestFile(collectionId, item.file)
+      .then((job) => {
+        setQueue((prev) =>
+          prev.map((f, i) =>
+            i === nextIdx
+              ? { ...f, status: 'ingesting' as const, jobId: job.job_id }
+              : f,
+          ),
+        );
+      })
+      .catch((err: unknown) => {
         const message =
           err instanceof Error ? err.message : 'Upload failed. Please try again.';
-        setState((prev) => ({
-          ...prev,
-          isUploading: false,
-          uploadError: message,
-        }));
+        setQueue((prev) =>
+          prev.map((f, i) =>
+            i === nextIdx ? { ...f, status: 'error' as const, error: message } : f,
+          ),
+        );
+      });
+  }, [queue, collectionId, isUploading]);
+
+  // ─── Queue callbacks ────────────────────────────────────────────────────
+  const markDone = useCallback((idx: number) => {
+    setQueue((prev) =>
+      prev.map((f, i) => (i === idx ? { ...f, status: 'done' as const } : f)),
+    );
+  }, []);
+
+  const retryUpload = useCallback((idx: number) => {
+    setQueue((prev) =>
+      prev.map((f, i) =>
+        i === idx ? { ...f, status: 'waiting' as const, jobId: undefined, error: undefined } : f,
+      ),
+    );
+  }, []);
+
+  // ─── Drop handler ──────────────────────────────────────────────────────
+  const handleDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      setFileError(null);
+
+      const validFiles: QueuedFile[] = [];
+      const errors: string[] = [];
+
+      for (const file of acceptedFiles) {
+        // Client-side size guard
+        if (file.size > UPLOAD_CONSTRAINTS.maxSizeBytes) {
+          errors.push(`${file.name} exceeds the 50 MB limit.`);
+          continue;
+        }
+
+        // Extension allowlist guard
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (!ext || !(UPLOAD_CONSTRAINTS.allowedExtensions as readonly string[]).includes(ext)) {
+          errors.push(`${file.name}: unsupported file type.`);
+          continue;
+        }
+
+        validFiles.push({ file, status: 'waiting' });
+      }
+
+      if (errors.length > 0) {
+        setFileError(errors.join(' '));
+      }
+
+      if (validFiles.length > 0) {
+        setQueue((prev) => [...prev, ...validFiles]);
       }
     },
-    [collectionId],
+    [],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleDrop,
     accept: UPLOAD_CONSTRAINTS.accept,
-    multiple: false,
-    disabled: state.isUploading || activeJobId !== null,
+    multiple: true,
+    disabled: false,
   });
-
-  const isActive = state.isUploading || activeJobId !== null;
 
   return (
     <div className="mt-6">
-      <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Upload Document</h3>
+      <h3 className="text-sm font-semibold text-foreground mb-2">Upload Documents</h3>
 
       {/* Drop zone */}
       <div
@@ -252,56 +158,92 @@ export default function DocumentUploader({
         className={cn(
           'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
           isDragActive
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-            : isActive
-            ? 'border-[var(--color-border)] bg-[var(--color-surface)] cursor-not-allowed opacity-60'
-            : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5'
+            ? 'border-primary bg-primary/5'
+            : 'border-border bg-background hover:border-primary hover:bg-primary/5',
         )}
         aria-label="File upload drop zone"
       >
         <input {...getInputProps()} />
         {isDragActive ? (
-          <p className="text-sm text-[var(--color-accent)] font-medium">Drop the file here\u2026</p>
+          <p className="text-sm text-primary font-medium">Drop files here{'\u2026'}</p>
         ) : (
           <div>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Drag and drop a file here, or{' '}
-              <span className="text-[var(--color-accent)] font-medium">browse</span>
+            <p className="text-sm text-muted-foreground">
+              Drag and drop files here, or{' '}
+              <span className="text-primary font-medium">browse</span>
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               PDF, Markdown, TXT, RST — max 50 MB
             </p>
           </div>
         )}
       </div>
 
-      {/* Client-side file error — shown without network request */}
-      {state.fileError !== null ? (
-        <p role="alert" className="mt-2 text-sm text-[var(--color-destructive)]">
-          {state.fileError}
+      {/* Client-side validation error */}
+      {fileError !== null && (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {fileError}
         </p>
-      ) : null}
+      )}
 
-      {/* Upload / API error */}
-      {state.uploadError !== null ? (
-        <p role="alert" className="mt-2 text-sm text-[var(--color-destructive)]">
-          {state.uploadError}
-        </p>
-      ) : null}
+      {/* File queue */}
+      {queue.length > 0 && (
+        <div className="mt-4 space-y-3">
+          {queue.map((item, i) => (
+            <div key={`${item.file.name}-${item.file.lastModified}-${i}`} className="rounded-lg border border-border p-3">
+              {/* File info row */}
+              <div className="flex items-center gap-3">
+                <FileIcon filename={item.file.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.file.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatBytes(item.file.size)}</p>
+                </div>
+                {item.status === 'done' && (
+                  <span className="text-xs text-success font-medium">Done</span>
+                )}
+              </div>
 
-      {/* Uploading spinner */}
-      {state.isUploading ? (
-        <p className="mt-3 text-sm text-[var(--color-text-muted)] flex items-center gap-2">
-          <span
-            className="inline-block w-4 h-4 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
-            aria-hidden="true"
-          />
-          Uploading\u2026
-        </p>
-      ) : null}
+              {/* Uploading spinner */}
+              {item.status === 'uploading' && (
+                <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
+                  <span
+                    className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"
+                    aria-hidden="true"
+                  />
+                  Uploading{'\u2026'}
+                </p>
+              )}
 
-      {/* Job polling status */}
-      {state.job !== null ? <JobStatus job={state.job} /> : null}
+              {/* Upload error */}
+              {item.status === 'error' && (
+                <div className="mt-2">
+                  <p className="text-xs text-destructive">{item.error}</p>
+                  <button
+                    type="button"
+                    onClick={() => retryUpload(i)}
+                    className="mt-1 text-xs text-primary hover:underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {/* IngestionProgress — SWR-based polling */}
+              {item.status === 'ingesting' && item.jobId && (
+                <IngestionProgress
+                  collectionId={collectionId}
+                  jobId={item.jobId}
+                  onComplete={() => {
+                    markDone(i);
+                    onUploadComplete();
+                  }}
+                  onRetry={() => retryUpload(i)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

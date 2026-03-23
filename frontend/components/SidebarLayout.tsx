@@ -25,13 +25,13 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider open={open} onOpenChange={handleOpenChange}>
       <SidebarNav />
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--color-border)] px-4">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <PageBreadcrumb />
         </header>
         <StatusBanner />
-        <main className="flex-1">{children}</main>
+        <main className="flex flex-1 flex-col min-h-0">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

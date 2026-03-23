@@ -24,6 +24,7 @@ import {
   CommandItem,
   CommandShortcut,
 } from "@/components/ui/command";
+import { Kbd } from "@/components/ui/kbd";
 import { useChatStorage } from "@/hooks/useChatStorage";
 
 export default function CommandPalette() {
@@ -83,8 +84,19 @@ export default function CommandPalette() {
           </CommandGroup>
 
           <CommandGroup heading="Actions">
-            <CommandItem onSelect={() => runCommand(() => router.push("/collections"))}>
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => {
+                  clearChat();
+                  router.push("/chat");
+                })
+              }
+            >
               <Plus />
+              <span>New Chat</span>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => router.push("/collections"))}>
+              <FolderOpen />
               <span>Create Collection</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => clearChat())}>
@@ -100,7 +112,29 @@ export default function CommandPalette() {
             >
               {resolvedTheme === "dark" ? <Sun /> : <Moon />}
               <span>Toggle Dark Mode</span>
-              <CommandShortcut>Theme</CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+
+          <CommandGroup heading="Shortcuts">
+            <CommandItem disabled>
+              <span>Command Palette</span>
+              <CommandShortcut><Kbd>⌘</Kbd><Kbd>K</Kbd></CommandShortcut>
+            </CommandItem>
+            <CommandItem disabled>
+              <span>Toggle Sidebar</span>
+              <CommandShortcut><Kbd>⌘</Kbd><Kbd>B</Kbd></CommandShortcut>
+            </CommandItem>
+            <CommandItem disabled>
+              <span>Send Message</span>
+              <CommandShortcut><Kbd>↵</Kbd></CommandShortcut>
+            </CommandItem>
+            <CommandItem disabled>
+              <span>New Line</span>
+              <CommandShortcut><Kbd>⇧</Kbd><Kbd>↵</Kbd></CommandShortcut>
+            </CommandItem>
+            <CommandItem disabled>
+              <span>Close / Stop Streaming</span>
+              <CommandShortcut><Kbd>Esc</Kbd></CommandShortcut>
             </CommandItem>
           </CommandGroup>
         </CommandList>

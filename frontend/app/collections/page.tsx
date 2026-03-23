@@ -1,7 +1,10 @@
 "use client";
 
 import React, { Component } from "react";
+import { FolderPlus } from "lucide-react";
 import CollectionList from "@/components/CollectionList";
+import CreateCollectionDialog from "@/components/CreateCollectionDialog";
+import { useCollections } from "@/hooks/useCollections";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -43,10 +46,42 @@ class CollectionErrorBoundary extends Component<
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CollectionsPage() {
+  const { collections, isLoading, mutate } = useCollections();
+
+  const showEmptyState =
+    !isLoading && collections !== undefined && collections.length === 0;
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <CollectionErrorBoundary>
-        <CollectionList />
+        {showEmptyState ? (
+          <div>
+            <div className="mb-6 flex items-center justify-between">
+              <h1 className="text-xl font-semibold text-foreground">
+                Collections
+              </h1>
+            </div>
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center space-y-4">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                  <FolderPlus className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    No collections yet
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+                    Collections are named groups of documents. Create your first
+                    collection to start building your knowledge base.
+                  </p>
+                </div>
+                <CreateCollectionDialog onCreated={() => mutate()} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <CollectionList />
+        )}
       </CollectionErrorBoundary>
     </main>
   );

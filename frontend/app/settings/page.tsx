@@ -44,7 +44,7 @@ export default function SettingsPage() {
   };
 
   const labelClass = 'mb-1 block text-sm font-medium text-foreground';
-  const errorClass = 'mt-1 text-xs text-[var(--color-destructive)]';
+  const errorClass = 'mt-1 text-xs text-destructive';
 
   return (
     <main className="mx-auto max-w-3xl px-[var(--space-page)] py-8">
@@ -173,7 +173,7 @@ export default function SettingsPage() {
                     type="checkbox"
                     disabled={isLoading}
                     {...register('groundedness_check_enabled')}
-                    className="h-4 w-4 rounded border-border text-[var(--color-accent)] focus:ring-[var(--color-accent)] disabled:opacity-50"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:opacity-50"
                   />
                   <label htmlFor="groundedness_check_enabled" className="text-sm font-medium text-foreground">
                     Enable Groundedness Check

@@ -1,13 +1,25 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import useSWR from 'swr';
 import { getDocuments, deleteDocument } from '@/lib/api';
+import { useCollections } from '@/hooks/useCollections';
 import DocumentList from '@/components/DocumentList';
 import DocumentUploader from '@/components/DocumentUploader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { MessageSquare } from 'lucide-react';
 
 // ─── Documents Page ───────────────────────────────────────────────────────────
 
@@ -19,7 +31,7 @@ export default function DocumentsPage() {
   if (!collectionId || typeof collectionId !== 'string' || collectionId.trim() === '') {
     return (
       <main className="max-w-6xl mx-auto px-[var(--space-page)] py-10">
-        <p className="text-[var(--color-destructive)] text-sm">Invalid or missing collection ID.</p>
+        <p className="text-destructive text-sm">Invalid or missing collection ID.</p>
       </main>
     );
   }
@@ -35,6 +47,11 @@ interface DocumentsContentProps {
 }
 
 function DocumentsContent({ collectionId }: DocumentsContentProps) {
+  const router = useRouter();
+  const { collections } = useCollections();
+  const collection = collections?.find((c) => c.id === collectionId);
+  const collectionName = collection?.name ?? collectionId;
+
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
@@ -68,16 +85,41 @@ function DocumentsContent({ collectionId }: DocumentsContentProps) {
   return (
     <main className="max-w-6xl mx-auto px-[var(--space-page)] py-10">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Documents</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Collection: <span className="font-mono text-[var(--color-text-primary)]">{collectionId}</span>
-        </p>
+        <Breadcrumb className="mb-3">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href="/collections" />}>
+                Collections
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{collectionName}</BreadcrumbPage>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Documents</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-foreground">{collectionName}</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/chat?collections=${collectionId}`)}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Chat with this collection
+          </Button>
+        </div>
       </header>
 
       {deleteError !== null ? (
         <div
           role="alert"
-          className="mb-4 px-4 py-3 bg-[var(--color-destructive)]/10 border border-[var(--color-destructive)]/20 rounded-lg text-sm text-[var(--color-destructive)]"
+          className="mb-4 px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive"
         >
           {deleteError}
         </div>
@@ -96,7 +138,7 @@ function DocumentsContent({ collectionId }: DocumentsContentProps) {
           ) : error !== undefined && error !== null ? (
             <div
               role="alert"
-              className="py-6 px-4 bg-[var(--color-destructive)]/10 border border-[var(--color-destructive)]/20 rounded-lg text-sm text-[var(--color-destructive)]"
+              className="py-6 px-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive"
             >
               Failed to load documents. Please try again.
             </div>
@@ -112,17 +154,17 @@ function DocumentsContent({ collectionId }: DocumentsContentProps) {
 
         {/* Right column: chunk preview */}
         <div className="min-w-0">
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-3">
               Chunk Preview
             </h2>
             {selectedDoc ? (
               <ScrollArea className="h-[400px] md:h-[500px]">
                 <div className="pr-4 space-y-3">
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    Showing chunks for <span className="font-medium text-[var(--color-text-primary)]">{selectedDoc.filename}</span>
+                  <p className="text-sm text-muted-foreground">
+                    Showing chunks for <span className="font-medium text-foreground">{selectedDoc.filename}</span>
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
+                  <p className="text-xs text-muted-foreground">
                     {selectedDoc.chunk_count !== null
                       ? `${selectedDoc.chunk_count} chunks indexed`
                       : 'Chunk count unavailable'}
@@ -131,7 +173,7 @@ function DocumentsContent({ collectionId }: DocumentsContentProps) {
               </ScrollArea>
             ) : (
               <div className="py-12 text-center">
-                <p className="text-sm text-[var(--color-text-muted)]">
+                <p className="text-sm text-muted-foreground">
                   Select a document to preview its chunks.
                 </p>
               </div>

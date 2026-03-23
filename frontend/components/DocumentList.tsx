@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<
   completed: {
     variant: 'secondary',
     label: 'Completed',
-    className: 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20',
+    className: 'bg-success/10 text-success border-success/20',
   },
   failed: {
     variant: 'destructive',
@@ -41,7 +41,7 @@ const STATUS_CONFIG: Record<
   duplicate: {
     variant: 'outline',
     label: 'Duplicate',
-    className: 'text-[var(--color-text-muted)]',
+    className: 'text-muted-foreground',
   },
 };
 
@@ -85,13 +85,13 @@ const DocumentRow = React.memo(function DocumentRow({ document: doc, onDelete }:
       <TableCell className="text-right tabular-nums">
         {doc.chunk_count !== null ? doc.chunk_count.toLocaleString() : '\u2014'}
       </TableCell>
-      <TableCell className="text-[var(--color-text-muted)]">
+      <TableCell className="text-muted-foreground">
         {new Date(doc.created_at).toLocaleDateString()}
       </TableCell>
       <TableCell className="text-right">
         <button
           onClick={handleDelete}
-          className="text-sm text-[var(--color-destructive)] hover:text-[var(--color-destructive)]/80 font-medium transition-colors"
+          className="text-sm text-destructive hover:text-destructive/80 font-medium transition-colors"
           aria-label={`Delete ${doc.filename}`}
         >
           Delete
@@ -111,14 +111,14 @@ export interface DocumentListProps {
 const DocumentList = React.memo(function DocumentList({ documents, onDelete }: DocumentListProps) {
   if (documents.length === 0) {
     return (
-      <div className="text-center py-12 text-[var(--color-text-muted)]">
+      <div className="text-center py-12 text-muted-foreground">
         <p className="text-sm">No documents yet. Upload a file to get started.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)]">
+    <div className="rounded-lg border border-border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">

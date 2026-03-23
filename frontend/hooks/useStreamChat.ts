@@ -96,8 +96,9 @@ export function useStreamChat() {
               msg.id === assistantId
                 ? {
                     ...msg,
-                    content: msg.content || `Error: ${message} (${code})`,
+                    content: msg.content || `${message}`,
                     isStreaming: false,
+                    isError: true,
                     traceId,
                   }
                 : msg,

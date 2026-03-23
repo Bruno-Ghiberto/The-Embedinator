@@ -7,6 +7,12 @@ import { getConfidenceTier } from "@/lib/types";
 // All vi.mock calls are hoisted before imports by vitest.
 // Use require("react") inside factories to avoid hoisting issues.
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("next/link", () => {
   const React = require("react") as typeof import("react");
   return {
@@ -369,7 +375,7 @@ vi.mock("@/hooks/useModels", () => ({
 // ─── Component + lib imports ──────────────────────────────────────────────────
 
 import ConfidenceIndicator from "@/components/ConfidenceIndicator";
-import CitationTooltip from "@/components/CitationTooltip";
+import { CitationHoverCard } from "@/components/CitationHoverCard";
 import CollectionCard from "@/components/CollectionCard";
 import CreateCollectionDialog from "@/components/CreateCollectionDialog";
 import { deleteCollection } from "@/lib/api";
@@ -442,28 +448,31 @@ describe("ConfidenceIndicator — aria-label reflects tier and score", () => {
   });
 });
 
-// ─── CitationTooltip — source_removed badge ───────────────────────────────────
+// ─── CitationHoverCard — source_removed rendering ─────────────────────────────
 
-describe("CitationTooltip — source_removed rendering", () => {
-  test("source_removed: true renders 'Source removed' badge text", () => {
-    render(<CitationTooltip citation={MOCK_CITATION_REMOVED} index={1} />);
-    expect(screen.getByText("Source removed")).toBeInTheDocument();
+describe("CitationHoverCard — source_removed rendering", () => {
+  test("source_removed: true renders line-through pill", () => {
+    render(<CitationHoverCard citation={MOCK_CITATION_REMOVED} citationNumber={1} />);
+    const pill = screen.getByText("[1]");
+    expect(pill).toBeInTheDocument();
+    expect(pill.className).toContain("line-through");
   });
 
-  test("source_removed: false does NOT render 'Source removed' text", () => {
-    render(<CitationTooltip citation={MOCK_CITATION_PRESENT} index={1} />);
-    expect(screen.queryByText("Source removed")).not.toBeInTheDocument();
+  test("source_removed: false renders clickable citation pill", () => {
+    render(<CitationHoverCard citation={MOCK_CITATION_PRESENT} citationNumber={1} />);
+    const pill = screen.getByText("[1]");
+    expect(pill).toBeInTheDocument();
+    expect(pill.className).not.toContain("line-through");
   });
 
-  test("source_removed: false renders document_name in popover", () => {
-    render(<CitationTooltip citation={MOCK_CITATION_PRESENT} index={1} />);
-    // document_name appears in the popover content
-    expect(screen.getByText("report.pdf")).toBeInTheDocument();
+  test("source_removed: false includes document_name in aria-label", () => {
+    render(<CitationHoverCard citation={MOCK_CITATION_PRESENT} citationNumber={1} />);
+    expect(screen.getByLabelText(/report\.pdf/)).toBeInTheDocument();
   });
 
-  test("citation trigger button shows [N] index", () => {
-    render(<CitationTooltip citation={MOCK_CITATION_PRESENT} index={3} />);
-    expect(screen.getByRole("button", { name: /Citation 3/i })).toBeInTheDocument();
+  test("citation trigger shows [N] number with aria-label", () => {
+    render(<CitationHoverCard citation={MOCK_CITATION_PRESENT} citationNumber={3} />);
+    expect(screen.getByLabelText(/Citation 3/i)).toBeInTheDocument();
   });
 });
 

@@ -37,7 +37,7 @@ function buildConfidenceData(traces: QueryTrace[]): TierBucket[] {
     {
       label: "High (\u226570)",
       count: withScore.filter((t) => (t.confidence_score as number) >= 70).length,
-      colorVar: "--color-success",
+      colorVar: "--success",
     },
     {
       label: "Medium (40-69)",
@@ -45,12 +45,12 @@ function buildConfidenceData(traces: QueryTrace[]): TierBucket[] {
         const s = t.confidence_score as number;
         return s >= 40 && s < 70;
       }).length,
-      colorVar: "--color-warning",
+      colorVar: "--warning",
     },
     {
       label: "Low (<40)",
       count: withScore.filter((t) => (t.confidence_score as number) < 40).length,
-      colorVar: "--color-destructive",
+      colorVar: "--destructive",
     },
   ];
 }
@@ -68,17 +68,17 @@ export function ConfidenceDistribution({ traces }: ConfidenceDistributionProps) 
     for (const d of data) {
       colors[d.colorVar] = resolveCssVar(d.colorVar);
     }
-    colors["--color-text-muted"] = resolveCssVar("--color-text-muted");
-    colors["--color-border"] = resolveCssVar("--color-border");
+    colors["--muted-foreground"] = resolveCssVar("--muted-foreground");
+    colors["--border"] = resolveCssVar("--border");
     setResolved(colors);
   }, [data]);
 
-  const axisColor = resolved["--color-text-muted"] || "#6b52b5";
-  const gridColor = resolved["--color-border"] || "#d1c4f5";
+  const axisColor = resolved["--muted-foreground"] || "#6b52b5";
+  const gridColor = resolved["--border"] || "#d1c4f5";
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+      <h3 className="mb-3 text-sm font-semibold text-foreground">
         Confidence Distribution
       </h3>
       <ResponsiveContainer width="100%" height={250}>
@@ -90,9 +90,9 @@ export function ConfidenceDistribution({ traces }: ConfidenceDistributionProps) 
             formatter={(value: number) => [value, "Queries"]}
             labelFormatter={(label: string) => `Tier: ${label}`}
             contentStyle={{
-              backgroundColor: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-primary)",
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
               borderRadius: "0.5rem",
             }}
           />

@@ -39,18 +39,18 @@ function buildChartData(
 // Stage color map — uses CSS variable values for theme compatibility.
 // Keys are lowercase stage names; fallback to accent color.
 const STAGE_COLOR_MAP: Record<string, string> = {
-  retrieval: "var(--color-accent)",
-  rerank: "var(--color-success)",
-  compress: "var(--color-warning)",
+  retrieval: "var(--primary)",
+  rerank: "var(--success)",
+  compress: "var(--warning)",
   "meta-reasoning": "var(--chart-2)",
   inference: "var(--chart-4)",
 };
 
-const FILL_FAILED = "var(--color-destructive)";
+const FILL_FAILED = "var(--destructive)";
 
 function getStageColor(stage: string, failed: boolean): string {
   if (failed) return FILL_FAILED;
-  return STAGE_COLOR_MAP[stage.toLowerCase()] ?? "var(--color-accent)";
+  return STAGE_COLOR_MAP[stage.toLowerCase()] ?? "var(--primary)";
 }
 
 // Resolve CSS variable to actual color value for recharts fill
@@ -77,8 +77,8 @@ export function StageTimingsChart({ timings }: StageTimingsChartProps) {
       colors[`${entry.stage}-${entry.failed}`] = resolveCssVar(cssVar);
     }
     // Also resolve the axis label color
-    colors["__axis"] = resolveCssVar("var(--color-text-muted)");
-    colors["__grid"] = resolveCssVar("var(--color-border)");
+    colors["__axis"] = resolveCssVar("var(--muted-foreground)");
+    colors["__grid"] = resolveCssVar("var(--border)");
     setResolvedColors(colors);
   }, [data]);
 
@@ -117,9 +117,9 @@ export function StageTimingsChart({ timings }: StageTimingsChartProps) {
             formatter={(value: number) => [`${value} ms`, "Duration"]}
             labelFormatter={(label: string) => `Stage: ${label}`}
             contentStyle={{
-              backgroundColor: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-primary)",
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
               borderRadius: "0.5rem",
             }}
           />

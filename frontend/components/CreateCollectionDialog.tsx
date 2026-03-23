@@ -131,7 +131,7 @@ export default function CreateCollectionDialog({
           <div>
             <label
               htmlFor="collection-name"
-              className="block text-sm font-medium text-[var(--color-text-primary)] mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Name{" "}
               <span aria-hidden="true" className="text-destructive">
@@ -159,7 +159,7 @@ export default function CreateCollectionDialog({
                 {nameError}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Lowercase letters, digits, hyphens, underscores only.
               </p>
             )}
@@ -169,10 +169,10 @@ export default function CreateCollectionDialog({
           <div>
             <label
               htmlFor="collection-description"
-              className="block text-sm font-medium text-[var(--color-text-primary)] mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Description{" "}
-              <span className="text-[var(--color-text-muted)] font-normal">
+              <span className="text-muted-foreground font-normal">
                 (optional)
               </span>
             </label>
@@ -189,10 +189,10 @@ export default function CreateCollectionDialog({
           <div>
             <label
               htmlFor="embedding-model-trigger"
-              className="block text-sm font-medium text-[var(--color-text-primary)] mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Embedding model{" "}
-              <span className="text-[var(--color-text-muted)] font-normal">
+              <span className="text-muted-foreground font-normal">
                 (optional)
               </span>
             </label>

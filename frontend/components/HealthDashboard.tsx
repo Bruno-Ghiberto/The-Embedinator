@@ -13,13 +13,13 @@ import type { HealthService, HealthStatus } from "@/lib/types";
 function statusDotClass(status: string): string {
   switch (status) {
     case "ok":
-      return "bg-[var(--color-success)]";
+      return "bg-success";
     case "degraded":
-      return "bg-[var(--color-warning)]";
+      return "bg-warning";
     case "error":
-      return "bg-[var(--color-destructive)]";
+      return "bg-destructive";
     default:
-      return "bg-[var(--color-text-muted)]";
+      return "bg-muted-foreground";
   }
 }
 
@@ -35,7 +35,7 @@ const ServiceCard = React.memo(function ServiceCard({ service }: ServiceCardProp
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="capitalize">{service.name}</span>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <span
               className={cn("inline-block h-2 w-2 rounded-full", statusDotClass(service.status))}
               aria-label={`Status: ${service.status}`}
@@ -47,14 +47,14 @@ const ServiceCard = React.memo(function ServiceCard({ service }: ServiceCardProp
 
       <CardContent>
         {service.latency_ms !== null ? (
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="text-sm text-muted-foreground">
             Latency:{" "}
-            <span className="font-medium text-[var(--color-text-primary)]">{service.latency_ms} ms</span>
+            <span className="font-medium text-foreground">{service.latency_ms} ms</span>
           </p>
         ) : null}
 
         {service.status === "error" && service.error_message ? (
-          <p className="mt-2 rounded bg-[var(--color-destructive)]/10 px-2 py-1 text-xs text-[var(--color-destructive)]">
+          <p className="mt-2 rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">
             {service.error_message}
           </p>
         ) : null}
@@ -78,7 +78,7 @@ export function HealthDashboard() {
   if (isLoading) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">System Health</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {["sqlite", "qdrant", "ollama"].map((name) => (
             <Skeleton key={name} className="h-24 rounded-lg" />
@@ -91,8 +91,8 @@ export function HealthDashboard() {
   if (error) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
-        <p className="text-sm text-[var(--color-destructive)]">Failed to load health status.</p>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">System Health</h2>
+        <p className="text-sm text-destructive">Failed to load health status.</p>
       </section>
     );
   }
@@ -102,12 +102,12 @@ export function HealthDashboard() {
   }
 
   const overallColor =
-    health.status === "healthy" ? "text-[var(--color-success)]" : "text-[var(--color-destructive)]";
+    health.status === "healthy" ? "text-success" : "text-destructive";
 
   return (
     <section>
       <div className="mb-4 flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">System Health</h2>
+        <h2 className="text-lg font-semibold text-foreground">System Health</h2>
         <span className={cn("text-sm font-medium capitalize", overallColor)}>
           {health.status}
         </span>

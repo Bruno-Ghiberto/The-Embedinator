@@ -17,16 +17,16 @@ const CollectionRow = React.memo(function CollectionRow({
   collection,
 }: CollectionRowProps) {
   return (
-    <tr className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
-      <td className="px-4 py-3 text-sm font-medium text-[var(--color-text-primary)]">
+    <tr className="border-b border-border hover:bg-card">
+      <td className="px-4 py-3 text-sm font-medium text-foreground">
         {collection.name}
       </td>
-      <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {collection.description ?? (
-          <span className="text-[var(--color-text-muted)]">—</span>
+          <span className="text-muted-foreground">—</span>
         )}
       </td>
-      <td className="px-4 py-3 text-right text-sm text-[var(--color-text-primary)]">
+      <td className="px-4 py-3 text-right text-sm text-foreground">
         {collection.document_count}
       </td>
     </tr>
@@ -57,7 +57,7 @@ export function CollectionStats() {
   if (isLoading) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           Collection Statistics
         </h2>
         <Skeleton className="h-40 w-full" />
@@ -68,7 +68,7 @@ export function CollectionStats() {
   if (hasError) {
     return (
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           Collection Statistics
         </h2>
         <p className="text-sm text-destructive">
@@ -80,42 +80,42 @@ export function CollectionStats() {
 
   return (
     <section>
-      <h2 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         Collection Statistics
       </h2>
 
       {/* Aggregate summary from getStats() */}
       {stats ? (
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-lg bg-[var(--color-surface)] p-4 text-center">
+          <div className="rounded-lg bg-card p-4 text-center">
             <p className="text-2xl font-bold text-chart-1">
               {stats.total_collections}
             </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Collections
             </p>
           </div>
-          <div className="rounded-lg bg-[var(--color-surface)] p-4 text-center">
+          <div className="rounded-lg bg-card p-4 text-center">
             <p className="text-2xl font-bold text-chart-2">
               {stats.total_documents}
             </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Documents
             </p>
           </div>
-          <div className="rounded-lg bg-[var(--color-surface)] p-4 text-center">
+          <div className="rounded-lg bg-card p-4 text-center">
             <p className="text-2xl font-bold text-chart-3">
               {stats.total_chunks}
             </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Total Chunks
             </p>
           </div>
-          <div className="rounded-lg bg-[var(--color-surface)] p-4 text-center">
+          <div className="rounded-lg bg-card p-4 text-center">
             <p className="text-2xl font-bold text-chart-4">
               {stats.total_queries}
             </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Total Queries
             </p>
           </div>
@@ -124,22 +124,22 @@ export function CollectionStats() {
 
       {/* Per-collection breakdown — document_count per collection */}
       {collections && collections.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
-          <table className="min-w-full divide-y divide-[var(--color-border)] text-left">
-            <thead className="bg-[var(--color-surface)]">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border text-left">
+            <thead className="bg-card">
               <tr>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Collection
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Description
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Documents
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-background)]">
+            <tbody className="divide-y divide-border bg-background">
               {collections.map((col) => (
                 <CollectionRow key={col.id} collection={col} />
               ))}
@@ -147,7 +147,7 @@ export function CollectionStats() {
           </table>
         </div>
       ) : (
-        <p className="text-sm text-[var(--color-text-muted)]">
+        <p className="text-sm text-muted-foreground">
           No collections found.
         </p>
       )}

@@ -2,7 +2,8 @@
 
 import React, { memo, useState } from "react";
 import Link from "next/link";
-import { MoreVertical, Eye, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MoreVertical, Eye, Trash2, MessageSquare } from "lucide-react";
 import { deleteCollection } from "@/lib/api";
 import type { Collection } from "@/lib/types";
 import {
@@ -46,6 +47,7 @@ const CollectionCard = memo(function CollectionCard({
   collection,
   onDelete,
 }: CollectionCardProps) {
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -94,6 +96,14 @@ const CollectionCard = memo(function CollectionCard({
                 >
                   <Eye className="size-4" />
                   View Documents
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(`/chat?collections=${collection.id}`)
+                  }
+                >
+                  <MessageSquare className="size-4" />
+                  Chat with collection
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

@@ -54,15 +54,15 @@ export function LatencyChart({ traces }: LatencyChartProps) {
 
   useEffect(() => {
     setColors({
-      bar: resolveCssVar("--color-accent"),
-      axis: resolveCssVar("--color-text-muted"),
-      grid: resolveCssVar("--color-border"),
+      bar: resolveCssVar("--primary"),
+      axis: resolveCssVar("--muted-foreground"),
+      grid: resolveCssVar("--border"),
     });
   }, []);
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+      <h3 className="mb-3 text-sm font-semibold text-foreground">
         Latency Distribution
       </h3>
       <ResponsiveContainer width="100%" height={250}>
@@ -74,9 +74,9 @@ export function LatencyChart({ traces }: LatencyChartProps) {
             formatter={(value: number) => [value, "Queries"]}
             labelFormatter={(label: string) => `Bucket: ${label}`}
             contentStyle={{
-              backgroundColor: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-primary)",
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
               borderRadius: "0.5rem",
             }}
           />

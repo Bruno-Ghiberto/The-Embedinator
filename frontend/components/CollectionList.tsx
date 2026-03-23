@@ -51,7 +51,7 @@ export default function CollectionList() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
+        <h1 className="text-xl font-semibold text-foreground">
           Collections
         </h1>
         <CreateCollectionDialog onCreated={handleCreated} />
@@ -59,7 +59,7 @@ export default function CollectionList() {
 
       {!isLoading && !isError && collections && collections.length > 0 && (
         <div className="relative mb-6">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--color-text-muted)]" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search collections…"
@@ -94,20 +94,20 @@ export default function CollectionList() {
           ))}
         </div>
       ) : search.trim() ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-border)] py-16 px-6 text-center">
-          <p className="text-base font-medium text-[var(--color-text-primary)] mb-1">
+        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border py-16 px-6 text-center">
+          <p className="text-base font-medium text-foreground mb-1">
             No matching collections
           </p>
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="text-sm text-muted-foreground">
             Try a different search term.
           </p>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-border)] py-16 px-6 text-center">
-          <p className="text-base font-medium text-[var(--color-text-primary)] mb-1">
+        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border py-16 px-6 text-center">
+          <p className="text-base font-medium text-foreground mb-1">
             No collections yet
           </p>
-          <p className="text-sm text-[var(--color-text-muted)] mb-5">
+          <p className="text-sm text-muted-foreground mb-5">
             Create your first collection to start uploading documents.
           </p>
           <CreateCollectionDialog onCreated={handleCreated} />
