@@ -12,16 +12,59 @@ import uuid
 import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
 from backend.agent.conversation_graph import build_conversation_graph
 from backend.agent.schemas import ChatRequest
 from backend.config import settings
 from backend.errors import CircuitOpenError
+from langgraph.errors import GraphRecursionError
 
 logger = structlog.get_logger().bind(component=__name__)
 
 router = APIRouter()
+
+
+class CallLimitCallback(BaseCallbackHandler):
+    """ENH-006: Prevent runaway LLM/tool loops by enforcing per-request call limits.
+
+    NOTE: This single callback instance is shared across ALL parallel Send()
+    tasks (fan-out sub-questions). Limits must account for N concurrent
+    research loops (default max 5 sub-questions × per-loop budget).
+    Exceeding the limit logs a warning instead of raising RuntimeError,
+    because RuntimeError inside callbacks can corrupt LangGraph supersteps
+    during parallel execution (supersteps are transactional — any branch
+    exception aborts the entire superstep with no retry for RuntimeError).
+    """
+
+    def __init__(self, max_llm_calls: int = 100, max_tool_calls: int = 50):
+        self.max_llm_calls = max_llm_calls
+        self.max_tool_calls = max_tool_calls
+        self._llm_calls = 0
+        self._tool_calls = 0
+        self._llm_limit_logged = False
+        self._tool_limit_logged = False
+
+    def on_llm_start(self, *args, **kwargs):
+        self._llm_calls += 1
+        if self._llm_calls > self.max_llm_calls and not self._llm_limit_logged:
+            self._llm_limit_logged = True
+            logger.warning(
+                "call_limit_llm_exceeded",
+                llm_calls=self._llm_calls,
+                max=self.max_llm_calls,
+            )
+
+    def on_tool_start(self, *args, **kwargs):
+        self._tool_calls += 1
+        if self._tool_calls > self.max_tool_calls and not self._tool_limit_logged:
+            self._tool_limit_logged = True
+            logger.warning(
+                "call_limit_tool_exceeded",
+                tool_calls=self._tool_calls,
+                max=self.max_tool_calls,
+            )
 
 
 def _get_or_build_graph(app_state) -> object:
@@ -98,6 +141,7 @@ async def chat(body: ChatRequest, request: Request):
             "groundedness_result": None,
             "confidence_score": 0,
             "iteration_count": 0,
+            "stage_timings": {},
         }
 
         # Resolve active provider + LangChain model for agent nodes
@@ -109,46 +153,65 @@ async def chat(body: ChatRequest, request: Request):
             provider_name = active_provider["name"] if active_provider else "ollama"
             langchain_llm = await registry.get_active_langchain_model(db)
 
+        call_limit_cb = CallLimitCallback()
         config = {
             "configurable": {
                 "thread_id": session_id,
                 "llm": langchain_llm,
                 "tools": getattr(request.app.state, "research_tools", None),
-            }
+            },
+            "recursion_limit": 100,
+            "callbacks": [call_limit_cb],
         }
         last_node = None
+        has_streamed_response = False
 
         try:
             # 2. Stream events from graph
-            async for chunk_msg, metadata in graph.astream(
+            # version="v2" returns StreamPart dicts with type/ns/data keys
+            # subgraphs=True enables visibility into ResearchGraph nodes
+            # (collect_answer lives in the research subgraph)
+            async for chunk in graph.astream(
                 initial_state,
-                stream_mode="messages",
+                stream_mode=["messages", "updates"],
+                subgraphs=True,
+                version="v2",
                 config=config,
             ):
-                # Status event on node transition
-                current_node = metadata.get("langgraph_node")
-                if current_node and current_node != last_node:
-                    yield json.dumps({"type": "status", "node": current_node}) + "\n"
-                    last_node = current_node
-
-                # Chunk event for AI content
-                if hasattr(chunk_msg, "content") and chunk_msg.content:
-                    yield json.dumps({"type": "chunk", "text": chunk_msg.content}) + "\n"
-
-                # Clarification interrupt detection
-                if "__interrupt__" in metadata:
-                    interrupt_value = metadata["__interrupt__"][0].value
-                    yield json.dumps({
-                        "type": "clarification",
-                        "question": interrupt_value,
-                    }) + "\n"
-                    return  # Stream ends on clarification
+                if chunk["type"] == "updates":
+                    data = chunk["data"]
+                    # Interrupt detection (clarification request)
+                    if "__interrupt__" in data:
+                        interrupt_value = data["__interrupt__"][0].value
+                        yield json.dumps({
+                            "type": "clarification",
+                            "question": interrupt_value,
+                        }) + "\n"
+                        return
+                elif chunk["type"] == "messages":
+                    chunk_msg, metadata = chunk["data"]
+                    current_node = metadata.get("langgraph_node")
+                    if current_node and current_node != last_node:
+                        yield json.dumps({"type": "status", "node": current_node}) + "\n"
+                        last_node = current_node
+                    if (
+                        current_node == "collect_answer"
+                        and isinstance(chunk_msg, (AIMessage, AIMessageChunk))
+                        and chunk_msg.content
+                    ):
+                        yield json.dumps({"type": "chunk", "text": chunk_msg.content}) + "\n"
+                        has_streamed_response = True
 
             # 3. Get final state after stream completes
             snapshot = await graph.aget_state(config)
             final_state = snapshot.values
             latency_ms = int((time.monotonic() - start_time) * 1000)
             stage_timings = final_state.get("stage_timings", {})  # FR-005
+
+            # 3b. Emit final_response if not already streamed token-by-token
+            final_response = final_state.get("final_response") or ""
+            if final_response and not has_streamed_response:
+                yield json.dumps({"type": "chunk", "text": final_response}) + "\n"
 
             # 4. Citation event
             citations = final_state.get("citations", [])
@@ -157,7 +220,15 @@ async def chat(body: ChatRequest, request: Request):
                     c.model_dump() if hasattr(c, "model_dump") else c
                     for c in citations
                 ]
-                yield json.dumps({"type": "citation", "citations": citation_dicts}) + "\n"
+                # Deduplicate by passage_id (BUG-017: Send() fan-out produces N copies)
+                seen_pids = set()
+                unique_citations = []
+                for cd in citation_dicts:
+                    pid = cd.get("passage_id")
+                    if pid not in seen_pids:
+                        seen_pids.add(pid)
+                        unique_citations.append(cd)
+                yield json.dumps({"type": "citation", "citations": unique_citations}) + "\n"
 
             # 5. Meta-reasoning event (if strategies were attempted)
             attempted = final_state.get("attempted_strategies")
@@ -218,6 +289,25 @@ async def chat(body: ChatRequest, request: Request):
                 "trace_id": trace_id,
             }) + "\n"
 
+        except GraphRecursionError:
+            logger.warning("http_chat_recursion_limit", session_id=session_id)
+            yield json.dumps({
+                "type": "error",
+                "message": "The query required too many reasoning steps. Try a more specific question.",
+                "code": "RECURSION_LIMIT",
+                "trace_id": trace_id,
+            }) + "\n"
+        except RuntimeError as e:
+            if "call limit exceeded" in str(e):
+                logger.warning("http_chat_call_limit", session_id=session_id, detail=str(e))
+                yield json.dumps({
+                    "type": "error",
+                    "message": "The query exceeded the maximum number of allowed operations. Try a simpler question.",
+                    "code": "CALL_LIMIT_EXCEEDED",
+                    "trace_id": trace_id,
+                }) + "\n"
+            else:
+                raise
         except CircuitOpenError:
             logger.warning("http_circuit_open_during_chat", session_id=session_id, error="CircuitOpenError")
             yield json.dumps({

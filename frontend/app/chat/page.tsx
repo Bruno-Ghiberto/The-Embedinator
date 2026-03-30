@@ -4,7 +4,6 @@ import { Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useStreamChat } from "@/hooks/useStreamChat";
-import { useChatStorage } from "@/hooks/useChatStorage";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useCollections } from "@/hooks/useCollections";
 import { useModels } from "@/hooks/useModels";
@@ -65,8 +64,6 @@ function ChatPageContent() {
 
   const { messages, isStreaming, sendMessage, abort, setMessages } =
     useStreamChat();
-  const { storedMessages, storedSessionId, saveMessages, clearChat } =
-    useChatStorage();
 
   // Escape key: stop streaming
   useEffect(() => {
@@ -78,11 +75,6 @@ function ChatPageContent() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isStreaming, abort]);
-
-  // Track page session ID for localStorage persistence
-  const sessionIdRef = useRef<string>(
-    storedSessionId ?? crypto.randomUUID(),
-  );
 
   // Track history session ID for multi-session persistence
   const historySessionIdRef = useRef<string | null>(sessionParam);
@@ -102,7 +94,8 @@ function ChatPageContent() {
     if (
       activeSession &&
       sessionParam &&
-      sessionLoadedRef.current !== activeSession.id
+      sessionLoadedRef.current !== activeSession.id &&
+      !isStreaming
     ) {
       setMessages(activeSession.messages);
       sessionLoadedRef.current = activeSession.id;
@@ -118,27 +111,7 @@ function ChatPageContent() {
         setEmbedModel(activeSession.config.embedModel);
       }
     }
-  }, [activeSession, sessionParam, setMessages]);
-
-  // Hydrate stored messages on mount (only if not loading from history)
-  useEffect(() => {
-    if (!sessionParam && storedMessages.length > 0) {
-      setMessages(storedMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Save messages to useChatStorage on changes (skip initial render)
-  const isInitialRender = useRef(true);
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    if (messages.length > 0) {
-      saveMessages(messages, sessionIdRef.current);
-    }
-  }, [messages, saveMessages]);
+  }, [activeSession, sessionParam, setMessages, isStreaming]);
 
   // Save to history when streaming completes (transition: streaming → done)
   const prevStreamingRef = useRef(false);
@@ -251,12 +224,18 @@ function ChatPageContent() {
 
   const handleNewChat = useCallback(() => {
     setMessages([]);
-    clearChat();
     historySessionIdRef.current = null;
     sessionLoadedRef.current = null;
-    sessionIdRef.current = crypto.randomUUID();
     router.push("/chat");
-  }, [setMessages, clearChat, router]);
+  }, [setMessages, router]);
+
+  // Handle "New Chat" from sidebar button (?new=1 param)
+  useEffect(() => {
+    if (searchParams.get("new")) {
+      handleNewChat();
+      router.replace("/chat", { scroll: false });
+    }
+  }, [searchParams, handleNewChat, router]);
 
   // Derive selected Collection objects for the toolbar
   const selectedCollections = useMemo(

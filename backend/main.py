@@ -181,6 +181,13 @@ async def lifespan(app: FastAPI):
     app.state._checkpointer_cm = checkpointer_cm
     logger.info("storage_checkpointer_initialized", path=checkpoint_path)
 
+    # ENH-001: Cross-session store for user preferences and query patterns
+    from langgraph.store.memory import InMemoryStore
+
+    store = InMemoryStore()
+    app.state.store = store
+    logger.info("agent_cross_session_store_initialized")
+
     # --- Spec 03: ResearchGraph infrastructure ---
     from backend.retrieval.searcher import HybridSearcher
     from backend.retrieval.reranker import Reranker
@@ -224,6 +231,7 @@ async def lifespan(app: FastAPI):
     conversation_graph = build_conversation_graph(
         research_graph=research_graph,
         checkpointer=checkpointer,
+        store=store,
     )
     app.state.conversation_graph = conversation_graph
     logger.info("agent_graphs_compiled", meta_reasoning_enabled=meta_reasoning_graph is not None)

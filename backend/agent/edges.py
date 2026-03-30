@@ -107,6 +107,12 @@ def route_fan_out(state: ConversationState) -> list[Send]:
             "_no_new_tools": False,
             "_needs_compression": False,
             "stage_timings": {},
+            "sub_answers": [],
+            "_meta_attempt_count": 0,
+            "_attempted_strategies": set(),
+            "_top_k_retrieval": None,
+            "_top_k_rerank": None,
+            "_payload_filters": None,
         }
         sends.append(Send("research", payload))
 

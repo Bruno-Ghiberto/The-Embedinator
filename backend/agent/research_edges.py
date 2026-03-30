@@ -55,10 +55,23 @@ def should_continue_loop(state: ResearchState) -> str:
         return "exhausted"
 
     # 3. Tool exhaustion -- orchestrator produced no new tool calls (F4)
+    # If chunks were retrieved, route to collect_answer so the LLM can synthesize
+    # a grounded response. Only fall back if there is truly nothing to work with.
     if state.get("_no_new_tools", False):
+        if state.get("retrieved_chunks"):
+            logger.info(
+                "agent_loop_exit_tool_exhaustion",
+                confidence=confidence,
+                chunk_count=len(state["retrieved_chunks"]),
+                routing="sufficient",
+                session_id=state["session_id"],
+            )
+            return "sufficient"
         logger.info(
             "agent_loop_exit_tool_exhaustion",
             confidence=confidence,
+            chunk_count=0,
+            routing="exhausted",
             session_id=state["session_id"],
         )
         return "exhausted"

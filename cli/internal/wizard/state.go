@@ -59,8 +59,11 @@ type WizardState struct {
 	FernetKey string
 
 	// Progress tracking for Screen 9.
-	InstallDone bool
+	InstallDone  bool
 	InstallError error
+
+	// Self-install result (populated during progress screen).
+	SelfInstallResult *engine.InstallResult
 }
 
 // ToConfig converts wizard state into an engine.Config.

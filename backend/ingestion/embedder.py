@@ -121,6 +121,20 @@ class BatchEmbedder:
                 timeout=60.0,
             )
 
+            if response.status_code == 400 and "input length exceeds" in response.text:
+                # One or more texts exceed the model's context window — truncate to ~7000 chars and retry
+                truncated = [t[:2000] for t in batch]
+                logger.warning(
+                    "ingestion_embedding_truncating_context_overflow",
+                    batch_size=len(batch),
+                    max_len_before=max(len(t) for t in batch),
+                )
+                response = client.post(
+                    f"{self.base_url}/api/embed",
+                    json={"model": self.model, "input": truncated},
+                    timeout=60.0,
+                )
+
             if response.status_code != 404:
                 response.raise_for_status()
                 return response.json()["embeddings"]

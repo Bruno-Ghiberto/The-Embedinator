@@ -88,6 +88,32 @@ changelog:
       order: 999
 
 # ---------------------------------------------------------------------------
+# Native packages (.deb + .rpm)
+# ---------------------------------------------------------------------------
+nfpms:
+  - id: packages
+    ids:
+      - embedinator
+    package_name: embedinator
+    vendor: Bruno Ghiberto
+    homepage: "https://github.com/Bruno-Ghiberto/The-Embedinator"
+    maintainer: "Bruno Ghiberto <noreply@github.com>"
+    description: "TUI installer and manager for The Embedinator RAG system"
+    license: "Apache-2.0"
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+    section: utils
+    priority: optional
+    recommends:
+      - docker-ce
+    contents:
+      - src: ../LICENSE
+        dst: /usr/share/doc/embedinator/LICENSE
+        type: doc
+
+# ---------------------------------------------------------------------------
 # Homebrew tap
 # ---------------------------------------------------------------------------
 brews:

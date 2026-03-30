@@ -144,50 +144,66 @@ export function streamChat(
         );
         return;
       }
-      const reader = res.body!.getReader();
+      if (!res.body) {
+        callbacks.onError(
+          "Stream body unavailable — response may be buffered",
+          "STREAM_ERROR",
+        );
+        return;
+      }
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event: NdjsonEvent = JSON.parse(line);
-          switch (event.type) {
-            case "session":
-              callbacks.onSession?.(event.session_id);
-              break;
-            case "status":
-              callbacks.onStatus?.(event.node);
-              break;
-            case "chunk":
-              callbacks.onToken(event.text);
-              break;
-            case "clarification":
-              callbacks.onClarification?.(event.question);
-              break;
-            case "citation":
-              callbacks.onCitation(event.citations);
-              break;
-            case "meta_reasoning":
-              callbacks.onMetaReasoning?.(event.strategies_attempted);
-              break;
-            case "confidence":
-              callbacks.onConfidence(event.score);
-              break;
-            case "groundedness":
-              callbacks.onGroundedness?.(event);
-              break;
-            case "done":
-              callbacks.onDone(event.latency_ms, event.trace_id);
-              break;
-            case "error":
-              callbacks.onError(event.message, event.code, event.trace_id);
-              break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event: NdjsonEvent = JSON.parse(line);
+            switch (event.type) {
+              case "session":
+                callbacks.onSession?.(event.session_id);
+                break;
+              case "status":
+                callbacks.onStatus?.(event.node);
+                break;
+              case "chunk":
+                callbacks.onToken(event.text);
+                break;
+              case "clarification":
+                callbacks.onClarification?.(event.question);
+                break;
+              case "citation":
+                callbacks.onCitation(event.citations);
+                break;
+              case "meta_reasoning":
+                callbacks.onMetaReasoning?.(event.strategies_attempted);
+                break;
+              case "confidence":
+                callbacks.onConfidence(event.score);
+                break;
+              case "groundedness":
+                callbacks.onGroundedness?.(event);
+                break;
+              case "done":
+                callbacks.onDone(event.latency_ms, event.trace_id);
+                break;
+              case "error":
+                callbacks.onError(event.message, event.code, event.trace_id);
+                break;
+            }
           }
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          callbacks.onError(
+            `Stream read error: ${err.message}`,
+            "STREAM_ERROR",
+          );
         }
       }
     })

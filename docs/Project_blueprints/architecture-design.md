@@ -44,7 +44,7 @@ The Embedinator is a self-hosted agentic RAG system that lets you embed, index, 
 
 At its core is a three-layer LangGraph agent that doesn't just retrieve and answer: it reasons about its own retrieval quality, autonomously switches strategy when results are poor, and verifies that every claim in its answers is grounded in the retrieved evidence. A Rust ingestion worker parses documents at native speed while Python orchestrates embedding, indexing, and the agent loop. A Next.js frontend gives users full control — choose your collections, pick your LLM and embedding models, upload documents, and watch query traces to understand exactly how answers were produced.
 
-The retrieval pipeline combines parent/child chunking with structural breadcrumbs, hybrid dense + BM25 search, cross-encoder reranking, and query-adaptive retrieval depth — each layer adding precision on top of the last. The system defaults to Ollama for all inference, Qdrant for vector storage, and SQLite for metadata. A single `docker compose up` brings it all online.
+The retrieval pipeline combines parent/child chunking with structural breadcrumbs, hybrid dense + BM25 search, cross-encoder reranking, and query-adaptive retrieval depth — each layer adding precision on top of the last. The system defaults to Ollama for all inference, Qdrant for vector storage, and SQLite for metadata. A single `TUI installation` brings it all online.
 
 ---
 

@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import dynamic from "next/dynamic";
+import React, { lazy, Suspense, useState, useCallback } from "react";
 import { getTraceDetail } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -22,21 +21,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { QueryTrace, QueryTraceDetail } from "@/lib/types";
-import type { StageTimingsChartProps } from "@/components/StageTimingsChart";
 
-// ─── Dynamic import for recharts (no SSR) ─────────────────────────────────────
+// ─── Lazy import for recharts (code-split, client-only) ──────────────────────
 
-const StageTimingsChart = dynamic<StageTimingsChartProps>(
-  () =>
-    import("@/components/StageTimingsChart").then((m) => m.StageTimingsChart),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-16 items-center justify-center text-sm text-muted-foreground">
-        Loading chart...
-      </div>
-    ),
-  },
+const StageTimingsChart = lazy(() =>
+  import("@/components/StageTimingsChart").then((m) => ({
+    default: m.StageTimingsChart,
+  })),
 );
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -157,7 +148,15 @@ function TraceDetailSheet({ trace, open, onOpenChange }: TraceDetailSheetProps) 
             {detail.stage_timings && Object.keys(detail.stage_timings).length > 0 && (
               <div>
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stage Timings</h4>
-                <StageTimingsChart timings={detail.stage_timings} />
+                <Suspense
+                  fallback={
+                    <div className="flex h-16 items-center justify-center text-sm text-muted-foreground">
+                      Loading chart...
+                    </div>
+                  }
+                >
+                  <StageTimingsChart timings={detail.stage_timings} />
+                </Suspense>
               </div>
             )}
 

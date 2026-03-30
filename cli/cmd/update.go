@@ -73,7 +73,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			cfg, _ = engine.ReadConfig(configPath)
 		}
 
-		composeArgs := engine.BuildComposeArgs(cfg)
+		composeArgs := engine.BuildComposeArgs(cfg, dir)
 		pullArgs := append([]string{"compose"}, composeArgs...)
 		pullArgs = append(pullArgs, "pull")
 

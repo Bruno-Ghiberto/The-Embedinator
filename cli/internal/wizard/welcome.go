@@ -46,18 +46,14 @@ func (m WelcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m WelcomeModel) View() string {
 	var s string
 
-	if m.width >= 60 {
-		// Large layout: full gorilla + full banner.
-		gorilla := lipgloss.NewStyle().
-			Foreground(ColorCyan).
-			Render(GorillaASCII)
-
+	if m.width >= 80 {
+		// Large layout: full-color gorilla photo + full banner.
 		banner := lipgloss.NewStyle().
 			Foreground(ColorPurple).
 			Bold(true).
 			Render(EmbeddinatorBanner)
 
-		s = gorilla + "\n" + banner
+		s = GorillaANSI + "\n" + banner
 	} else {
 		// Narrow layout: small gorilla + small banner.
 		gorilla := lipgloss.NewStyle().

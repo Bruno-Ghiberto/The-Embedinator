@@ -37,7 +37,7 @@ func runStop(cmd *cobra.Command, args []string) error {
 		cfg, _ = engine.ReadConfig(configPath)
 	}
 
-	composeArgs := engine.BuildComposeArgs(cfg)
+	composeArgs := engine.BuildComposeArgs(cfg, dir)
 
 	fmt.Println("Stopping all services...")
 	if err := engine.ComposeDown(dir, composeArgs, stopVolumes); err != nil {

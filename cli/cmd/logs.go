@@ -39,7 +39,7 @@ func runLogs(cmd *cobra.Command, args []string) error {
 		cfg, _ = engine.ReadConfig(configPath)
 	}
 
-	composeArgs := engine.BuildComposeArgs(cfg)
+	composeArgs := engine.BuildComposeArgs(cfg, dir)
 
 	service := ""
 	if len(args) > 0 {

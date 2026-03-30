@@ -265,9 +265,8 @@ function Main {
         Write-Host '  Next steps:' -ForegroundColor White
         Write-Host ''
         Write-Host '    1. Open a new PowerShell or Command Prompt window'
-        Write-Host '    2. Navigate to the project directory'
-        Write-Host '    3. Run: embedinator'
-        Write-Host '       (First run launches the setup wizard)'
+        Write-Host '    2. Run: embedinator'
+        Write-Host '       (First run launches the setup wizard - no git clone needed)'
         Write-Host ''
         Write-Host '  Common commands:' -ForegroundColor White
         Write-Host ''

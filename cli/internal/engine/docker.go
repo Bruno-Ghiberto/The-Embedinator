@@ -373,35 +373,44 @@ func PollHealth(ctx context.Context, cfg Config, interval time.Duration, callbac
 // ---------------------------------------------------------------------------
 
 // BuildComposeArgs constructs the docker compose file arguments.
-func BuildComposeArgs(cfg Config) []string {
-	args := []string{"-f", "docker-compose.yml"}
+// projectDir is the directory containing docker-compose.yml and overlay files.
+func BuildComposeArgs(cfg Config, projectDir string) []string {
+	compose := func(name string) string {
+		return filepath.Join(projectDir, name)
+	}
+	hasFile := func(name string) bool {
+		_, err := os.Stat(compose(name))
+		return err == nil
+	}
+
+	args := []string{"-f", compose("docker-compose.yml")}
 
 	if cfg.Ollama.Mode == "local" || cfg.Ollama.Mode == "remote" {
 		// Use the local-ollama overlay to disable Docker Ollama.
-		if _, err := os.Stat("docker-compose.local-ollama.yml"); err == nil {
-			args = append(args, "-f", "docker-compose.local-ollama.yml")
+		if hasFile("docker-compose.local-ollama.yml") {
+			args = append(args, "-f", compose("docker-compose.local-ollama.yml"))
 		}
 	} else {
 		// GPU overlay only applies to Docker Ollama.
 		switch cfg.GPU.Profile {
 		case "nvidia":
-			if _, err := os.Stat("docker-compose.gpu-nvidia.yml"); err == nil {
-				args = append(args, "-f", "docker-compose.gpu-nvidia.yml")
+			if hasFile("docker-compose.gpu-nvidia.yml") {
+				args = append(args, "-f", compose("docker-compose.gpu-nvidia.yml"))
 			}
 		case "amd":
-			if _, err := os.Stat("docker-compose.gpu-amd.yml"); err == nil {
-				args = append(args, "-f", "docker-compose.gpu-amd.yml")
+			if hasFile("docker-compose.gpu-amd.yml") {
+				args = append(args, "-f", compose("docker-compose.gpu-amd.yml"))
 			}
 		case "intel":
-			if _, err := os.Stat("docker-compose.gpu-intel.yml"); err == nil {
-				args = append(args, "-f", "docker-compose.gpu-intel.yml")
+			if hasFile("docker-compose.gpu-intel.yml") {
+				args = append(args, "-f", compose("docker-compose.gpu-intel.yml"))
 			}
 		}
 	}
 
 	if cfg.DevMode {
-		if _, err := os.Stat("docker-compose.dev.yml"); err == nil {
-			args = append(args, "-f", "docker-compose.dev.yml")
+		if hasFile("docker-compose.dev.yml") {
+			args = append(args, "-f", compose("docker-compose.dev.yml"))
 		}
 	}
 

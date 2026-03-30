@@ -60,7 +60,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build compose args.
-	composeArgs := engine.BuildComposeArgs(cfg)
+	composeArgs := engine.BuildComposeArgs(cfg, dir)
 
 	fmt.Println("Starting services...")
 	if err := engine.ComposeUp(dir, composeArgs, true); err != nil {

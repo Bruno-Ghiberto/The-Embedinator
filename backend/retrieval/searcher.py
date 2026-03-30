@@ -90,7 +90,7 @@ class HybridSearcher:
                     text=payload.get("text", ""),
                     source_file=payload.get("source_file", ""),
                     page=payload.get("page"),
-                    breadcrumb=payload.get("breadcrumb", ""),
+                    breadcrumb=payload.get("breadcrumb") or "",
                     parent_id=payload.get("parent_id", ""),
                     collection=collection,
                     dense_score=point.score if point.score is not None else 0.0,
@@ -175,6 +175,7 @@ class HybridSearcher:
                 "retrieval_hybrid_search_failed",
                 collection=collection,
                 error=type(exc).__name__,
+                error_detail=str(exc)[:500],
             )
             raise QdrantConnectionError(
                 f"Hybrid search failed for collection {collection}: {exc}"

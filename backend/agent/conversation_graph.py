@@ -12,6 +12,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import RetryPolicy
 
 from backend.agent.edges import route_after_rewrite, route_intent
 from backend.agent.nodes import (
@@ -32,6 +33,7 @@ from backend.agent.state import ConversationState
 def build_conversation_graph(
     research_graph: Any = None,
     checkpointer: Any = None,
+    store: Any = None,
 ) -> Any:
     """Build and return the compiled ConversationGraph.
 
@@ -40,6 +42,8 @@ def build_conversation_graph(
             sub-questions to via Send().
         checkpointer: Optional LangGraph checkpointer for session persistence
             (e.g. AsyncSqliteSaver). Defaults to MemorySaver() for tests.
+        store: Optional LangGraph Store for cross-session memory
+            (e.g. InMemoryStore). Passed to graph.compile().
 
     Returns:
         A compiled StateGraph ready to be invoked.
@@ -54,10 +58,10 @@ def build_conversation_graph(
     graph.add_node("research", research_graph)
     graph.add_node("aggregate_answers", aggregate_answers)
     graph.add_node("summarize_history", summarize_history)
-    graph.add_node("format_response", format_response)
+    graph.add_node("format_response", format_response, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
 
     # Phase 2 stubs
-    graph.add_node("verify_groundedness", verify_groundedness)
+    graph.add_node("verify_groundedness", verify_groundedness, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
     graph.add_node("validate_citations", validate_citations)
 
     # Out-of-scope stub
@@ -82,4 +86,7 @@ def build_conversation_graph(
     graph.add_edge("summarize_history", "format_response")
     graph.add_edge("format_response", END)
 
-    return graph.compile(checkpointer=checkpointer or MemorySaver())
+    compile_kwargs: dict[str, Any] = {"checkpointer": checkpointer or MemorySaver()}
+    if store is not None:
+        compile_kwargs["store"] = store
+    return graph.compile(**compile_kwargs)

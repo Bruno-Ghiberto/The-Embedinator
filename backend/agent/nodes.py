@@ -21,6 +21,8 @@ from pydantic import ValidationError
 
 from statistics import mean
 
+from langchain_core.messages import trim_messages
+
 from backend.agent.prompts import (
     CLASSIFY_INTENT_SYSTEM,
     CLASSIFY_INTENT_USER,
@@ -29,7 +31,7 @@ from backend.agent.prompts import (
     SUMMARIZE_HISTORY_SYSTEM,
     VERIFY_PROMPT,
 )
-from backend.agent.schemas import GroundednessResult, QueryAnalysis
+from backend.agent.schemas import GroundednessResult, IntentClassification, QueryAnalysis
 from backend.agent.state import ConversationState
 from backend.config import settings
 
@@ -190,16 +192,28 @@ async def init_session(state: ConversationState, **kwargs: Any) -> dict:
         }
 
 
-async def classify_intent(state: ConversationState, config: RunnableConfig = None) -> dict:
-    llm = (config or {}).get("configurable", {}).get("llm")
+async def classify_intent(state: ConversationState, config: RunnableConfig = None, *, store=None) -> dict:
     """Classify user message as rag_query, collection_mgmt, or ambiguous.
 
-    Calls the LLM with CLASSIFY_INTENT prompts, parses JSON response.
-    On any failure (LLM error, JSON parse, invalid intent), defaults to "rag_query".
+    Uses with_structured_output(IntentClassification) for reliable parsing (ENH-002).
+    Reads preferred_collections from LangGraph Store when available (ENH-001).
+    On any failure (LLM error, validation), defaults to "rag_query".
     """
+    llm = (config or {}).get("configurable", {}).get("llm")
     log = logger.bind(session_id=state["session_id"])
     _VALID_INTENTS = {"rag_query", "collection_mgmt", "ambiguous"}
     _t0 = time.perf_counter()
+
+    # ENH-001: Read preferred collections from store
+    preferred_collections: list[str] = []
+    if store is not None:
+        try:
+            user_id = (config or {}).get("configurable", {}).get("user_id", "default")
+            prefs_item = await store.aget(("user_prefs", user_id), "settings")
+            if prefs_item:
+                preferred_collections = prefs_item.value.get("preferred_collections", [])
+        except Exception as store_exc:
+            log.debug("agent_store_read_failed", error=type(store_exc).__name__)
 
     try:
         # Format conversation history for the prompt
@@ -218,6 +232,8 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
                 break
 
         collections_text = ", ".join(state["selected_collections"]) or "none"
+        if preferred_collections:
+            collections_text += f" (preferred: {', '.join(preferred_collections)})"
 
         user_prompt = CLASSIFY_INTENT_USER.format(
             history=history_text,
@@ -225,27 +241,26 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
             collections=collections_text,
         )
 
-        response = await llm.ainvoke([
+        # ENH-002: Structured output replaces manual JSON parsing
+        structured_llm = llm.with_structured_output(IntentClassification, method="json_mode")
+        result: IntentClassification = await structured_llm.ainvoke([
             SystemMessage(content=CLASSIFY_INTENT_SYSTEM),
             HumanMessage(content=user_prompt),
         ])
 
-        # Parse JSON from LLM response
-        response_text = response.content.strip()
-        parsed = json.loads(response_text)
-        intent = parsed.get("intent", "rag_query")
-
+        intent = result.intent
         if intent not in _VALID_INTENTS:
             log.warning("agent_invalid_intent_value", intent=intent, defaulting_to="rag_query")
             intent = "rag_query"
 
-        log.info("agent_intent_classified", intent=intent)
-        result = {"intent": intent}
-        result["stage_timings"] = {
-            **state.get("stage_timings", {}),
-            "intent_classification": {"duration_ms": round((time.perf_counter() - _t0) * 1000, 1)},
+        log.info("agent_intent_classified", intent=intent, reason=result.reason)
+        return {
+            "intent": intent,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "intent_classification": {"duration_ms": round((time.perf_counter() - _t0) * 1000, 1)},
+            },
         }
-        return result
 
     except Exception as exc:
         log.warning("agent_classify_intent_failed", exc_info=True, defaulting_to="rag_query", error=type(exc).__name__)
@@ -359,7 +374,15 @@ def request_clarification(state: ConversationState) -> dict:
     """
     log = logger.bind(session_id=state["session_id"])
 
-    clarification_question = state["query_analysis"].clarification_needed
+    query_analysis = state.get("query_analysis")
+    if query_analysis is None or not getattr(query_analysis, "clarification_needed", None):
+        # Fallback: treat as research query instead of crashing
+        return {
+            "final_response": "I'm not sure I understand your question. Could you please provide more details about what you'd like to know?",
+            "intent": "rag_query",
+        }
+
+    clarification_question = query_analysis.clarification_needed
     log.info("agent_interrupting_for_clarification", question=clarification_question)
 
     user_response = interrupt(clarification_question)
@@ -687,7 +710,11 @@ async def validate_citations(state: ConversationState, *, reranker: Any = None) 
 
 
 async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
-    """Compress conversation history when token budget is approached."""
+    """Compress conversation history when token budget is approached.
+
+    ENH-003: Uses trim_messages to cap input before LLM summarization,
+    preventing context overflow on very long histories.
+    """
     from langchain_core.messages.utils import count_tokens_approximately
 
     llm = kwargs.get("llm")
@@ -706,8 +733,18 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
     old_messages = messages[:split_idx]
     recent_messages = messages[split_idx:]
 
+    # ENH-003: Trim old messages before summarization to prevent LLM overflow
+    trimmed_old = trim_messages(
+        old_messages,
+        max_tokens=4096,
+        token_counter=len,  # character-based approximation
+        strategy="last",
+        include_system=True,
+        allow_partial=False,
+    )
+
     history_text = "\n".join(
-        f"{type(m).__name__}: {m.content}" for m in old_messages
+        f"{type(m).__name__}: {m.content}" for m in trimmed_old
     )
 
     try:

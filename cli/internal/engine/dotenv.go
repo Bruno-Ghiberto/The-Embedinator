@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Bruno-Ghiberto/The-Embedinator/cli/internal/version"
 )
 
 // GenerateFernetKey produces a valid Fernet key: 32 random bytes, URL-safe
@@ -23,6 +25,7 @@ func GenerateFernetKey() string {
 
 // ManagedEnvVars are the .env keys managed by the TUI.
 var ManagedEnvVars = []string{
+	"EMBEDINATOR_VERSION",
 	"EMBEDINATOR_PORT_FRONTEND",
 	"EMBEDINATOR_PORT_BACKEND",
 	"EMBEDINATOR_PORT_QDRANT",
@@ -126,6 +129,7 @@ func GenerateDotEnv(envPath, examplePath string, cfg Config, fernetKey string) e
 // buildManagedMap creates a key-value map from Config for .env generation.
 func buildManagedMap(cfg Config, fernetKey string) map[string]string {
 	m := map[string]string{
+		"EMBEDINATOR_VERSION":         version.Version,
 		"EMBEDINATOR_PORT_FRONTEND":   fmt.Sprintf("%d", cfg.Ports.Frontend),
 		"EMBEDINATOR_PORT_BACKEND":    fmt.Sprintf("%d", cfg.Ports.Backend),
 		"EMBEDINATOR_PORT_QDRANT":     fmt.Sprintf("%d", cfg.Ports.Qdrant),

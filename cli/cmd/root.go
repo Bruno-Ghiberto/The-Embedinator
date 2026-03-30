@@ -40,6 +40,14 @@ func Execute() error {
 }
 
 // resolveProjectDir finds the project directory.
+//
+// Resolution order:
+//  1. --project-dir flag (explicit)
+//  2. Walk CWD → parents looking for docker-compose.yml (developer mode)
+//  3. XDG data directory with extracted compose (user mode)
+//
+// If nothing is found, the data directory is initialized (compose extracted)
+// so the wizard can run.
 func resolveProjectDir() (string, error) {
 	if projectDir != "" {
 		abs, err := filepath.Abs(projectDir)
@@ -49,7 +57,7 @@ func resolveProjectDir() (string, error) {
 		return abs, nil
 	}
 
-	// Look for docker-compose.yml in current dir or parent dirs.
+	// Developer mode: look for docker-compose.yml in current dir or parents.
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -66,8 +74,13 @@ func resolveProjectDir() (string, error) {
 		dir = parent
 	}
 
-	// Fallback to current directory.
-	return os.Getwd()
+	// User mode: use the XDG data directory.
+	// If already initialized, return it. Otherwise, extract embedded compose.
+	if engine.IsDataDirInitialized() {
+		return engine.DataDir(), nil
+	}
+
+	return engine.InitDataDir()
 }
 
 // runRoot implements the smart default behavior.

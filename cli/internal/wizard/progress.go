@@ -31,7 +31,8 @@ type ProgressModel struct {
 type installPhase int
 
 const (
-	phaseComposeUp installPhase = iota
+	phaseInstall installPhase = iota
+	phaseComposeUp
 	phaseHealthCheck
 	phaseModelPull
 	phaseDone
@@ -52,6 +53,7 @@ type modelPullState struct {
 }
 
 // Progress messages.
+type selfInstallDoneMsg struct{ result engine.InstallResult }
 type composeUpDoneMsg struct{ err error }
 type healthDoneMsg struct{ err error }
 type modelPullDoneMsg struct {
@@ -94,8 +96,14 @@ func (m ProgressModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
 		m.tickElapsed(),
-		m.runComposeUp(),
+		m.runSelfInstall(),
 	)
+}
+
+func (m ProgressModel) runSelfInstall() tea.Cmd {
+	return func() tea.Msg {
+		return selfInstallDoneMsg{result: engine.SelfInstall()}
+	}
 }
 
 func (m ProgressModel) tickElapsed() tea.Cmd {
@@ -134,7 +142,7 @@ func (m ProgressModel) runComposeUp() tea.Cmd {
 		}
 
 		// Run docker compose up (output captured to log file).
-		composeArgs := engine.BuildComposeArgs(cfg)
+		composeArgs := engine.BuildComposeArgs(cfg, m.state.ProjectDir)
 		err := engine.ComposeUp(m.state.ProjectDir, composeArgs, true)
 		return composeUpDoneMsg{err: err}
 	}
@@ -179,6 +187,13 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.tickElapsed()
 		}
 		return m, nil
+
+	case selfInstallDoneMsg:
+		result := msg.result
+		m.state.SelfInstallResult = &result
+		// Non-fatal: proceed to compose up regardless of install outcome.
+		m.phase = phaseComposeUp
+		return m, m.runComposeUp()
 
 	case composeUpDoneMsg:
 		if msg.err != nil {
@@ -248,7 +263,7 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			// Cleanup: stop docker compose.
 			cfg := m.state.ToConfig()
-			composeArgs := engine.BuildComposeArgs(cfg)
+			composeArgs := engine.BuildComposeArgs(cfg, m.state.ProjectDir)
 			_ = engine.ComposeDown(m.state.ProjectDir, composeArgs, false)
 			return m, tea.Quit
 		}
@@ -272,12 +287,29 @@ var serviceDisplayNames = map[string]string{
 func (m ProgressModel) View() string {
 	s := TitleStyle.Render("  Installing The Embedinator") + "\n\n"
 
+	// --- Step 0: Self-install ---
+	installDone := m.state.SelfInstallResult != nil
+	installLabel := "CLI installed"
+	if installDone && m.state.SelfInstallResult.Skipped {
+		installLabel = "CLI already in PATH"
+	} else if installDone && m.state.SelfInstallResult.Err != nil {
+		installLabel = "CLI install skipped"
+	} else if installDone {
+		installLabel = fmt.Sprintf("CLI installed → %s", m.state.SelfInstallResult.InstalledPath)
+	}
+	s += m.viewStepLine(
+		"Installing CLI to PATH...", installLabel,
+		m.phase == phaseInstall,
+		installDone,
+		false,
+	)
+
 	// --- Step 1: Building images ---
 	s += m.viewStepLine(
 		"Building images...", "Images built",
-		m.phase == phaseComposeUp,       // active when compose is running
-		m.phase > phaseComposeUp,        // done when compose finishes
-		m.err != nil && m.phase == phaseComposeUp, // failed
+		m.phase == phaseComposeUp,
+		m.phase > phaseComposeUp,
+		m.err != nil && m.phase == phaseComposeUp,
 	)
 
 	// --- Step 2: Starting containers ---

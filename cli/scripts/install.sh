@@ -353,9 +353,8 @@ This may be harmless if the binary needs a terminal."
 
   # Next steps
   printf "  ${BOLD}Next steps:${RESET}\n\n"
-  printf "    1. Clone or enter the project directory\n"
-  printf "    2. Run: ${CYAN}${BOLD}embedinator${RESET}\n"
-  printf "       (First run launches the setup wizard)\n\n"
+  printf "    Run: ${CYAN}${BOLD}embedinator${RESET}\n"
+  printf "    (First run launches the setup wizard — no git clone needed)\n\n"
   printf "  ${BOLD}Common commands:${RESET}\n\n"
   printf "    embedinator           Run setup wizard (first time) or start services\n"
   printf "    embedinator start     Start all services\n"

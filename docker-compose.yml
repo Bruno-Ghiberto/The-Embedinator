@@ -26,6 +26,9 @@ services:
       - "${EMBEDINATOR_PORT_OLLAMA:-11434}:11434"
     volumes:
       - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_NUM_PARALLEL: "2"
     entrypoint: ["ollama", "serve"]
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo -e \"GET /api/tags HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/11434'"]

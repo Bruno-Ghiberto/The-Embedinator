@@ -109,7 +109,7 @@ func runNonInteractiveSetup(dir string, state *wizard.WizardState) error {
 
 	// Step 7: Docker Compose up.
 	fmt.Println("\nStarting Docker Compose...")
-	composeArgs := engine.BuildComposeArgs(cfg)
+	composeArgs := engine.BuildComposeArgs(cfg, dir)
 	if err := engine.ComposeUp(dir, composeArgs, true); err != nil {
 		return fmt.Errorf("docker compose up: %w", err)
 	}

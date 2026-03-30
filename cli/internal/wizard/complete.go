@@ -66,6 +66,24 @@ func (m CompleteModel) View() string {
 	s += "    3. Upload a PDF, Markdown, or text file\n"
 	s += "    4. Start asking questions in the Chat tab\n\n"
 
+	// --- CLI install status ---
+	if r := m.state.SelfInstallResult; r != nil {
+		switch {
+		case r.Skipped:
+			s += DimStyle.Render(fmt.Sprintf("  CLI: already in PATH (%s)", r.InstalledPath)) + "\n\n"
+		case r.Err != nil:
+			s += DimStyle.Render(fmt.Sprintf("  CLI: install skipped (%v)", r.Err)) + "\n"
+			s += DimStyle.Render("  Run manually: sudo cp embedinator /usr/local/bin/") + "\n\n"
+		case r.NeedsPathUpdate:
+			s += DimStyle.Render(fmt.Sprintf("  CLI installed → %s", r.InstalledPath)) + "\n"
+			s += "  Add to PATH — run this once, then restart your terminal:\n"
+			s += fmt.Sprintf("    %s\n", r.PathExport)
+			s += "  Or add it permanently to your ~/.zshrc / ~/.bashrc\n\n"
+		default:
+			s += DimStyle.Render(fmt.Sprintf("  CLI installed → %s", r.InstalledPath)) + "\n\n"
+		}
+	}
+
 	s += "  Common Commands:\n"
 	s += "    embedinator status    Show service health\n"
 	s += "    embedinator stop      Stop all services\n"
