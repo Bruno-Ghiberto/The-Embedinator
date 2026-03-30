@@ -309,7 +309,7 @@ async def rewrite_query(state: ConversationState, config: RunnableConfig = None)
         context=context_text,
     )
 
-    structured_llm = llm.with_structured_output(QueryAnalysis)
+    structured_llm = llm.with_structured_output(QueryAnalysis, method="json_mode")
     messages = [
         SystemMessage(content=REWRITE_QUERY_SYSTEM),
         HumanMessage(content=user_prompt),
@@ -551,7 +551,7 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
         _check_inference_circuit()
 
         prompt = VERIFY_PROMPT.format(context=context, answer=final_response)
-        structured_llm = llm.with_structured_output(GroundednessResult)
+        structured_llm = llm.with_structured_output(GroundednessResult, method="json_mode")
         result: GroundednessResult = await structured_llm.ainvoke(prompt)
 
         _record_inference_success()

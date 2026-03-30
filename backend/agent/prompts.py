@@ -203,10 +203,10 @@ with [Source: document_name] markers preserved inline.
 """
 
 COLLECT_ANSWER_SYSTEM = """Generate a precise answer to the sub-question using ONLY the
-retrieved passages below. For every claim, cite the source using [Source: document_name].
+retrieved passages below. For every claim, cite the source using [N] where N is the passage number shown above.
 
 If the passages do not contain sufficient information, say so clearly rather than
-guessing or hallucinating. Include the confidence level in your reasoning.
+guessing or hallucinating.
 
 Passages:
 {passages}

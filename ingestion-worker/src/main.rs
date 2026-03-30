@@ -26,12 +26,13 @@ struct Cli {
 
 /// Detect document type from file extension.
 fn detect_type(path: &Path) -> Option<&'static str> {
-    let ext = path.extension()?.to_str()?;
-    match ext {
+    let ext_raw = path.extension()?.to_str()?;
+    let ext = ext_raw.to_ascii_lowercase();
+    match ext.as_str() {
         "pdf" => Some("pdf"),
-        "md" => Some("markdown"),
-        "txt" => Some("text"),
-        _ if is_code_extension(ext) => Some("code"),
+        "md" | "markdown" => Some("markdown"),
+        "txt" | "text" => Some("text"),
+        _ if is_code_extension(&ext) => Some("code"),
         _ => None,
     }
 }

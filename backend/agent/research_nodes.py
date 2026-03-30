@@ -490,43 +490,23 @@ def _build_citations(
     chunks: list[RetrievedChunk],
     answer_text: str,
 ) -> list[Citation]:
-    """Build Citation objects from retrieved chunks referenced in answer.
+    """Build Citation objects from retrieved chunks in passage index order.
 
-    Maps each chunk to a Citation with relevance based on rerank_score.
+    Returns citations ordered by passage index so citations[N-1] maps to
+    passage [N] that the LLM references in its answer text.
     """
-    citations = []
-    for chunk in chunks:
-        # Check if the chunk's source_file or text snippet appears in the answer
-        if chunk.source_file in answer_text or chunk.text[:50] in answer_text:
-            citations.append(Citation(
-                passage_id=chunk.chunk_id,
-                document_id=chunk.parent_id,
-                document_name=chunk.source_file,
-                start_offset=0,
-                end_offset=len(chunk.text),
-                text=chunk.text[:500],
-                relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
-            ))
-
-    # If no citations matched by text, include top chunks by score
-    if not citations and chunks:
-        scored = sorted(
-            chunks,
-            key=lambda c: c.rerank_score if c.rerank_score is not None else c.dense_score,
-            reverse=True,
+    return [
+        Citation(
+            passage_id=chunk.chunk_id,
+            document_id=chunk.parent_id,
+            document_name=chunk.source_file,
+            start_offset=0,
+            end_offset=len(chunk.text),
+            text=chunk.text[:500],
+            relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
         )
-        for chunk in scored[:5]:
-            citations.append(Citation(
-                passage_id=chunk.chunk_id,
-                document_id=chunk.parent_id,
-                document_name=chunk.source_file,
-                start_offset=0,
-                end_offset=len(chunk.text),
-                text=chunk.text[:500],
-                relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
-            ))
-
-    return citations
+        for chunk in chunks[:20]
+    ]
 
 
 async def collect_answer(state: ResearchState, config: RunnableConfig = None, *, store=None) -> dict:
