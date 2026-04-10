@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -57,6 +58,15 @@ func runStart(cmd *cobra.Command, args []string) error {
 	dockerCheck := engine.CheckDocker()
 	if !dockerCheck.OK {
 		return fmt.Errorf("%s", dockerCheck.Error)
+	}
+
+	// Host Ollama conflict check: The Embedinator requires Docker Ollama
+	// exclusively. If a host-native ollama daemon is holding :11434, we
+	// must refuse to start so Docker Ollama can bind the port cleanly.
+	ollamaConflict := engine.CheckOllamaPortConflict()
+	if ollamaConflict.HasConflict() {
+		fmt.Fprintf(os.Stderr, "\n%s\n\n%s\n\n", ollamaConflict.Message, ollamaConflict.Remediation)
+		return fmt.Errorf("ollama port 11434 is held by a non-Docker process")
 	}
 
 	// Build compose args.

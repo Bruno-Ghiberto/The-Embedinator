@@ -130,15 +130,12 @@ func WriteConfig(path string, cfg Config) error {
 
 // ValidateConfig checks a Config for required fields.
 func ValidateConfig(cfg Config) error {
-	switch cfg.Ollama.Mode {
-	case "docker", "local", "remote":
-		// valid
-	default:
-		return fmt.Errorf("invalid ollama.mode: %q (expected docker, local, or remote)", cfg.Ollama.Mode)
-	}
-
-	if cfg.Ollama.Mode == "remote" && cfg.Ollama.RemoteURL == "" {
-		return fmt.Errorf("ollama.remote_url is required when mode=remote")
+	// The Embedinator runs Ollama exclusively in Docker. Legacy "local" and
+	// "remote" modes are no longer supported — they caused port/daemon
+	// conflicts that broke the stack. Users with old configs must re-run
+	// `embedinator config` to migrate.
+	if cfg.Ollama.Mode != "docker" {
+		return fmt.Errorf("invalid ollama.mode: %q — only \"docker\" is supported; run `embedinator config` to update", cfg.Ollama.Mode)
 	}
 
 	if len(cfg.Ollama.Models.LLM) == 0 {

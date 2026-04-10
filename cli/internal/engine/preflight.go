@@ -189,6 +189,30 @@ func getDarwinRAMGB() uint64 {
 	return bytes / (1024 * 1024 * 1024)
 }
 
+// CheckHostOllamaConflictPreflight runs the host Ollama conflict probe and
+// converts it to a PreflightResult for the wizard prerequisites screen and
+// the `embedinator doctor` command. The Embedinator requires Docker Ollama
+// exclusively, so any host-native daemon binding :11434 is a hard failure.
+func CheckHostOllamaConflictPreflight() PreflightResult {
+	r := CheckOllamaPortConflict()
+	result := PreflightResult{Name: "Ollama port (11434)"}
+	switch r.State {
+	case OllamaPortFree:
+		result.OK = true
+		result.Detail = "free — Docker Ollama can bind"
+	case OllamaPortOwnedByDockerStack:
+		result.OK = true
+		result.Detail = "bound by embedinator-ollama (OK)"
+	case OllamaPortOwnedByHostDaemon:
+		result.OK = false
+		result.Error = "Host-native Ollama daemon is running. Stop it: sudo systemctl stop ollama 2>/dev/null || pkill -f 'ollama serve'"
+	case OllamaPortOwnedByUnknown:
+		result.OK = false
+		result.Error = fmt.Sprintf("Port 11434 held by non-Docker process (%s). Stop it before continuing.", r.OwnerProcess)
+	}
+	return result
+}
+
 // RunAllPreflights runs all preflight checks and returns the results.
 func RunAllPreflights(projectDir string) []PreflightResult {
 	osInfo := DetectOS()
@@ -203,6 +227,7 @@ func RunAllPreflights(projectDir string) []PreflightResult {
 			OK:     true,
 			Detail: fmt.Sprintf("%s/%s", osInfo.OS, osInfo.Arch),
 		},
+		CheckHostOllamaConflictPreflight(),
 	}
 
 	// Linux: add Docker Engine awareness when Desktop is detected.

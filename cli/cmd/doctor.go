@@ -95,6 +95,15 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		report.Suggestions = append(report.Suggestions, "Low RAM: "+ramCheck.Error)
 	}
 
+	// Host Ollama conflict — The Embedinator requires Docker Ollama exclusively.
+	ollamaConflict := engine.CheckOllamaPortConflict()
+	if ollamaConflict.HasConflict() {
+		report.Errors = append(report.Errors, "Ollama: "+ollamaConflict.Message)
+		if ollamaConflict.Remediation != "" {
+			report.Suggestions = append(report.Suggestions, ollamaConflict.Remediation)
+		}
+	}
+
 	// Config status.
 	configPath := filepath.Join(dir, "config.yaml")
 	report.Config.Found = engine.ConfigExists(configPath)
