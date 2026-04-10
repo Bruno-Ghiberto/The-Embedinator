@@ -18,8 +18,7 @@ env/
 ENV/
 
 # Environment variables
-.env
-.env.*
+.env*
 !.env.example
 
 # Jupyter
@@ -91,4 +90,19 @@ skills-lock.json
 .gitnexus/
 .gitnexus
 Docs/PROMPTS/
+docs/PROMPTS/
 frontend/test-results/
+.atl/
+.playwright-mcp/
+skills/
+
+# Runtime / build artifacts
+/embedinator
+/config.yaml
+/.mcp.json
+/empty.md
+
+# Loose E2E test evidence dropped at repo root (kept out of commit history)
+/sc*.png
+/t*.png
+/chat-*.png
