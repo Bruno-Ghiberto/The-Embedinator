@@ -147,50 +147,6 @@ def _record_inference_failure() -> None:
 # --- Node implementations ---
 
 
-async def init_session(state: ConversationState, **kwargs: Any) -> dict:
-    """Load or create session state, restore conversation history from SQLite."""
-    from langchain_core.messages import messages_from_dict
-
-    db = kwargs.get("db")
-    session_id = state["session_id"]
-    log = logger.bind(session_id=session_id)
-
-    try:
-        cursor = await db.execute(
-            "SELECT messages_json, selected_collections, llm_model, embed_model"
-            " FROM sessions WHERE id = ?",
-            (session_id,),
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            raise ValueError(f"Session not found in database: {session_id}")
-
-        messages_json, selected_collections_json, llm_model, embed_model = row
-
-        raw_messages = json.loads(messages_json) if messages_json else []
-        messages = messages_from_dict(raw_messages) if raw_messages else []
-
-        selected_collections = (
-            json.loads(selected_collections_json) if selected_collections_json else []
-        )
-
-        return {
-            "messages": messages,
-            "selected_collections": selected_collections,
-            "llm_model": llm_model or state.get("llm_model", ""),
-            "embed_model": embed_model or state.get("embed_model", ""),
-        }
-
-    except Exception as exc:
-        log.warning("agent_init_session_failed", error=type(exc).__name__)
-        return {
-            "messages": state.get("messages", []),  # preserve incoming messages
-            "selected_collections": state.get("selected_collections", []),
-            "llm_model": state.get("llm_model", ""),
-            "embed_model": state.get("embed_model", ""),
-        }
-
 
 async def classify_intent(state: ConversationState, config: RunnableConfig = None, *, store=None) -> dict:
     """Classify user message as rag_query, collection_mgmt, or ambiguous.

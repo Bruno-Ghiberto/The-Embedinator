@@ -77,11 +77,6 @@ def _mock_citation(passage_id: str = "mock-p1") -> Citation:
 # ---------------------------------------------------------------------------
 
 
-async def _noop_init_session(state, config=None):
-    """Skip SQLite lookup — return empty update."""
-    return {}
-
-
 async def _classify_as_rag(state, config=None):
     """Always classify intent as rag_query."""
     return {"intent": "rag_query"}
@@ -129,7 +124,6 @@ _NODE_PREFIX = "backend.agent.conversation_graph"
 def _build_rag_graph(research_graph, checkpointer=None):
     """Build graph for full RAG path: all LLM nodes mocked, clean happy-path."""
     with (
-        patch(f"{_NODE_PREFIX}.init_session", _noop_init_session),
         patch(f"{_NODE_PREFIX}.classify_intent", _classify_as_rag),
         patch(f"{_NODE_PREFIX}.rewrite_query", _rewrite_clear),
         patch(f"{_NODE_PREFIX}.aggregate_answers", _aggregate_with_results),
@@ -150,7 +144,6 @@ def _build_clarification_graph(
 ):
     """Build graph where rewrite_query triggers clarification via is_clear=False."""
     with (
-        patch(f"{_NODE_PREFIX}.init_session", _noop_init_session),
         patch(f"{_NODE_PREFIX}.classify_intent", _classify_as_rag),
         patch(f"{_NODE_PREFIX}.rewrite_query", rewrite_fn),
         patch(f"{_NODE_PREFIX}.aggregate_answers", _aggregate_with_results),
@@ -261,7 +254,6 @@ class TestSessionContinuity:
             return {}
 
         with (
-            patch(f"{_NODE_PREFIX}.init_session", init_with_history),
             patch(f"{_NODE_PREFIX}.classify_intent", _classify_as_rag),
             patch(f"{_NODE_PREFIX}.rewrite_query", _rewrite_clear),
             patch(f"{_NODE_PREFIX}.aggregate_answers", _aggregate_with_results),

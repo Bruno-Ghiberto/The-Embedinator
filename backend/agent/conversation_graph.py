@@ -20,7 +20,6 @@ from backend.agent.nodes import (
     classify_intent,
     format_response,
     handle_collection_mgmt,
-    init_session,
     request_clarification,
     rewrite_query,
     summarize_history,
@@ -51,7 +50,6 @@ def build_conversation_graph(
     graph = StateGraph(ConversationState)
 
     # Core nodes
-    graph.add_node("init_session", init_session)
     graph.add_node("classify_intent", classify_intent)
     graph.add_node("rewrite_query", rewrite_query)
     graph.add_node("request_clarification", request_clarification)
@@ -68,8 +66,7 @@ def build_conversation_graph(
     graph.add_node("handle_collection_mgmt", handle_collection_mgmt)
 
     # Edges
-    graph.add_edge(START, "init_session")
-    graph.add_edge("init_session", "classify_intent")
+    graph.add_edge(START, "classify_intent")
     graph.add_conditional_edges("classify_intent", route_intent, {
         "rag_query": "rewrite_query",
         "collection_mgmt": "handle_collection_mgmt",
