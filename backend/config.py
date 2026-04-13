@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Providers
     ollama_base_url: str = "http://localhost:11434"
     default_provider: str = "ollama"
-    default_llm_model: str = "qwen2.5:7b"
+    default_llm_model: str = "gemma4:e4b"
     default_embed_model: str = "nomic-embed-text"
     api_key_encryption_secret: str = Field(default="", alias="EMBEDINATOR_FERNET_KEY")  # Constitution V
 

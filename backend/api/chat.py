@@ -5,6 +5,7 @@ Streams 10 NDJSON event types: session, status, chunk, citation,
 meta_reasoning, confidence, groundedness, done, clarification, error.
 """
 
+import asyncio
 import json
 import time
 import uuid
@@ -24,6 +25,9 @@ from langgraph.errors import GraphRecursionError
 logger = structlog.get_logger().bind(component=__name__)
 
 router = APIRouter()
+
+# BUG-015: limit concurrent graph invocations to prevent resource exhaustion
+_chat_semaphore = asyncio.Semaphore(5)
 
 
 class CallLimitCallback(BaseCallbackHandler):
@@ -167,46 +171,47 @@ async def chat(body: ChatRequest, request: Request):
         has_streamed_response = False
 
         try:
-            # 2. Stream events from graph
-            # version="v2" returns StreamPart dicts with type/ns/data keys
-            # subgraphs=True enables visibility into ResearchGraph nodes
-            # (collect_answer lives in the research subgraph)
-            async for chunk in graph.astream(
-                initial_state,
-                stream_mode=["messages", "updates"],
-                subgraphs=True,
-                version="v2",
-                config=config,
-            ):
-                if chunk["type"] == "updates":
-                    data = chunk["data"]
-                    # Interrupt detection (clarification request)
-                    if "__interrupt__" in data:
-                        interrupt_value = data["__interrupt__"][0].value
-                        yield json.dumps({
-                            "type": "clarification",
-                            "question": interrupt_value,
-                        }) + "\n"
-                        return
-                elif chunk["type"] == "messages":
-                    chunk_msg, metadata = chunk["data"]
-                    current_node = metadata.get("langgraph_node")
-                    if current_node and current_node != last_node:
-                        yield json.dumps({"type": "status", "node": current_node}) + "\n"
-                        last_node = current_node
-                    if (
-                        current_node == "collect_answer"
-                        and isinstance(chunk_msg, (AIMessage, AIMessageChunk))
-                        and chunk_msg.content
-                    ):
-                        yield json.dumps({"type": "chunk", "text": chunk_msg.content}) + "\n"
-                        has_streamed_response = True
+            async with _chat_semaphore:
+                # 2. Stream events from graph
+                # version="v2" returns StreamPart dicts with type/ns/data keys
+                # subgraphs=True enables visibility into ResearchGraph nodes
+                # (collect_answer lives in the research subgraph)
+                async for chunk in graph.astream(
+                    initial_state,
+                    stream_mode=["messages", "updates"],
+                    subgraphs=True,
+                    version="v2",
+                    config=config,
+                ):
+                    if chunk["type"] == "updates":
+                        data = chunk["data"]
+                        # Interrupt detection (clarification request)
+                        if "__interrupt__" in data:
+                            interrupt_value = data["__interrupt__"][0].value
+                            yield json.dumps({
+                                "type": "clarification",
+                                "question": interrupt_value,
+                            }) + "\n"
+                            return
+                    elif chunk["type"] == "messages":
+                        chunk_msg, metadata = chunk["data"]
+                        current_node = metadata.get("langgraph_node")
+                        if current_node and current_node != last_node:
+                            yield json.dumps({"type": "status", "node": current_node}) + "\n"
+                            last_node = current_node
+                        if (
+                            current_node == "collect_answer"
+                            and isinstance(chunk_msg, (AIMessage, AIMessageChunk))
+                            and chunk_msg.content
+                        ):
+                            yield json.dumps({"type": "chunk", "text": chunk_msg.content}) + "\n"
+                            has_streamed_response = True
 
-            # 3. Get final state after stream completes
-            snapshot = await graph.aget_state(config)
-            final_state = snapshot.values
-            latency_ms = int((time.monotonic() - start_time) * 1000)
-            stage_timings = final_state.get("stage_timings", {})  # FR-005
+                # 3. Get final state after stream completes
+                snapshot = await graph.aget_state(config)
+                final_state = snapshot.values
+                latency_ms = int((time.monotonic() - start_time) * 1000)
+                stage_timings = final_state.get("stage_timings", {})  # FR-005
 
             # 3b. Emit final_response if not already streamed token-by-token
             final_response = final_state.get("final_response") or ""
