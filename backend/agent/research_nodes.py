@@ -111,6 +111,10 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         chunk_count=len(state["retrieved_chunks"]),
     )
 
+    # BUG-008: stamp loop start time on the first iteration so should_continue_loop
+    # can enforce a wall-clock deadline
+    _first_iter: dict = {"loop_start_time": time.monotonic()} if state["iteration_count"] == 0 else {}
+
     # --- Resolve LLM + tools from config ---
     configurable = (config or {}).get("configurable", {})
     llm = configurable.get("llm")
@@ -121,6 +125,7 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            **_first_iter,
         }
 
     # ENH-008: Summarize research messages if accumulation is too large
@@ -170,6 +175,7 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            **_first_iter,
         }
 
     tool_calls = response.tool_calls  # list[dict] from AIMessage
@@ -192,6 +198,7 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         "iteration_count": state["iteration_count"] + 1,
         "messages": result_messages,
         "_no_new_tools": no_new_tools,
+        **_first_iter,
     }
 
 

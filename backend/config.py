@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Agent
     max_iterations: int = 10
     max_tool_calls: int = 8
+    max_loop_seconds: int = 300  # BUG-008: wall-clock deadline for research loop
     confidence_threshold: int = 60  # 0–100 scale
     compression_threshold: float = 0.75
     meta_reasoning_max_attempts: int = 2

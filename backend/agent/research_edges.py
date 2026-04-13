@@ -5,6 +5,8 @@ These are separate from edges.py which contains ConversationGraph edges.
 """
 from __future__ import annotations
 
+import time
+
 import structlog
 
 from backend.agent.state import ResearchState
@@ -42,7 +44,20 @@ def should_continue_loop(state: ResearchState) -> str:
         )
         return "sufficient"
 
-    # 2. Budget exhaustion
+    # 2. Wall-clock deadline (BUG-008)
+    loop_start = state.get("loop_start_time")
+    if loop_start is not None:
+        elapsed = time.monotonic() - loop_start
+        if elapsed >= settings.max_loop_seconds:
+            logger.warning(
+                "agent_loop_exit_deadline",
+                elapsed_secs=round(elapsed, 1),
+                max_loop_seconds=settings.max_loop_seconds,
+                session_id=state["session_id"],
+            )
+            return "exhausted"
+
+    # 3. Budget exhaustion
     if (state["iteration_count"] >= settings.max_iterations or
             state["tool_call_count"] >= settings.max_tool_calls):
         logger.info(

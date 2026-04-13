@@ -76,6 +76,7 @@ class ResearchState(TypedDict):
     _top_k_retrieval: Annotated[int | None, _keep_last]
     _top_k_rerank: Annotated[int | None, _keep_last]
     _payload_filters: Annotated[dict | None, _keep_last]
+    loop_start_time: Annotated[float | None, _keep_last]
 
 
 class MetaReasoningState(TypedDict):
