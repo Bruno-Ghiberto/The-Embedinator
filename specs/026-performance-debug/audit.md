@@ -348,6 +348,7 @@ Applied by spec-26 Wave 2 (A3) + Wave 3 (A6) per FR-009. Every row cites the aud
 | `groundedness_check_enabled` | `True` | `False` | FR-005 top-1 contributor — `verify_groundedness` pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API preserves the feature for users who prioritize quality over speed. | §GPU FINDING GPU-001 + audit-synthesis.md §Top-1 | `d21d3a7` (A6) |
 | `embed_max_workers` | `4` | `12` | BUG-023 opportunistic P3 — reference host has 20-thread CPU; backend at 2-10% CPU during inference leaves 16 threads idle. 12 workers matches headroom without crowding the GIL path. | §CPU FINDING CPU-002 | `8a1107e` (A6) |
 | `circuit_breaker_cooldown_secs` | `30` | `60` | FR-009 config-tuning — 30s lockout was aggressive for a single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly. | §ConfigChanges pre-identified list | `8a1107e` (A6) |
+| `max_iterations` | `10` | `3` | FR-005 iter2 — instrumented smoke bench (`docs/benchmarks/aa9c875-smoke-instrumented.json`) showed `research_orchestrator_ms` p50 = 14,613 ms across 4 iterations (58% of 25,387 ms total factoid latency). Capping at 3 prevents iteration-count explosion on hard queries; Wave-3 baseline median was already self-terminating around 4. | §Latency Iter1 + smoke breakdown | *(A6 next commit)* |
 
 **Explicitly deferred with rationale (recorded here; bug-registry-spec26.md echoes):**
 

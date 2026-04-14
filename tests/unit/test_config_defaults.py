@@ -51,3 +51,9 @@ def test_spec26_checkpoint_max_threads_bounded():
     s = Settings()
     assert s.checkpoint_max_threads > 0
     assert s.checkpoint_max_threads <= 1000
+
+
+def test_spec26_max_iterations_capped():
+    """FR-005 iter2 — research-loop cap; smoke bench showed 4-call median, 3 prevents explosion."""
+    s = Settings()
+    assert s.max_iterations <= 3

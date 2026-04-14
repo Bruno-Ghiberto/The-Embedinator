@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     qdrant_upsert_batch_size: int = 50
 
     # Agent
-    max_iterations: int = 10
+    max_iterations: int = 3  # spec-26: FR-005 iter2 cap research loop — smoke bench (aa9c875) showed orchestrator p50 = 14.6s across 4 calls (58% of total latency); cap at 3 prevents iteration explosion. See docs/benchmarks/aa9c875-smoke-instrumented.json.
     max_tool_calls: int = 8
     max_loop_seconds: int = 300  # BUG-008: wall-clock deadline for research loop
     confidence_threshold: int = 60  # 0–100 scale
