@@ -31,6 +31,7 @@ All MCP servers available in this environment, including all sub-servers routed 
   - [claude\_ai\_Canva](#claude_ai_canva)
   - [claude\_ai\_Gmail](#claude_ai_gmail)
   - [claude\_ai\_Google\_Calendar](#claude_ai_google_calendar)
+  - [claude\_ai\_Google\_Drive](#claude_ai_google_drive)
   - [claude\_ai\_Notion](#claude_ai_notion)
 
 ---
@@ -436,6 +437,8 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 
 **Purpose:** Persistent cross-session memory. Save and retrieve observations, decisions, architecture choices, and discoveries that should survive context compaction and session restarts.
 
+**Namespace:** `mcp__plugin_engram_engram__*` — installed via the Claude Code plugin at `/home/brunoghiberto/Documents/Repo Tools/engram/plugin/claude-code/.mcp.json` with `--tools=agent` (11-tool core profile). Admin tools (`mem_delete`, `mem_stats`, `mem_timeline`) are **not exposed** by default. To enable them, edit the plugin's `.mcp.json` and change `"--tools=agent"` to `"--tools=agent,admin"`.
+
 | Tool | Description |
 |------|-------------|
 | `mem_save` | Save a memory entry with topic key and content |
@@ -443,9 +446,6 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 | `mem_context` | Get all memories relevant to current work context |
 | `mem_get_observation` | Retrieve a specific observation by ID |
 | `mem_update` | Update an existing memory entry |
-| `mem_delete` | Delete a memory entry |
-| `mem_timeline` | View memories ordered by time |
-| `mem_stats` | Memory usage statistics |
 | `mem_suggest_topic_key` | Suggest a topic key for organizing a new memory |
 | `mem_session_start` | Mark the start of a coding session |
 | `mem_session_end` | Mark the end of a session |
@@ -534,7 +534,6 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 | `browser_tabs` | List open browser tabs |
 | `browser_close` | Close the browser |
 | `browser_resize` | Resize the viewport |
-| `browser_install` | Install Playwright browsers if not present |
 
 ---
 
@@ -603,6 +602,7 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 | Tool | Description |
 |------|-------------|
 | `search_docs_by_lang_chain` | Keyword or semantic search across the LangChain documentation. Returns relevant pages, code examples, and API references |
+| `query_docs_filesystem_docs_by_lang_chain` | Query the filesystem-backed LangChain docs index (structured doc retrieval by path/section) |
 
 ---
 
@@ -676,19 +676,31 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 
 ### `claude_ai_Google_Calendar`
 
-**Purpose:** Read and manage Google Calendar events — view, create, update, delete events and find free/busy times.
+**Purpose:** Read and manage Google Calendar events — view, create, update, delete events and suggest meeting times.
 
 | Tool | Description |
 |------|-------------|
-| `gcal_list_calendars` | List all calendars in the account |
-| `gcal_list_events` | List events from a calendar (with date/search filters) |
-| `gcal_get_event` | Get a specific event by ID |
-| `gcal_create_event` | Create a new calendar event |
-| `gcal_update_event` | Update an existing event |
-| `gcal_delete_event` | Delete an event |
-| `gcal_respond_to_event` | Accept, decline, or tentatively accept an invitation |
-| `gcal_find_meeting_times` | Find available meeting times for multiple attendees |
-| `gcal_find_my_free_time` | Find free time blocks in your own calendar |
+| `list_calendars` | List all calendars in the account |
+| `list_events` | List events from a calendar (with date/search filters) |
+| `get_event` | Get a specific event by ID |
+| `create_event` | Create a new calendar event |
+| `update_event` | Update an existing event |
+| `delete_event` | Delete an event |
+| `respond_to_event` | Accept, decline, or tentatively accept an invitation |
+| `suggest_time` | Suggest available meeting times |
+
+---
+
+### `claude_ai_Google_Drive`
+
+**Purpose:** Google Drive access — currently only auth tools are registered. Full Drive operations require completing authentication first.
+
+| Tool | Description |
+|------|-------------|
+| `authenticate` | Start the Google Drive OAuth authentication flow |
+| `complete_authentication` | Complete the OAuth flow with the returned auth code |
+
+> **Note:** Only auth tools are exposed until authentication is completed. Extended Drive operations (list files, read/write, share, etc.) are not currently available in this session.
 
 ---
 
@@ -710,7 +722,6 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 | `notion-update-view` | Update an existing database view |
 | `notion-get-comments` | Get comments on a page or block |
 | `notion-create-comment` | Add a comment to a page or block |
-| `notion-list-replies` | List replies to a comment |
 | `notion-get-teams` | Get teams/workspaces the user belongs to |
 | `notion-get-users` | Get users in the workspace |
 
@@ -749,4 +760,5 @@ These servers connect directly to Claude Code (not via Docker MCP Gateway).
 | Canva design creation/editing | `claude_ai_Canva` |
 | Gmail read/draft | `claude_ai_Gmail` |
 | Google Calendar management | `claude_ai_Google_Calendar` |
+| Google Drive (auth only currently) | `claude_ai_Google_Drive` |
 | Notion read/write | `claude_ai_Notion` |
