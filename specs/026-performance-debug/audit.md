@@ -346,8 +346,8 @@ Applied by spec-26 Wave 2 (A3) + Wave 3 (A6) per FR-009. Every row cites the aud
 | `supported_llm_models` | *(unset)* | `["qwen2.5:7b", "llama3.1:8b", "mistral:7b"]` | FR-004 — tested-and-recommended list; thinking models explicitly unsupported, documented in `docs/performance.md` | §Appendix All Config Defaults | `d63736a` (A3) |
 | `checkpoint_max_threads` | *(unset / unbounded)* | `100` | DISK-001 — `checkpoints.db` grew to 349 MB from 79 queries (4.4 MB/query); linear extrapolation 44 GB at 10k queries. Cap + startup prune keeps growth bounded. | §DiskIO FINDING DISK-001 (Checkpoint Database Bloat) | `c49d9b1` (A3) |
 | `groundedness_check_enabled` | `True` | `False` | FR-005 top-1 contributor — `verify_groundedness` pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API preserves the feature for users who prioritize quality over speed. | §GPU FINDING GPU-001 + audit-synthesis.md §Top-1 | `d21d3a7` (A6) |
-| `embed_max_workers` | `4` | `12` | BUG-023 opportunistic P3 — reference host has 20-thread CPU; backend at 2-10% CPU during inference leaves 16 threads idle. 12 workers matches headroom without crowding the GIL path. | §CPU FINDING CPU-002 | *(A6 next commit)* |
-| `circuit_breaker_cooldown_secs` | `30` | `60` | FR-009 config-tuning — 30s lockout was aggressive for a single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly. | §ConfigChanges pre-identified list | *(A6 next commit)* |
+| `embed_max_workers` | `4` | `12` | BUG-023 opportunistic P3 — reference host has 20-thread CPU; backend at 2-10% CPU during inference leaves 16 threads idle. 12 workers matches headroom without crowding the GIL path. | §CPU FINDING CPU-002 | `8a1107e` (A6) |
+| `circuit_breaker_cooldown_secs` | `30` | `60` | FR-009 config-tuning — 30s lockout was aggressive for a single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly. | §ConfigChanges pre-identified list | `8a1107e` (A6) |
 
 **Explicitly deferred with rationale (recorded here; bug-registry-spec26.md echoes):**
 
