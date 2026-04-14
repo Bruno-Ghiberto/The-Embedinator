@@ -176,15 +176,15 @@ Web-service monorepo. Backend only in scope:
 
 ### A5 Spawn + Investigation
 
-- [ ] T051 [US2] Orchestrator invokes `Agent(team_name="spec26-wave3", subagent_type="root-cause-analyst", model="sonnet", ...)` to spawn A5 in its own tmux pane (parallel with A6 from Phase 5)
-- [ ] T052 [US2] A5 uses Serena + GitNexus to trace the confidence signal path: `backend/agent/confidence.py::compute_confidence` → callers → state field write in `backend/agent/research_nodes.py` → emission site in `backend/api/chat.py:243`
-- [ ] T053 [US2] A5 uses Sequential Thinking to trace the 5-signal scoring math; identifies whether the root cause is (a) state field never written, (b) signal math returns 0 because one signal dominates, or (c) emission site reads wrong field — documents the finding in the commit message
+- [X] T051 [US2] Orchestrator invokes `Agent(team_name="spec26-wave3", subagent_type="root-cause-analyst", model="sonnet", ...)` to spawn A5 in its own tmux pane (parallel with A6 from Phase 5)
+- [X] T052 [US2] A5 uses Serena + GitNexus to trace the confidence signal path: `backend/agent/confidence.py::compute_confidence` → callers → state field write in `backend/agent/research_nodes.py` → emission site in `backend/api/chat.py:243`
+- [X] T053 [US2] A5 uses Sequential Thinking to trace the 5-signal scoring math; identifies whether the root cause is (a) state field never written, (b) signal math returns 0 because one signal dominates, or (c) emission site reads wrong field — documents the finding in the commit message (refined A2's hypothesis: isinstance-dict guard routed to _legacy_confidence, returned 0 due to None/0 relevance_score; fix passes RetrievedChunk objects)
 
 ### Fix + Test
 
-- [ ] T054 [US2] A5 applies the targeted code change at the identified root cause; every changed line carries a `# spec-26: FR-003 BUG-010 <reason>` trailing comment where appropriate
-- [ ] T055 [US2] A5 writes `tests/unit/test_research_confidence.py` asserting `compute_confidence` returns > 30 on a fixture with ≥ 4 relevant chunks AND returns ≤ 30 on a fixture with 0 relevant chunks
-- [ ] T056 [US2] A5 commits with message `fix(backend): confidence scoring root-cause fix (FR-003, BUG-010)`; runs `zsh scripts/run-tests-external.sh -n sc002 tests/unit/test_research_confidence.py` and confirms PASS
+- [X] T054 [US2] A5 applies the targeted code change at the identified root cause; every changed line carries a `# spec-26: FR-003 BUG-010 <reason>` trailing comment where appropriate
+- [X] T055 [US2] A5 writes `tests/unit/test_research_confidence.py` asserting `compute_confidence` returns > 30 on a fixture with ≥ 4 relevant chunks AND returns ≤ 30 on a fixture with 0 relevant chunks (20 tests PASS)
+- [X] T056 [US2] A5 commits with message `fix(backend): confidence scoring root-cause fix (FR-003, BUG-010)`; runs `zsh scripts/run-tests-external.sh -n sc002 tests/unit/test_research_confidence.py` and confirms PASS
 
 **Checkpoint**: BUG-010 fixed at its root cause; confidence field now reflects retrieval quality. US-2 complete.
 
