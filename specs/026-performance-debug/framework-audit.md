@@ -8,6 +8,7 @@ Four confirmed `BUG` findings (BUG-010, BUG-016 ×3, BUG-019 ×2, and a new Tena
 **Scope**: LangGraph, LangChain, LangChain-Ollama, Tenacity primitives used by the conversation + research + meta-reasoning agent stack.
 **Method**: Source-level symbol review via Serena + GitNexus, cross-checked against Context7-fetched framework documentation. Every finding carries a `file:line` citation, an authoritative doc URL, and a severity assessment (`BUG` / `CONCERN` / `PASS` / `PASS-with-note`).
 **Versions audited**: LangGraph >= 1.0.10, LangChain >= 1.2.10, langchain-ollama (current stable), Tenacity >= 9.0 (per `CLAUDE.md` Active Technologies + pyproject constraints).
+**Doc sources**: LangChain/LangGraph citations are sourced from the `langchain-docs` MCP server (Docs by LangChain; URLs under `docs.langchain.com/oss/python/...`). Third-party primitives (Tenacity, cross-encoders) remain Context7-sourced; `python.langchain.com` fallbacks appear only where the langchain-docs MCP had no version-pinned page.
 **Inputs this audit feeds**: A5 (BUG-010 confidence fix, Wave 3), A6 (latency top-1 fix, Wave 3). This audit does NOT fix anything; it names every suspicious primitive with enough evidence that a fixer can start without re-tracing the graph.
 
 ---
@@ -25,13 +26,13 @@ The agent defines two state TypedDicts in `backend/agent/state.py`: `Conversatio
 ### F1.2 — `operator.add` reducer on `sub_answers`
 
 - **Current usage**: `ConversationState.sub_answers: Annotated[list[SubAnswer], operator.add]` at `backend/agent/state.py:47`; `ResearchState.sub_answers: Annotated[list, operator.add]` at `backend/agent/state.py:72`.
-- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/graph-api (Custom Reducer with Annotated for List Concatenation — `operator.add` concatenates lists from parallel branches).
+- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/graph-api#reducers (Reducers — "each channel has its own independent reducer function").
 - **Assessment**: **PASS** for semantics — `Send()` fan-out produces one `SubAnswer` per sub-question and we want all of them merged. Note the conservation invariant: no node may *replace* `sub_answers` with `[]` or earlier items are lost; `aggregate_answers` (nodes.py:360) correctly reads from state rather than overwriting.
 
 ### F1.3 — `operator.add` reducer on `citations`
 
 - **Current usage**: `ConversationState.citations: Annotated[list[Citation], operator.add]` at `backend/agent/state.py:49`; `ResearchState.citations: Annotated[list[Citation], operator.add]` at `backend/agent/state.py:70`.
-- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/use-graph-api (Define and compile a parallel execution graph — `operator.add` example).
+- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/use-graph-api#run-graph-nodes-in-parallel (Run graph nodes in parallel — supersteps execute parallel branches concurrently; `operator.add` collects their writes).
 - **Assessment**: **CONCERN** (BUG-017 workaround). `Send()` fan-out with N sub-questions produces N copies of each shared citation, and the reducer has no dedup key. The workaround lives at `backend/api/chat.py:228-235` where the emitter post-dedups by `passage_id`. The workaround is correct but masks the underlying reducer semantics: every downstream consumer of `state["citations"]` either re-dedups or sees duplicates. A custom reducer keyed on `passage_id` (keep highest `relevance_score`) would move the invariant into the state channel where it belongs. Same fix pattern also applies to `aggregate_answers` (nodes.py:405-417) which re-implements dedup manually.
 
 ### F1.4 — Custom `_keep_last` on `session_id`
@@ -101,13 +102,13 @@ The agent defines two state TypedDicts in `backend/agent/state.py`: `Conversatio
 ### F2.4 — `Send()` fan-out parallelism claim
 
 - **Current usage**: `route_fan_out` in `backend/agent/edges.py` builds `Send("research", payload)` objects, one per sub-question. LangGraph's scheduler is documented as executing them concurrently via `asyncio.gather`.
-- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/use-graph-api (Define and compile a parallel execution graph).
+- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/use-graph-api#run-graph-nodes-in-parallel (Run graph nodes in parallel — "while parallel branches are executed in parallel, the entire superstep is transactional").
 - **Assessment**: **NEEDS A1 DATA** (CONCERN pending measurement). The primitive is correct and LangGraph *will* dispatch branches in parallel at the scheduler layer. But if every `research` branch hits the same serialized bottleneck downstream — e.g., a shared inference client with `max_connections=1`, a global Python lock, or the `_chat_semaphore` in `chat.py` — wall-clock time ≈ serial sum of sub-question durations. A1's hardware audit will tell us whether we see GPU concurrency or serialization. If serial: this is a top-1 latency contributor and is framework-usage-correct but application-blocked.
 
 ### F2.5 — `recursion_limit=100`
 
 - **Current usage**: `backend/api/chat.py:167` — `"recursion_limit": 100` on every `graph.astream(...)` call.
-- **Doc URL**: https://langchain-ai.github.io/langgraph/reference/graphs/#langgraph.graph.state.StateGraph.compile (recursion limit default is 25); https://docs.langchain.com/oss/python/langgraph/errors/ (GraphRecursionError).
+- **Doc URL**: https://docs.langchain.com/oss/python/langgraph/graph-api#recursion-limit (Recursion limit — "when reached, LangGraph will raise GraphRecursionError. Starting in version 1.0.6, ..."); https://docs.langchain.com/oss/python/langgraph/use-graph-api#impose-a-recursion-limit (pattern for setting the limit per invocation).
 - **Assessment**: **CONCERN — too permissive**. Spec-14 §Performance Budgets sets tighter bounds (expected orchestrator iterations ≤ 10, meta-reasoning attempts ≤ 2). A recursion budget of 100 means the graph can spin through ~100 node executions before LangGraph raises `GraphRecursionError`. Combined with BUG-010 (confidence always 0 means `sufficient` is never hit), the loop can only exit via `max_iterations` (10) or wall-clock deadline. `100` hides orchestrator misbehavior behind a generous ceiling. Recommended: cap at `30` (tiers × iterations + meta-reasoning + conversation overhead with slack) and treat `GraphRecursionError` as an observability signal.
 
 ### F2.6 — `interrupt()` in clarification flow
@@ -157,13 +158,13 @@ The agent defines two state TypedDicts in `backend/agent/state.py`: `Conversatio
 ### F3.3 — `bind_tools` on Ollama-backed LLM
 
 - **Current usage**: `backend/agent/research_nodes.py:145` — `llm_with_tools = llm.bind_tools(tools_list) if tools_list else llm`. Tools are registered via closure in `backend/agent/tools.py:32`.
-- **Doc URL**: https://python.langchain.com/docs/integrations/llms/ollama/index (Define and Bind User Tool in Python); https://python.langchain.com/docs/integrations/chat/ollama/ (ChatOllama.bind_tools tool schema format).
+- **Doc URL**: https://docs.langchain.com/oss/python/langchain/models#forcing-tool-calls (`bind_tools` + `tool_choice` API surface); https://python.langchain.com/docs/integrations/chat/ollama/ (ChatOllama-specific tool-schema format — langchain-docs MCP has no version-pinned ChatOllama page; fallback to python.langchain.com).
 - **Assessment**: **PASS-with-note** (verification gap). `bind_tools` is the documented LangChain pattern for function-calling LLMs. `qwen2.5:7b` is the default model (`config.py:default_llm_model`). qwen2.5 *does* support tool calling via the Ollama tool schema, but the current provider flow (`backend/providers/ollama_provider.py`) needs to return an `AIMessage` with populated `.tool_calls` field for `bind_tools` to round-trip correctly. Verification gap: no test exercises a 2-tool-call turn end-to-end with the Ollama adapter. Recommend A5/A6 add one; mismatched tool-schema formats between qwen's native JSON and LangChain's `ToolCall` shape would be a silent failure.
 
 ### F3.4 — `with_structured_output(..., method="json_mode")` — intent classifier
 
 - **Current usage**: `backend/agent/nodes.py:201` — `structured_llm = llm.with_structured_output(IntentClassification, method="json_mode")`.
-- **Doc URL**: https://docs.langchain.com/oss/python/langchain/models (Get Raw AIMessage with Structured Output; `method="json_mode"` vs `method="json_schema"`); https://python.langchain.com/docs/integrations/llms/ollama/index (Generate Structured Output with Pydantic — default method).
+- **Doc URL**: https://docs.langchain.com/oss/python/langchain/structured-output (Structured output — LangChain's `create_agent` handles structured output automatically; response captured into state); https://docs.langchain.com/oss/python/langchain/models (Get Raw AIMessage with Structured Output; `method="json_mode"` vs `method="json_schema"`).
 - **Assessment**: **BUG** (contributes to BUG-016). `method="json_mode"` asks the model to emit a JSON object and parses the entire completion as JSON. Thinking-model variants (e.g., `qwen3:8b-thinking`, `deepseek-r1`) wrap their output in `<think>…</think>` tags *before* the JSON, so `json.loads()` fails. Recommended migration per the same Context7 doc: `method="json_schema"` (native OpenAI/Ollama JSON-schema enforcement with server-side validation) where available, or strip `<think>…</think>` before parsing. Note: classify_intent has a broad `except Exception` at `nodes.py:221` that defaults to `"rag_query"` on parse failure — so the bug is silent: thinking-model users get everything routed to `rag_query` no matter what they ask.
 
 ### F3.5 — `with_structured_output(..., method="json_mode")` — query analyzer
