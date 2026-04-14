@@ -111,6 +111,11 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         chunk_count=len(state["retrieved_chunks"]),
     )
 
+    # spec-26: FR-005 observability — accumulate orchestrator LLM-call latency
+    # across research-loop iterations so the 91% un-instrumented gap surfaced by
+    # the iter1 benchmark (audit §ConfigChanges) becomes a first-class timing key.
+    _t0 = time.perf_counter()
+
     # BUG-008: stamp loop start time on the first iteration so should_continue_loop
     # can enforce a wall-clock deadline
     _first_iter: dict = {"loop_start_time": time.monotonic()} if state["iteration_count"] == 0 else {}
@@ -122,9 +127,16 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
 
     if llm is None:
         log.warning("agent_orchestrator_no_llm")
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            "stage_timings": {
+                **_prior,
+                "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+                "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+            },
             **_first_iter,
         }
 
@@ -172,9 +184,16 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         response = await llm_with_tools.ainvoke(invoke_messages)
     except Exception as exc:
         log.warning("agent_orchestrator_llm_failed", error=type(exc).__name__)
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            "stage_timings": {
+                **_prior,
+                "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+                "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+            },
             **_first_iter,
         }
 
@@ -194,10 +213,17 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     if any(isinstance(m, RemoveMessage) for m in summarized_msgs):
         result_messages = [m for m in summarized_msgs if isinstance(m, (RemoveMessage, SystemMessage))] + result_messages
 
+    _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+    _prior = state.get("stage_timings", {})
     return {
         "iteration_count": state["iteration_count"] + 1,
         "messages": result_messages,
         "_no_new_tools": no_new_tools,
+        "stage_timings": {
+            **_prior,
+            "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+            "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+        },
         **_first_iter,
     }
 
@@ -281,6 +307,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms},
                 "retrieval": {"duration_ms": _duration_ms},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -372,6 +401,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms},
                 "retrieval": {"duration_ms": _duration_ms},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -387,6 +419,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms, "failed": True},
                 "retrieval": {"duration_ms": _duration_ms, "failed": True},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations (failure path)
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -437,13 +472,17 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
     log = logger.bind(session_id=state["session_id"])
     log.info("agent_compress_context_start", chunk_count=len(state["retrieved_chunks"]))
 
+    # spec-26: FR-005 observability — compress_context runs one more LLM round-trip
+    # per compression event; track it separately so re-benches can attribute the cost.
+    _t0 = time.perf_counter()
+
     # --- Resolve LLM from config ---
     configurable = (config or {}).get("configurable", {})
     llm = configurable.get("llm")
 
     if llm is None:
         log.warning("agent_compress_context_no_llm")
-        return {}  # Skip compression
+        return {}  # Skip compression (no timing recorded — early exit before work)
 
     chunks_text = "\n\n---\n\n".join(
         f"[{c.collection} | {c.source_file}] {c.text}"
@@ -486,11 +525,23 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
             before_chunks=len(state["retrieved_chunks"]),
             after_chunks=1,
         )
-        return {"retrieved_chunks": [compressed_chunk], "context_compressed": True}
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
+        return {
+            "retrieved_chunks": [compressed_chunk],
+            "context_compressed": True,
+            "stage_timings": {
+                **_prior,
+                "research_compress_ms": _prior.get("research_compress_ms", 0) + _duration_ms,
+                "research_compress_calls": _prior.get("research_compress_calls", 0) + 1,
+            },
+        }
 
     except Exception as exc:
         log.warning("agent_compress_context_failed", error=type(exc).__name__)
-        return {}  # Skip compression on failure
+        # Preserve existing contract: failure returns {} so the reducer makes no state change.
+        # Failed-compression latency is rare and not worth breaking the skip invariant.
+        return {}
 
 
 def _build_citations(
