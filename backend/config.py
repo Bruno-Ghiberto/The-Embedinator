@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # Accuracy & Robustness
-    groundedness_check_enabled: bool = True
+    groundedness_check_enabled: bool = False  # spec-26: FR-005 top-1 — disable by default; verify_groundedness pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API for quality-over-speed. See audit §GPU FINDING GPU-001 + synthesis Top-1.
     citation_alignment_threshold: float = 0.3
     circuit_breaker_failure_threshold: int = 5
     circuit_breaker_cooldown_secs: int = 30
