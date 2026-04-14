@@ -43,3 +43,16 @@ class RerankerError(EmbeddinatorError):
 
 class CircuitOpenError(EmbeddinatorError):
     """Raised when a circuit breaker is open."""
+
+
+class UnsupportedModelError(EmbeddinatorError):
+    """Raised at startup when the configured LLM is not in supported_llm_models."""
+
+    def __init__(self, model: str, supported: list[str]) -> None:
+        self.model = model
+        self.supported = supported
+        super().__init__(
+            f"Configured LLM {model!r} is not supported in this release. "
+            f"Supported: {', '.join(supported)}. "
+            f"Thinking models are explicitly unsupported — see docs/performance.md."
+        )

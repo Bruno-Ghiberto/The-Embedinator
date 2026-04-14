@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from backend.config import settings
 from backend.providers.base import ProviderRateLimitError
-from backend.errors import EmbeddinatorError, QdrantConnectionError, OllamaConnectionError
+from backend.errors import EmbeddinatorError, QdrantConnectionError, OllamaConnectionError, UnsupportedModelError
 from backend.middleware import (
     RateLimitMiddleware,
     RequestLoggingMiddleware,
@@ -140,6 +140,16 @@ async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) 
     return pruned
 
 
+def _validate_model_support(model: str, supported: list[str]) -> None:
+    """Fail fast if the configured LLM is not in the supported list.
+
+    spec-26: FR-004 Path B — raises UnsupportedModelError on unsupported/thinking models.
+    Called from lifespan before any graph compilation so the container never starts silently broken.
+    """
+    if model not in supported:
+        raise UnsupportedModelError(model=model, supported=supported)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: init DB, Qdrant, providers, checkpointer. Shutdown: close connections."""
@@ -147,6 +157,10 @@ async def lifespan(app: FastAPI):
 
     _configure_logging(settings.log_level, settings.log_level_overrides)
     logger = structlog.get_logger().bind(component=__name__)
+
+    # spec-26: FR-004 Path B — fail fast before any graph or provider initialization
+    _validate_model_support(settings.default_llm_model, settings.supported_llm_models)
+    logger.info("startup_model_validated", model=settings.default_llm_model)
 
     # FR-044: Ensure upload directory exists before any I/O
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)

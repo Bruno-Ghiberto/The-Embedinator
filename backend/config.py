@@ -26,7 +26,12 @@ class Settings(BaseSettings):
     # Providers
     ollama_base_url: str = "http://localhost:11434"
     default_provider: str = "ollama"
-    default_llm_model: str = "gemma4:e4b"
+    default_llm_model: str = "qwen2.5:7b"  # spec-26: FR-004 Path B — revert to proven non-thinking model
+    supported_llm_models: list[str] = [
+        "qwen2.5:7b",
+        "llama3.1:8b",
+        "mistral:7b",
+    ]  # spec-26: FR-004 — tested-and-recommended list; thinking models unsupported, see docs/performance.md
     default_embed_model: str = "nomic-embed-text"
     api_key_encryption_secret: str = Field(default="", alias="EMBEDINATOR_FERNET_KEY")  # Constitution V
 
