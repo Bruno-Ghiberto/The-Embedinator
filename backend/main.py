@@ -118,6 +118,28 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
             _warn_logger.warning(event_name, **kwargs)
 
 
+async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) -> int:
+    # spec-26 DISK-001: keep most-recent max_threads threads, delete the rest.
+    # checkpoint_id is UUIDv6 — lex-sort = time-sort. 0 disables.
+    if max_threads <= 0:
+        return 0
+    async with checkpointer.conn.execute(
+        "SELECT thread_id, MAX(checkpoint_id) AS latest "
+        "FROM checkpoints GROUP BY thread_id ORDER BY latest DESC"
+    ) as cursor:
+        rows = await cursor.fetchall()
+    if len(rows) <= max_threads:
+        return 0
+    pruned = 0
+    for tid, _latest in rows[max_threads:]:
+        try:
+            await checkpointer.adelete_thread(tid)
+            pruned += 1
+        except Exception as e:
+            logger.warning("storage_checkpoint_prune_failed", thread_id=tid, error=str(e))
+    return pruned
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: init DB, Qdrant, providers, checkpointer. Shutdown: close connections."""
@@ -177,6 +199,15 @@ async def lifespan(app: FastAPI):
     checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
     checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
+    pruned = await _prune_old_checkpoint_threads(
+        checkpointer, settings.checkpoint_max_threads, logger
+    )
+    if pruned > 0:
+        logger.info(
+            "storage_checkpoint_pruned",
+            pruned_threads=pruned,
+            max_threads=settings.checkpoint_max_threads,
+        )
     app.state.checkpointer = checkpointer
     app.state._checkpointer_cm = checkpointer_cm
     logger.info("storage_checkpointer_initialized", path=checkpoint_path)
