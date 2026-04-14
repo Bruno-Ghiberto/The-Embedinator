@@ -1,0 +1,45 @@
+{
+  "manifest": {
+    "commit_sha": "627178e",
+    "corpus_fingerprint": "6a5b0d8fafd9",
+    "model": "qwen2.5:7b",
+    "timestamp": "2026-04-14T16:16:59.142548+00:00",
+    "factoid_n": 30,
+    "analytical_n": 10,
+    "priming_queries": 1,
+    "concurrent": 1,
+    "repeat": 3
+  },
+  "cold_start_ms": 22264,
+  "cold_vs_warm_ratio": 0.73,
+  "variance_cv": 0.0994,
+  "warm_state_p50": {
+    "factoid_ms": 30627,
+    "analytical_ms": 33524
+  },
+  "warm_state_p90": {
+    "factoid_ms": 52561,
+    "analytical_ms": 50772
+  },
+  "warm_state_p99": {
+    "factoid_ms": 119380,
+    "analytical_ms": 62994
+  },
+  "overall_p50": {
+    "factoid_ms": 30627,
+    "analytical_ms": 33524
+  },
+  "stage_timings_p50": {
+    "answer_generation": 1430.1,
+    "embedding": 112.1,
+    "grounded_verification": 992.9,
+    "intent_classification": 951.5,
+    "ranking": 0.0,
+    "retrieval": 112.1
+  },
+  "completions": {
+    "done_count": 120,
+    "error_count": 0
+  },
+  "errors": []
+}
