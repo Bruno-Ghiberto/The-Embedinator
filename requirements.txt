@@ -48,5 +48,8 @@ langchain-anthropic>=0.3
 # LangGraph checkpointing
 langgraph-checkpoint-sqlite>=2.0
 
+# Token counting (spec-26: FR-007 true token counter for message trimming)
+tiktoken>=0.8
+
 # Linting
 ruff>=0.9

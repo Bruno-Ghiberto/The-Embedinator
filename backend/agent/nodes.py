@@ -99,6 +99,32 @@ def get_context_budget(model_name: str) -> int:
     return int(window * 0.75)
 
 
+def count_message_tokens(messages: list, model: Any) -> int:
+    """Count tokens across a list of messages using provider-aware counter when possible.
+
+    spec-26: FR-007 — replaces the broken token_counter=len pattern in trim_messages.
+    Per research.md §Decision 1: prefer model.count_tokens() (LangChain 1.2+);
+    fall back to tiktoken cl100k_base encoding if unavailable or raises.
+    """
+    try:
+        if model is not None and hasattr(model, "count_tokens"):
+            return sum(
+                model.count_tokens(m.content)
+                for m in messages
+                if getattr(m, "content", None)
+            )
+    except Exception:  # noqa: BLE001 — fall through to tiktoken
+        pass
+
+    import tiktoken  # lazy import; tiktoken>=0.8 in requirements.txt
+    enc = tiktoken.get_encoding("cl100k_base")
+    return sum(
+        len(enc.encode(str(m.content)))
+        for m in messages
+        if getattr(m, "content", None)
+    )
+
+
 # --- Inference Service Circuit Breaker (FR-017, ADR-001) ---
 _inf_circuit_open: bool = False
 _inf_failure_count: int = 0
@@ -693,7 +719,7 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
     trimmed_old = trim_messages(
         old_messages,
         max_tokens=4096,
-        token_counter=len,  # character-based approximation
+        token_counter=lambda msgs: count_message_tokens(msgs, llm),  # spec-26: FR-007 correct token counting
         strategy="last",
         include_system=True,
         allow_partial=False,

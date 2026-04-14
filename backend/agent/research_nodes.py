@@ -17,7 +17,7 @@ from langchain_core.messages import trim_messages
 from langchain_core.messages.utils import count_tokens_approximately
 
 from backend.agent.confidence import compute_confidence
-from backend.agent.nodes import get_context_budget
+from backend.agent.nodes import get_context_budget, count_message_tokens
 from backend.agent.prompts import (
     COLLECT_ANSWER_SYSTEM,
     COMPRESS_CONTEXT_SYSTEM,
@@ -136,7 +136,7 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     trimmed_messages = trim_messages(
         summarized_msgs,
         max_tokens=6000,
-        token_counter=len,  # character-based approximation
+        token_counter=lambda msgs: count_message_tokens(msgs, llm),  # spec-26: FR-007 correct token counting
         strategy="last",
         include_system=True,
         allow_partial=False,
