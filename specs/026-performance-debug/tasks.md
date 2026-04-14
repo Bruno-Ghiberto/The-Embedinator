@@ -155,12 +155,12 @@ Web-service monorepo. Backend only in scope:
 
 ### Top-1 Latency Fix (A6, Wave 3)
 
-- [ ] T045 [US4] Orchestrator invokes `Agent(team_name="spec26-wave3", subagent_type="performance-engineer", model="opus", ...)` to spawn A6 in its own tmux pane
-- [ ] T046 [US4] A6 reads `audit-synthesis.md` §Top-1 Contributor, then uses Sequential Thinking to trace the contributor through the surface code path (likely in `backend/agent/` — exact file determined by synthesis)
-- [ ] T047 [US4] A6 applies the minimal targeted code change at the top-1 contributor's surface — every line added/changed carries a `# spec-26: FR-005 <reason>` trailing comment where appropriate
-- [ ] T048 [US4] A6 re-runs benchmark: `python scripts/benchmark.py --factoid-n 30 --analytical-n 10 --repeat 3 --output "docs/benchmarks/$(git rev-parse --short HEAD)-wave3.json" ...`; commits with message `fix(backend): latency fix for top-1 contributor (FR-005, BUG-017)`
-- [ ] T049 [US4] A6 asserts SC-004: `jq '.warm_state_p50.factoid_ms < 4000' docs/benchmarks/<sha>-wave3.json` returns `true`. If false: either targets the next contributor within this spec (allowed by FR-005 clause c), or escalates to orchestrator with measured numbers for user review
-- [ ] T050 [US4] A6 asserts SC-005: `jq '.warm_state_p50.analytical_ms < 12000'` returns `true`; same escalation rule as T049
+- [X] T045 [US4] Orchestrator invokes `Agent(team_name="spec26-wave3", subagent_type="performance-engineer", model="opus", ...)` to spawn A6 in its own tmux pane
+- [X] T046 [US4] A6 reads `audit-synthesis.md` §Top-1 Contributor, then uses Sequential Thinking to trace the contributor through the surface code path (likely in `backend/agent/` — exact file determined by synthesis)
+- [X] T047 [US4] A6 applies the minimal targeted code change at the top-1 contributor's surface — every line added/changed carries a `# spec-26: FR-005 <reason>` trailing comment where appropriate (flipped existing `groundedness_check_enabled` default True→False)
+- [X] T048 [US4] A6 re-runs benchmark: `python scripts/benchmark.py --factoid-n 30 --analytical-n 10 --repeat 3 --output "docs/benchmarks/$(git rev-parse --short HEAD)-wave3.json" ...`; commits with message `fix(backend): latency fix for top-1 contributor (FR-005, BUG-017)`
+- [X] T049 [US4] A6 asserts SC-004: `jq '.warm_state_p50.factoid_ms < 4000' docs/benchmarks/<sha>-wave3.json` returns `true`. **FAIL documented — FR-005 iteration cap reached (Iter1 groundedness gate + Iter2 max_iterations=3); measured 19,528ms. Deferred to spec-27 per clarification.**
+- [X] T050 [US4] A6 asserts SC-005: `jq '.warm_state_p50.analytical_ms < 12000'` returns `true`; **FAIL documented — cap reached; measured 15,963ms. Deferred to spec-27.**
 
 **Checkpoint**: Benchmark harness committed, pre-fix baseline captured, top-1 latency fix applied, warm-state SCs verified. US-4 complete.
 
@@ -200,11 +200,11 @@ Web-service monorepo. Backend only in scope:
 
 ### Circuit Breaker Fix (A5, continued in Wave 3)
 
-- [ ] T057 [US5] A5 audits `backend/agent/nodes.py` module-level state (`_inf_failure_count`, `_inf_circuit_open`, `_inf_max_failures = 5`); documents current scope (per-process) and what currently counts as a "failure"
-- [ ] T058 [US5] A5 modifies the failure-counter logic to exclude `OutputParserException` retries that succeeded on second attempt; every changed line carries a `# spec-26: FR-006 BUG-018 <reason>` trailing comment
-- [ ] T059 [US5] A5 writes `tests/integration/test_circuit_breaker.py` — spins up 10 simulated queries where 5 would trip the old counter rules (mocked with `OutputParserException` then recovery); asserts zero trip the new counter; uses `@pytest.mark.require_docker` marker
-- [ ] T060 [US5] A5 commits with message `fix(backend): circuit breaker counter excludes recovered parser exceptions (FR-006, BUG-018)`
-- [ ] T061 [US5] Orchestrator runs SC-006 concurrency smoke: `python scripts/benchmark.py --concurrent 5 --factoid-n 5 --output /tmp/conc.json --collection-id "$(cat /tmp/spec26-collection-id.txt)"`; confirms zero `CircuitOpenError` events
+- [X] T057 [US5] A5 audits `backend/agent/nodes.py` module-level state (`_inf_failure_count`, `_inf_circuit_open`, `_inf_max_failures = 5`); documents current scope (per-process) and what currently counts as a "failure"
+- [X] T058 [US5] A5 modifies the failure-counter logic to exclude `OutputParserException` retries that succeeded on second attempt; every changed line carries a `# spec-26: FR-006 BUG-018 <reason>` trailing comment (split bare except into CircuitOpenError / OutputParserException / Exception — only general Exception increments counter)
+- [X] T059 [US5] A5 writes `tests/integration/test_circuit_breaker.py` — spins up 10 simulated queries where 5 would trip the old counter rules (mocked with `OutputParserException` then recovery); asserts zero trip the new counter; uses `@pytest.mark.require_docker` marker
+- [X] T060 [US5] A5 commits with message `fix(backend): circuit breaker counter excludes recovered parser exceptions (FR-006, BUG-018)`
+- [X] T061 [US5] Orchestrator runs SC-006 concurrency smoke: `python scripts/benchmark.py --concurrent 5 --factoid-n 5 --output /tmp/conc.json --collection-id "$(cat /tmp/spec26-collection-id.txt)"`; confirms zero `CircuitOpenError` events — PASS (15/15 done, 0 CircuitOpenError)
 
 **Checkpoint**: Circuit breaker counter rationalized; 5 concurrent queries succeed cleanly. US-5 complete.
 
@@ -220,16 +220,16 @@ Web-service monorepo. Backend only in scope:
 
 ### A6 Config Tuning + Opportunistic P3
 
-- [ ] T062 [US7] A6 iterates over `backend/config.py` defaults flagged by A1's hardware audit; for each default that the audit shows is sub-optimal on the reference workstation, updates the value and adds a `# spec-26: <one-line reason citing audit §X>` trailing comment
-- [ ] T063 [US7] A6 appends a "Config Changes" table to `specs/026-performance-debug/audit.md` with columns: `Setting | Before | After | Justification | Audit Section | Commit SHA`
-- [ ] T064 [US7] A6 applies opportunistic P3 fixes — if BUG-023 (`embed_max_workers=4` → higher) is a one-line audit win, apply; if BUG-021 (cross-encoder-to-GPU) shows VRAM headroom AND < 2 hours to demo a measured win, apply; otherwise mark as deferred in T082's bug registry with rationale
-- [ ] T065 [US7] A6 writes `tests/unit/test_config_defaults.py` regression test: instantiate `Settings()` with no overrides, assert every value changed by spec-26 matches the tuned value
-- [ ] T066 [US7] A6 commits with message `feat(backend): tuned config defaults per audit findings (FR-009)`; runs `zsh scripts/run-tests-external.sh -n spec26-us7 tests/unit/test_config_defaults.py` and confirms PASS
+- [X] T062 [US7] A6 iterates over `backend/config.py` defaults flagged by A1's hardware audit; for each default that the audit shows is sub-optimal on the reference workstation, updates the value and adds a `# spec-26: <one-line reason citing audit §X>` trailing comment
+- [X] T063 [US7] A6 appends a "Config Changes" table to `specs/026-performance-debug/audit.md` with columns: `Setting | Before | After | Justification | Audit Section | Commit SHA`
+- [X] T064 [US7] A6 applies opportunistic P3 fixes — if BUG-023 (`embed_max_workers=4` → higher) is a one-line audit win, apply; if BUG-021 (cross-encoder-to-GPU) shows VRAM headroom AND < 2 hours to demo a measured win, apply; otherwise mark as deferred in T082's bug registry with rationale (BUG-023 APPLIED 4→12; BUG-021 DEFERRED — spec-27 per A6 coupling-concern rationale; BUG-022 DEFERRED)
+- [X] T065 [US7] A6 writes `tests/unit/test_config_defaults.py` regression test: instantiate `Settings()` with no overrides, assert every value changed by spec-26 matches the tuned value
+- [X] T066 [US7] A6 commits with message `feat(backend): tuned config defaults per audit findings (FR-009)`; runs `zsh scripts/run-tests-external.sh -n spec26-us7 tests/unit/test_config_defaults.py` and confirms PASS
 
 ### Gate 3 — SC Verification
 
-- [ ] T067 [US7] Orchestrator runs Gate 3 verification: SC-002 (`test_research_confidence.py` PASS), SC-003 (20-query loop zero fallbacks, `gemma4:e4b` fails fast), SC-004 (`warm_state_p50.factoid_ms < 4000`), SC-005 (`warm_state_p50.analytical_ms < 12000`), SC-006 (zero `CircuitOpenError`), Makefile diff = 0, no new test regressions vs baseline
-- [ ] T068 [US7] Orchestrator invokes `TeamDelete` for `spec26-wave3` (closes Wave 3 cleanly)
+- [X] T067 [US7] Orchestrator runs Gate 3 verification: SC-002 (`test_research_confidence.py` PASS ✓), SC-003 (20-query loop zero fallback_response invocations ✓; ~20 OutputParserException retries handled by BUG-018 fix, not counted as failures), SC-004 (`warm_state_p50.factoid_ms < 4000` **FAIL 19,528ms cap-reached**), SC-005 (`warm_state_p50.analytical_ms < 12000` **FAIL 15,963ms cap-reached**), SC-006 (zero `CircuitOpenError` ✓), Makefile diff = 0 ✓, no new test regressions vs baseline ✓ (107 = 107 after 5 test-constant fixes)
+- [X] T068 [US7] Orchestrator invokes `TeamDelete` for `spec26-wave3` (closes Wave 3 cleanly)
 
 **Checkpoint**: Config defaults tuned with full traceability; opportunistic P3s applied or explicitly deferred. US-7 complete.
 
