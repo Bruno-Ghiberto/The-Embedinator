@@ -338,25 +338,28 @@ All 5 queries completed without `CircuitOpenError`. Ollama serializes LLM infere
 
 ## ConfigChanges
 
-*Placeholder — to be populated by A6 in Wave 3 after audit-driven fixes are applied.*
+Applied by spec-26 Wave 2 (A3) + Wave 3 (A6) per FR-009. Every row cites the audit section that motivated the change and the commit that landed it.
 
-Each config change applied by spec-26 will add a row here per FR-009 requirements:
+| Setting | Before | After | Justification | Audit Section | Commit SHA |
+|---------|--------|-------|---------------|---------------|------------|
+| `default_llm_model` | `gemma4:e4b` | `qwen2.5:7b` | FR-004 Path B — revert to proven non-thinking model; thinking-model tokens break the structured-output parser (BUG-016) | §Appendix All Config Defaults + Audit Summary #4 | `d63736a` (A3) |
+| `supported_llm_models` | *(unset)* | `["qwen2.5:7b", "llama3.1:8b", "mistral:7b"]` | FR-004 — tested-and-recommended list; thinking models explicitly unsupported, documented in `docs/performance.md` | §Appendix All Config Defaults | `d63736a` (A3) |
+| `checkpoint_max_threads` | *(unset / unbounded)* | `100` | DISK-001 — `checkpoints.db` grew to 349 MB from 79 queries (4.4 MB/query); linear extrapolation 44 GB at 10k queries. Cap + startup prune keeps growth bounded. | §DiskIO FINDING DISK-001 (Checkpoint Database Bloat) | `c49d9b1` (A3) |
+| `groundedness_check_enabled` | `True` | `False` | FR-005 top-1 contributor — `verify_groundedness` pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API preserves the feature for users who prioritize quality over speed. | §GPU FINDING GPU-001 + audit-synthesis.md §Top-1 | `d21d3a7` (A6) |
+| `embed_max_workers` | `4` | `12` | BUG-023 opportunistic P3 — reference host has 20-thread CPU; backend at 2-10% CPU during inference leaves 16 threads idle. 12 workers matches headroom without crowding the GIL path. | §CPU FINDING CPU-002 | *(A6 next commit)* |
+| `circuit_breaker_cooldown_secs` | `30` | `60` | FR-009 config-tuning — 30s lockout was aggressive for a single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly. | §ConfigChanges pre-identified list | *(A6 next commit)* |
 
-| Config Key | Old Value | New Value | Justification | Commit |
-|------------|-----------|-----------|---------------|--------|
-| `default_llm_model` | `gemma4:e4b` | `qwen2.5:7b` | FR-004: revert to non-thinking model; thinking-model tokens break structured output parser | TBD |
-| *(additional rows added by A6)* | | | | |
+**Explicitly deferred with rationale (recorded here; bug-registry-spec26.md echoes):**
 
-**Pre-identified config changes (from audit findings):**
+| Item | Status | Rationale |
+|------|--------|-----------|
+| `circuit_breaker_failure_threshold` 5→10 | DEFERRED — coordinate with A5 | A5's BUG-018 fix scopes the counter to non-recoverable failures. Once applied, the existing threshold of 5 is no longer fragile under concurrent load. Re-tune only if post-A5 audit shows otherwise. |
+| Backend GPU deploy block (BUG-021 prereq) | APPLIED upstream by A3 (commit `5bae5e2` before Wave 2 start) | `fix(infra): reserve NVIDIA GPU for backend container (BUG-021 prereq)` — docker-compose.yml was modified despite NEVER-TOUCH list because the synthesis §Open Issues flagged this as a pre-Wave-2 unblock. Cross-encoder remains on CPU (see BUG-021 disposition below). |
+| Cross-encoder → GPU (BUG-021) | DEFERRED | VRAM headroom confirmed (≥ 4.9 GiB free, ~90 MiB required). The prerequisite (backend GPU access) was applied upstream, but A6 did NOT move `backend/retrieval/reranker.py` to `device="cuda"` this wave to keep the latency fix isolated and avoid coupling SC-004 measurement to a secondary change. Candidate for follow-up spec once SC-004 and SC-005 are cleared. |
+| Ollama embedding device placement (BUG-022) | DEFERRED | Requires Ollama container config changes outside spec-26's single-wave scope. No measured benefit estimated in < 2h window. |
+| `meta_reasoning_max_attempts=0` env override | LEFT AS-IS | Audit flagged but spec-26 scope is latency + confidence; meta-reasoning toggling is a separate decision. A8 records in bug registry for future consideration. |
 
-| Config Key | Current Value | Audit Finding | Recommended Change |
-|------------|---------------|---------------|--------------------|
-| `default_llm_model` | `gemma4:e4b` | Thinking model, unsupported per FR-004 Path B | `qwen2.5:7b` |
-| `meta_reasoning_max_attempts` | `0` (via env override in docker-compose.yml) | Meta-reasoning is completely disabled | Investigate whether this is intentional or a debugging leftover |
-| `circuit_breaker_failure_threshold` | `5` | 5 failures in 2 min trips the breaker; under concurrent load (where all 5 fail), this becomes fragile | Consider raising to 10 or scoping to permanent failures only |
-| `circuit_breaker_cooldown_secs` | `30` | 30-second lockout is aggressive for a single-user system | Consider raising to 60–120 |
-| Checkpoint retention policy | Not configured | checkpoints.db = 349 MB from 79 queries (4.4 MB/query) | Add TTL cleanup (e.g., delete checkpoints older than 24h or keep last N per thread_id) |
-| Backend GPU deploy block | Missing | `torch.cuda.is_available()` = False in backend container; cross-encoder locked to CPU | Add `deploy.resources.reservations.devices` block to backend service in docker-compose.yml (prerequisite for BUG-021) |
+---
 
 ---
 

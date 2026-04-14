@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     child_chunk_size: int = 500
     embed_batch_size: int = 16
     rust_worker_path: str = "ingestion-worker/target/release/embedinator-worker"
-    embed_max_workers: int = 4
+    embed_max_workers: int = 12  # spec-26: BUG-023 opportunistic P3 — audit §CPU CPU-002 shows backend at 2-10% CPU during inference on 20-thread host; 4 workers left 16 threads idle, 12 aligns with reference hardware headroom.
     qdrant_upsert_batch_size: int = 50
 
     # Agent
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     groundedness_check_enabled: bool = False  # spec-26: FR-005 top-1 — disable by default; verify_groundedness pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API for quality-over-speed. See audit §GPU FINDING GPU-001 + synthesis Top-1.
     citation_alignment_threshold: float = 0.3
     circuit_breaker_failure_threshold: int = 5
-    circuit_breaker_cooldown_secs: int = 30
+    circuit_breaker_cooldown_secs: int = 60  # spec-26: FR-009 — audit §ConfigChanges: 30s lockout is aggressive for single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly.
     retry_max_attempts: int = 3
     retry_backoff_initial_secs: float = 1.0
 
