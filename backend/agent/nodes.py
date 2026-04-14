@@ -442,11 +442,34 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
         reverse=True,
     )
 
-    # Compute 0-100 confidence from citation relevance scores
-    passages_for_confidence = [
-        {"relevance_score": c.relevance_score} for c in deduped_citations
-    ]
-    confidence_score = compute_confidence(passages_for_confidence)
+    # spec-26: FR-003 BUG-010 — collect RetrievedChunk objects from sa.chunks instead
+    # of building a dict projection of Citations.  The dict-based path routes to
+    # _legacy_confidence (1-signal) or triggers AttributeError in _signal_confidence;
+    # either way the 5-signal formula (R8) is never reached, producing score 0.
+    # Passing the actual chunks activates _signal_confidence with all 5 signals.
+    all_chunks_flat = [chunk for sa in valid for chunk in sa.chunks]
+    _seen_chunk_ids: set[str] = set()
+    unique_chunks_for_confidence: list = []
+    for _chunk in all_chunks_flat:
+        if _chunk.chunk_id not in _seen_chunk_ids:
+            _seen_chunk_ids.add(_chunk.chunk_id)
+            unique_chunks_for_confidence.append(_chunk)
+
+    _num_colls_searched = (
+        len({c.collection for c in unique_chunks_for_confidence})
+        if unique_chunks_for_confidence else 1
+    )
+    _num_colls_total = len(state.get("selected_collections", [])) or 1
+    _raw_confidence = compute_confidence(
+        unique_chunks_for_confidence,
+        num_collections_searched=_num_colls_searched,
+        num_collections_total=_num_colls_total,
+    )
+    # spec-26: FR-003 BUG-010 unify confidence_score to int 0-100 at every write site
+    confidence_score: int = (
+        int(_raw_confidence * 100) if isinstance(_raw_confidence, float)
+        else int(_raw_confidence)
+    )
 
     log.info(
         "agent_aggregate_answers_merged",
@@ -529,6 +552,10 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
         log.info("agent_verify_groundedness_empty_context")
         return {"groundedness_result": None}
 
+    # spec-26: FR-006 BUG-018 — import exception types for fine-grained counter control
+    from backend.errors import CircuitOpenError  # noqa: PLC0415
+    from langchain_core.exceptions import OutputParserException  # noqa: PLC0415
+
     try:
         _check_inference_circuit()
 
@@ -564,7 +591,39 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
             },
         }
 
+    except CircuitOpenError:
+        # spec-26: FR-006 BUG-018 — circuit already open; do NOT double-count as new failure
+        log.info("agent_verify_groundedness_circuit_open")
+        return {
+            "groundedness_result": None,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "grounded_verification": {
+                    "duration_ms": round((time.perf_counter() - _t0) * 1000, 1),
+                    "skipped": True,
+                },
+            },
+        }
+
+    except OutputParserException as exc:
+        # spec-26: FR-006 BUG-018 — parse errors mean the LLM responded but JSON was
+        # malformed; this is NOT an infrastructure failure. Do NOT increment the
+        # failure counter so transient parse errors don't trip the circuit breaker.
+        log.warning("agent_verify_groundedness_parse_error", error=str(exc)[:200])
+        return {
+            "groundedness_result": None,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "grounded_verification": {
+                    "duration_ms": round((time.perf_counter() - _t0) * 1000, 1),
+                    "parse_error": True,
+                },
+            },
+        }
+
     except Exception as exc:
+        # spec-26: FR-006 BUG-018 — only genuine infrastructure failures count
+        # (connection errors, timeouts, LLM call errors)
         _record_inference_failure()
         log.warning("agent_verify_groundedness_failed", error=type(exc).__name__)
         return {

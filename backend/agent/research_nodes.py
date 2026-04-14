@@ -577,7 +577,7 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
         _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
         _prior = state.get("stage_timings", {})
         return {
-            "confidence_score": confidence,
+            "confidence_score": int(confidence * 100),  # spec-26: FR-003 BUG-010 unify int 0-100
             "citations": citations,
             "stage_timings": {
                 **_prior,
@@ -632,7 +632,7 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
     _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
     _prior = state.get("stage_timings", {})
     return {
-        "confidence_score": confidence,
+        "confidence_score": int(confidence * 100),  # spec-26: FR-003 BUG-010 unify int 0-100
         "citations": citations,
         "stage_timings": {
             **_prior,
@@ -683,7 +683,7 @@ async def fallback_response(state: ResearchState) -> dict:
 
     return {
         "citations": [],
-        "confidence_score": 0.0,
+        "confidence_score": 0,  # spec-26: FR-003 BUG-010 unify int 0-100
         "sub_answers": [SubAnswer(
             sub_question=state["sub_question"],
             answer=answer,
