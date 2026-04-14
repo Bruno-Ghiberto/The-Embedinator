@@ -107,25 +107,25 @@ Web-service monorepo. Backend only in scope:
 
 ### Agent Teams Wave 2 — A3 spawn
 
-- [ ] T027 [US3] Orchestrator invokes `TeamCreate` for `spec26-wave2`; registers A3 + A4 tasks via `TaskCreate` pointing at their respective agent instruction files
-- [ ] T028 [US3] Orchestrator invokes `Agent(team_name="spec26-wave2", subagent_type="python-expert", model="sonnet", ...)` to spawn A3 in its own tmux pane
+- [X] T027 [US3] Orchestrator invokes `TeamCreate` for `spec26-wave2`; registers A3 + A4 tasks via `TaskCreate` pointing at their respective agent instruction files
+- [X] T028 [US3] Orchestrator invokes `Agent(team_name="spec26-wave2", subagent_type="python-expert", model="sonnet", ...)` to spawn A3 in its own tmux pane
 
 ### FR-004 Implementation (A3)
 
-- [ ] T029 [P] [US3] A3 modifies `backend/config.py`: change `default_llm_model` default to `"qwen2.5:7b"` (from `"gemma4:e4b"`); add `supported_llm_models: list[str] = ["qwen2.5:7b", "llama3.1:8b", "mistral:7b"]  # spec-26: non-thinking models only, see docs/performance.md`
-- [ ] T030 [P] [US3] A3 adds `UnsupportedModelError` to `backend/errors.py` extending the project's custom-exception base class with fields `model: str` and `supported: list[str]`
-- [ ] T031 [US3] A3 adds startup-time validation in `backend/main.py` lifespan: after settings load but before graph compilation, verify `active_llm_model ∈ supported_llm_models`; raise `UnsupportedModelError` with message `f"Configured LLM {model!r} is not supported in this release. Supported: {', '.join(supported)}. Thinking models are explicitly unsupported — see docs/performance.md."` if not
-- [ ] T032 [US3] A3 writes `tests/unit/test_config.py` startup-refusal test: monkeypatch `EMBEDINATOR_LLM_MODEL=gemma4:e4b`, instantiate the FastAPI app, assert `UnsupportedModelError` is raised with the expected message
+- [X] T029 [P] [US3] A3 modifies `backend/config.py`: change `default_llm_model` default to `"qwen2.5:7b"` (from `"gemma4:e4b"`); add `supported_llm_models: list[str] = ["qwen2.5:7b", "llama3.1:8b", "mistral:7b"]  # spec-26: non-thinking models only, see docs/performance.md`
+- [X] T030 [P] [US3] A3 adds `UnsupportedModelError` to `backend/errors.py` extending the project's custom-exception base class with fields `model: str` and `supported: list[str]`
+- [X] T031 [US3] A3 adds startup-time validation in `backend/main.py` lifespan: after settings load but before graph compilation, verify `active_llm_model ∈ supported_llm_models`; raise `UnsupportedModelError` with message `f"Configured LLM {model!r} is not supported in this release. Supported: {', '.join(supported)}. Thinking models are explicitly unsupported — see docs/performance.md."` if not
+- [X] T032 [US3] A3 writes `tests/unit/test_config.py` startup-refusal test: monkeypatch `EMBEDINATOR_LLM_MODEL=gemma4:e4b`, instantiate the FastAPI app, assert `UnsupportedModelError` is raised with the expected message
 
 ### FR-007 Implementation (A3, shared wave)
 
-- [ ] T033 [P] [US3] A3 writes `backend/agent/research_nodes.py` helper `count_message_tokens(messages: list[BaseMessage], model: BaseChatModel) -> int` — tries `model.count_tokens()` first, falls back to `tiktoken.get_encoding("cl100k_base").encode()` (per `research.md` §Decision 1)
-- [ ] T034 [US3] A3 replaces `trim_messages(token_counter=len, ...)` callsite in `backend/agent/research_nodes.py` with `trim_messages(token_counter=count_message_tokens, ...)`; every changed line carries a `# spec-26: FR-007 correct token counting` trailing comment
-- [ ] T035 [US3] A3 writes `tests/unit/test_research_nodes_trim.py`: build a 10 000-token conversation with a known encoder; assert `count_message_tokens` returns within ±10% of the true count; assert `trim_messages(max_tokens=6000, ...)` produces a list whose summed count is ≤ 6 000
+- [X] T033 [P] [US3] A3 writes `backend/agent/research_nodes.py` helper `count_message_tokens(messages: list[BaseMessage], model: BaseChatModel) -> int` — tries `model.count_tokens()` first, falls back to `tiktoken.get_encoding("cl100k_base").encode()` (per `research.md` §Decision 1) (IMPLEMENTED IN `nodes.py` not `research_nodes.py` to avoid circular import)
+- [X] T034 [US3] A3 replaces `trim_messages(token_counter=len, ...)` callsite in `backend/agent/research_nodes.py` with `trim_messages(token_counter=count_message_tokens, ...)`; every changed line carries a `# spec-26: FR-007 correct token counting` trailing comment (BOTH SITES: `research_nodes.py:139` + `nodes.py:722`)
+- [X] T035 [US3] A3 writes `tests/unit/test_research_nodes_trim.py`: build a 10 000-token conversation with a known encoder; assert `count_message_tokens` returns within ±10% of the true count; assert `trim_messages(max_tokens=6000, ...)` produces a list whose summed count is ≤ 6 000
 
 ### Verification + report-back (A3)
 
-- [ ] T036 [US3] A3 runs `zsh scripts/run-tests-external.sh -n spec26-us3 tests/unit/test_config.py tests/unit/test_research_nodes_trim.py`; confirms both tests PASS; reports back to orchestrator
+- [X] T036 [US3] A3 runs `zsh scripts/run-tests-external.sh -n spec26-us3 tests/unit/test_config.py tests/unit/test_research_nodes_trim.py`; confirms both tests PASS; reports back to orchestrator
 
 **Checkpoint**: Default model reverted, allowlist active, fail-fast validator online, proper token counter in place. US-3 complete.
 
@@ -141,17 +141,17 @@ Web-service monorepo. Backend only in scope:
 
 ### Benchmark Harness (A4, Wave 2 parallel with A3)
 
-- [ ] T037 [US4] Orchestrator invokes `Agent(team_name="spec26-wave2", subagent_type="quality-engineer", model="sonnet", ...)` to spawn A4 in its own tmux pane (parallel with A3 from Phase 4)
-- [ ] T038 [P] [US4] A4 creates `scripts/benchmark.py` — argparse CLI with flags `--factoid-n`, `--analytical-n`, `--concurrent`, `--priming-queries` (default 1), `--repeat` (default 1), `--output <path>`, `--base-url`, `--collection-id`
-- [ ] T039 [US4] A4 implements harness body: run priming query (excluded from warm-state stats); run N factoid + M analytical queries; for each, record wall-clock and read `query_traces.stage_timings_json`; emit JSON conforming to the schema in `research.md` §Decision 3 (`manifest`, `cold_start_ms`, `warm_state_p50/p90/p99`, `stage_timings_p50`, `variance_cv`, `cold_vs_warm_ratio`)
-- [ ] T040 [US4] A4 implements `--repeat` behavior: run the full harness N times, compute coefficient of variation across the N `warm_state_p50.factoid_ms` values, emit as `variance_cv`
-- [ ] T041 [US4] A4 runs pre-fix baseline: `python scripts/benchmark.py --factoid-n 30 --analytical-n 10 --repeat 3 --output "docs/benchmarks/$(git rev-parse --short HEAD)-pre-spec26.json" --base-url http://localhost:8000 --collection-id "$(cat /tmp/spec26-collection-id.txt)"`
-- [ ] T042 [US4] A4 commits `scripts/benchmark.py` + the baseline JSON with message `feat(scripts): benchmark harness + pre-fix baseline (FR-002)`
+- [X] T037 [US4] Orchestrator invokes `Agent(team_name="spec26-wave2", subagent_type="quality-engineer", model="sonnet", ...)` to spawn A4 in its own tmux pane (parallel with A3 from Phase 4)
+- [X] T038 [P] [US4] A4 creates `scripts/benchmark.py` — argparse CLI with flags `--factoid-n`, `--analytical-n`, `--concurrent`, `--priming-queries` (default 1), `--repeat` (default 1), `--output <path>`, `--base-url`, `--collection-id`
+- [X] T039 [US4] A4 implements harness body: run priming query (excluded from warm-state stats); run N factoid + M analytical queries; for each, record wall-clock and read `query_traces.stage_timings_json`; emit JSON conforming to the schema in `research.md` §Decision 3 (`manifest`, `cold_start_ms`, `warm_state_p50/p90/p99`, `stage_timings_p50`, `variance_cv`, `cold_vs_warm_ratio`)
+- [X] T040 [US4] A4 implements `--repeat` behavior: run the full harness N times, compute coefficient of variation across the N `warm_state_p50.factoid_ms` values, emit as `variance_cv`
+- [X] T041 [US4] A4 runs pre-fix baseline: `python scripts/benchmark.py --factoid-n 30 --analytical-n 10 --repeat 3 --output "docs/benchmarks/$(git rev-parse --short HEAD)-pre-spec26.json" --base-url http://localhost:8000 --collection-id "$(cat /tmp/spec26-collection-id.txt)"`
+- [X] T042 [US4] A4 commits `scripts/benchmark.py` + the baseline JSON with message `feat(scripts): benchmark harness + pre-fix baseline (FR-002)`
 
 ### Gate 2 — Foundation Merged, Baseline Captured
 
-- [ ] T043 [US4] Orchestrator runs Gate 2 verification: (a) backend starts with `qwen2.5:7b`, fails with `gemma4:e4b`; (b) harness smoke run passes; (c) baseline JSON parses cleanly via `jq`; (d) FR-004/FR-007 tests pass; (e) Makefile diff = 0; (f) external test runner shows no new failures vs `/tmp/spec26-baseline-failures.txt`
-- [ ] T044 [US4] Orchestrator invokes `TeamDelete` for `spec26-wave2`; invokes `TeamCreate` for `spec26-wave3`; registers A5 + A6 tasks
+- [X] T043 [US4] Orchestrator runs Gate 2 verification: (a) backend starts with `qwen2.5:7b`, fails with `gemma4:e4b`; (b) harness smoke run passes; (c) baseline JSON parses cleanly via `jq`; (d) FR-004/FR-007 tests pass; (e) Makefile diff = 0; (f) external test runner shows no new failures vs `/tmp/spec26-baseline-failures.txt`
+- [X] T044 [US4] Orchestrator invokes `TeamDelete` for `spec26-wave2`; invokes `TeamCreate` for `spec26-wave3`; registers A5 + A6 tasks
 
 ### Top-1 Latency Fix (A6, Wave 3)
 
