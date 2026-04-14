@@ -48,9 +48,9 @@ Web-service monorepo. Backend only in scope:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase completes.
 
-- [ ] T007 Orchestrator invokes `TeamCreate` for `spec26-wave1` (audit team container); confirm new team registered
-- [ ] T008 Orchestrator creates two tasks via `TaskCreate` — one pointing at `docs/PROMPTS/spec-26-performance-debug/agents/A1-instructions.md` (to be generated during `/speckit.implement` design), one pointing at `A2-instructions.md`
-- [ ] T009 Orchestrator confirms the Context7 + Serena + GitNexus MCP servers are reachable (ping via a trivial `resolve-library-id` probe), aborting the wave if any required MCP is down
+- [X] T007 Orchestrator invokes `TeamCreate` for `spec26-wave1` (audit team container); confirm new team registered
+- [X] T008 Orchestrator creates two tasks via `TaskCreate` — one pointing at `docs/PROMPTS/spec-26-performance-debug/agents/A1-instructions.md` (to be generated during `/speckit.implement` design), one pointing at `A2-instructions.md`
+- [X] T009 Orchestrator confirms the Context7 + Serena + GitNexus MCP servers are reachable (ping via a trivial `resolve-library-id` probe), aborting the wave if any required MCP is down
 
 **Checkpoint**: Agent Teams wave-1 team exists, agent tasks are registered, MCP dependencies are healthy. Wave 1 can now spawn.
 
@@ -66,32 +66,32 @@ Web-service monorepo. Backend only in scope:
 
 ### Agent Teams Wave 1
 
-- [ ] T010 [P] [US1] Orchestrator invokes `Agent(team_name="spec26-wave1", subagent_type="devops-architect", model="sonnet", ...)` — spawns A1 in its own tmux pane to perform the hardware utilization audit
-- [ ] T011 [P] [US1] Orchestrator invokes `Agent(team_name="spec26-wave1", subagent_type="backend-architect", model="opus", ...)` — spawns A2 in its own tmux pane to perform the framework configuration audit
+- [X] T010 [P] [US1] Orchestrator invokes `Agent(team_name="spec26-wave1", subagent_type="devops-architect", model="sonnet", ...)` — spawns A1 in its own tmux pane to perform the hardware utilization audit
+- [X] T011 [P] [US1] Orchestrator invokes `Agent(team_name="spec26-wave1", subagent_type="backend-architect", model="opus", ...)` — spawns A2 in its own tmux pane to perform the framework configuration audit
 
 ### A1 Hardware Audit Deliverables (devops-architect, Sonnet)
 
-- [ ] T012 [P] [US1] A1 captures CPU audit: `top -H -p <backend-pid>` and `pidstat -t 1` samples during a single chat query; output appended to `specs/026-performance-debug/audit.md` §CPU with (number, tool, timestamp) triples
-- [ ] T013 [P] [US1] A1 captures GPU audit: `nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader` manifest plus `nvidia-smi dmon -s u -c 30` utilization trace; attach CSV to `specs/026-performance-debug/audit/` and embed summary in `audit.md` §GPU
-- [ ] T014 [P] [US1] A1 captures RAM audit: backend `/proc/<pid>/status` RSS at idle / 1 query / 5 concurrent; Qdrant memory; SQLite effective `cache_size`; host headroom — written to `audit.md` §RAM
-- [ ] T015 [P] [US1] A1 captures Disk/I/O audit: `sqlite3 data/embedinator.db 'PRAGMA journal_mode;'` confirmation; Qdrant memmap vs in-RAM observation; ingestion write-batching sample — written to `audit.md` §DiskIO
-- [ ] T016 [US1] A1 captures cold-start vs warm-state split via priming query, reports `cold_start_ms` measurement plus warm-state median — written to `audit.md` §ColdStart
-- [ ] T017 [US1] A1 commits `audit.md` with message `docs(spec-26): hardware utilization audit (FR-001)` — this commit MUST precede any bugfix commit (SC-001)
+- [X] T012 [P] [US1] A1 captures CPU audit: `top -H -p <backend-pid>` and `pidstat -t 1` samples during a single chat query; output appended to `specs/026-performance-debug/audit.md` §CPU with (number, tool, timestamp) triples
+- [X] T013 [P] [US1] A1 captures GPU audit: `nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader` manifest plus `nvidia-smi dmon -s u -c 30` utilization trace; attach CSV to `specs/026-performance-debug/audit/` and embed summary in `audit.md` §GPU
+- [X] T014 [P] [US1] A1 captures RAM audit: backend `/proc/<pid>/status` RSS at idle / 1 query / 5 concurrent; Qdrant memory; SQLite effective `cache_size`; host headroom — written to `audit.md` §RAM
+- [X] T015 [P] [US1] A1 captures Disk/I/O audit: `sqlite3 data/embedinator.db 'PRAGMA journal_mode;'` confirmation; Qdrant memmap vs in-RAM observation; ingestion write-batching sample — written to `audit.md` §DiskIO
+- [X] T016 [US1] A1 captures cold-start vs warm-state split via priming query, reports `cold_start_ms` measurement plus warm-state median — written to `audit.md` §ColdStart
+- [X] T017 [US1] A1 commits `audit.md` with message `docs(spec-26): hardware utilization audit (FR-001)` — this commit MUST precede any bugfix commit (SC-001)
 
 ### A2 Framework Audit Deliverables (backend-architect, Opus)
 
-- [ ] T018 [P] [US1] A2 audits LangGraph primitives — state reducers per field (`operator.add`, `add_messages`, `_keep_last`, `_merge_dicts`, `_merge_sets` in `backend/agent/state.py`); each finding cites file:line + Context7 URL; output to `specs/026-performance-debug/framework-audit.md` §LangGraph
-- [ ] T019 [P] [US1] A2 audits checkpointer correctness (AsyncSqliteSaver in `backend/main.py`), conditional-edges exhaustiveness in `backend/agent/edges.py`, `Send()` fan-out parallelism measured wall-clock vs serial-sum in `backend/agent/research_nodes.py`; output to `framework-audit.md` §LangGraph (continued)
-- [ ] T020 [P] [US1] A2 audits LangChain primitives — `trim_messages` with `token_counter=len` bug confirmation (FR-019 source), `bind_tools` on Ollama for `qwen2.5:7b`, PydanticOutputParser retry wrapping, tenacity coverage on every Ollama/Qdrant callsite; output to `framework-audit.md` §LangChain
-- [ ] T021 [P] [US1] A2 audits agent methodology — orchestrator sufficient-vs-exhausted ratio, confidence-threshold wiring (document BUG-010 unreachability), meta-reasoning trigger rate, groundedness/citation validation latency cost; output to `framework-audit.md` §AgentMethodology
-- [ ] T022 [US1] A2 commits `framework-audit.md` with message `docs(spec-26): framework configuration audit (FR-001)` — must precede any bugfix commit
+- [X] T018 [P] [US1] A2 audits LangGraph primitives — state reducers per field (`operator.add`, `add_messages`, `_keep_last`, `_merge_dicts`, `_merge_sets` in `backend/agent/state.py`); each finding cites file:line + Context7 URL; output to `specs/026-performance-debug/framework-audit.md` §LangGraph
+- [X] T019 [P] [US1] A2 audits checkpointer correctness (AsyncSqliteSaver in `backend/main.py`), conditional-edges exhaustiveness in `backend/agent/edges.py`, `Send()` fan-out parallelism measured wall-clock vs serial-sum in `backend/agent/research_nodes.py`; output to `framework-audit.md` §LangGraph (continued)
+- [X] T020 [P] [US1] A2 audits LangChain primitives — `trim_messages` with `token_counter=len` bug confirmation (FR-019 source), `bind_tools` on Ollama for `qwen2.5:7b`, PydanticOutputParser retry wrapping, tenacity coverage on every Ollama/Qdrant callsite; output to `framework-audit.md` §LangChain
+- [X] T021 [P] [US1] A2 audits agent methodology — orchestrator sufficient-vs-exhausted ratio, confidence-threshold wiring (document BUG-010 unreachability), meta-reasoning trigger rate, groundedness/citation validation latency cost; output to `framework-audit.md` §AgentMethodology
+- [X] T022 [US1] A2 commits `framework-audit.md` with message `docs(spec-26): framework configuration audit (FR-001)` — must precede any bugfix commit
 
 ### Gate 1 — Orchestrator Synthesis
 
-- [ ] T023 [US1] Orchestrator invokes Sequential Thinking (`mcp__sequential-thinking__sequentialthinking`) with 5–8-thought session to rank the top-3 latency contributors from the two audits; writes the reasoning trace to `specs/026-performance-debug/audit-synthesis.md` (≤ 100 lines) naming the top-1 contributor A6 will target in Wave 3
-- [ ] T024 [US1] Orchestrator runs SC-001 commit-order check: `git log --oneline --reverse 025-master-debug..HEAD | awk '/audit/{a=1} /^[0-9a-f]+ (fix|feat)/ && !a {print "FAIL"; exit 1}'` → must pass
-- [ ] T025 [US1] Orchestrator commits `audit-synthesis.md` and runs Makefile invariant check: `git diff -- Makefile | wc -l` must equal `0`
-- [ ] T026 [US1] Orchestrator invokes `TeamDelete` for `spec26-wave1` to close the wave cleanly
+- [X] T023 [US1] Orchestrator invokes Sequential Thinking (`mcp__sequential-thinking__sequentialthinking`) with 5–8-thought session to rank the top-3 latency contributors from the two audits; writes the reasoning trace to `specs/026-performance-debug/audit-synthesis.md` (≤ 100 lines) naming the top-1 contributor A6 will target in Wave 3
+- [X] T024 [US1] Orchestrator runs SC-001 commit-order check: `git log --oneline --reverse 025-master-debug..HEAD | awk '/audit/{a=1} /^[0-9a-f]+ (fix|feat)/ && !a {print "FAIL"; exit 1}'` → must pass
+- [X] T025 [US1] Orchestrator commits `audit-synthesis.md` and runs Makefile invariant check: `git diff -- Makefile | wc -l` must equal `0`
+- [X] T026 [US1] Orchestrator invokes `TeamDelete` for `spec26-wave1` to close the wave cleanly
 
 **Checkpoint**: `audit.md`, `framework-audit.md`, `audit-synthesis.md` committed. Commit order verified. Top-1 latency contributor named. US-1 complete. All downstream user stories unblocked.
 
