@@ -143,9 +143,10 @@ class TestCircuitBreakerConfig:
         assert s.circuit_breaker_failure_threshold == 5
         assert isinstance(s.circuit_breaker_failure_threshold, int)
 
-    def test_circuit_breaker_cooldown_secs_is_int_30(self):
+    def test_circuit_breaker_cooldown_secs_is_int_60(self):
+        # spec-26: FR-009 — cooldown raised 30→60 per audit.md §ConfigChanges (commit 8a1107e)
         s = Settings()
-        assert s.circuit_breaker_cooldown_secs == 30
+        assert s.circuit_breaker_cooldown_secs == 60
 
     def test_retry_max_attempts_exists_reserved(self):
         """retry_max_attempts is dead config -- reserved for future spec. MUST NOT be removed."""

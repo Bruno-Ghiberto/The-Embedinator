@@ -153,10 +153,11 @@ class TestBatchEmbedder:
 
     def test_default_settings_used(self):
         """BatchEmbedder uses settings defaults when no args provided."""
+        # spec-26: BUG-023 — max_workers raised 4→12 per audit §CPU CPU-002 (commit 8a1107e)
         embedder = BatchEmbedder()
 
         assert embedder.model == "nomic-embed-text"
-        assert embedder.max_workers == 4
+        assert embedder.max_workers == 12
         assert embedder.batch_size == 16
 
     def test_custom_settings_override(self):

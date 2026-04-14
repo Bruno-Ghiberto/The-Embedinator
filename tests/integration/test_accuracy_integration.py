@@ -541,8 +541,9 @@ class TestCircuitBreakerIntegration:
 
         assert wrapper._circuit_open is True
 
-        # Simulate cooldown elapsed (31s > 30s default)
-        wrapper._last_failure_time = time.monotonic() - 31
+        # spec-26: FR-009 — cooldown is 60s default (was 30s); simulate elapsed
+        from backend.config import settings
+        wrapper._last_failure_time = time.monotonic() - (settings.circuit_breaker_cooldown_secs + 1)
 
         # Probe call succeeds (empty result list) → circuit closes
         wrapper.client.search.side_effect = None
