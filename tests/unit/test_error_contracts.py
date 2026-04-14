@@ -32,6 +32,7 @@ class TestErrorHierarchy:
         "StructuredOutputParseError",
         "RerankerError",
         "CircuitOpenError",
+        "UnsupportedModelError",  # spec-26: FR-004 fail-fast startup gate
     }
 
     def test_all_required_classes_exist(self):
@@ -46,8 +47,8 @@ class TestErrorHierarchy:
             cls for _, cls in members
             if issubclass(cls, Exception) and cls.__module__ == errors_module.__name__
         ]
-        assert len(exception_classes) == 11, (
-            f"Expected 11 exception classes (1 base + 10 subclasses), "
+        assert len(exception_classes) == 12, (
+            f"Expected 12 exception classes (1 base + 11 subclasses), "
             f"found {len(exception_classes)}: {[c.__name__ for c in exception_classes]}"
         )
 
@@ -75,7 +76,11 @@ class TestErrorHierarchy:
         import backend.errors as errors_module
         for name in self.REQUIRED_SUBCLASS_NAMES:
             cls = getattr(errors_module, name)
-            exc = cls("test message")
+            if name == "UnsupportedModelError":
+                # custom __init__ requires (model: str, supported: list[str])
+                exc = cls("unsupported-model", ["qwen2.5:7b"])
+            else:
+                exc = cls("test message")
             assert isinstance(exc, cls)
 
 
