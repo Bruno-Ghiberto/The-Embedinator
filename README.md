@@ -68,6 +68,25 @@ Most RAG tools do a single vector lookup and pass the results to an LLM. The Emb
 - **Rate limiting and security** -- per-endpoint rate limits, input sanitization, CORS, and circuit breakers
 
 
+## Performance
+
+See [docs/performance.md](docs/performance.md) for measured performance numbers on reference
+hardware and behavior on weaker machines.
+
+**Headline numbers (reference hardware, warm-state p50)**:
+- Factoid query: 19,528 ms
+- Analytical query: 15,963 ms
+- Supported models: `qwen2.5:7b` (default), `llama3.1:8b`, `mistral:7b`
+
+Thinking models (`gemma4`, `qwen3-thinking`, `deepseek-r1`) are not supported in the current
+release — the backend refuses to start with them configured. See
+[Supported Models](docs/performance.md#supported-models) for rationale.
+
+> **Note**: GPU launch is required to reach the benchmark numbers above. Use `./embedinator.sh`
+> (which auto-detects GPU and merges the correct Docker Compose overlay) rather than plain
+> `docker compose up -d`.
+
+
 ## Architecture Overview
 
 ```
