@@ -31,12 +31,12 @@ Web-service monorepo. Backend only in scope:
 
 **Purpose**: Preflight every environmental requirement spec-26 depends on before any wave spawns.
 
-- [ ] T001 Verify active branch is `026-performance-debug` (run `git branch --show-current` → must match; abort if not)
-- [ ] T002 Verify baseline test failure count and cache it to `/tmp/spec26-baseline-failures.txt` for later regression comparison (run `zsh scripts/run-tests-external.sh -n spec26-baseline --no-cov tests/` then `grep -c '^FAILED' Docs/Tests/spec26-baseline.log > /tmp/spec26-baseline-failures.txt`)
-- [ ] T003 [P] Verify tmux preflight succeeds (`[ -n "$TMUX" ]`) and export `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in every pane used by the orchestration
-- [ ] T004 [P] Bring up the Docker stack and confirm all four services reach `healthy`/`running` via `docker compose up -d && docker compose ps`
-- [ ] T005 [P] Seed the reference corpus via `python scripts/seed_data.py --base-url http://localhost:8000`; capture the resulting collection ID into `/tmp/spec26-collection-id.txt` (consumed by the benchmark harness throughout)
-- [ ] T006 Create per-wave subdirectory scaffolding: `mkdir -p specs/026-performance-debug/audit` (for A1's CSV attachments) and `mkdir -p docs/benchmarks`
+- [X] T001 Verify active branch is `026-performance-debug` (run `git branch --show-current` → must match; abort if not)
+- [X] T002 Verify baseline test failure count and cache it to `/tmp/spec26-baseline-failures.txt` for later regression comparison (run `zsh scripts/run-tests-external.sh -n spec26-baseline --no-cov tests/` then `grep -c '^FAILED' Docs/Tests/spec26-baseline.log > /tmp/spec26-baseline-failures.txt`)
+- [X] T003 [P] Verify tmux preflight succeeds (`[ -n "$TMUX" ]`) and export `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in every pane used by the orchestration
+- [X] T004 [P] Bring up the Docker stack and confirm all four services reach `healthy`/`running` via `docker compose up -d && docker compose ps`
+- [X] T005 [P] Seed the reference corpus via `python scripts/seed_data.py --base-url http://localhost:8000`; capture the resulting collection ID into `/tmp/spec26-collection-id.txt` (consumed by the benchmark harness throughout)
+- [X] T006 Create per-wave subdirectory scaffolding: `mkdir -p specs/026-performance-debug/audit` (for A1's CSV attachments) and `mkdir -p docs/benchmarks`
 
 **Checkpoint**: tmux active, Agent Teams flag set, stack healthy, corpus seeded, baseline failure count recorded. No production code has been touched.
 
