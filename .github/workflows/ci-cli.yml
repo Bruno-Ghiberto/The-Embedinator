@@ -47,6 +47,7 @@ jobs:
 
       - name: Test with race detector and coverage
         working-directory: cli
+        shell: bash
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Upload coverage report
@@ -68,8 +69,9 @@ jobs:
           go-version: "1.25"
           cache-dependency-path: cli/go.sum
 
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          working-directory: cli
-          version: latest
+        working-directory: cli
+        run: golangci-lint run ./...
