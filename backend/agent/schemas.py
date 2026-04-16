@@ -27,7 +27,7 @@ class RetrievedChunk(BaseModel):
     text: str
     source_file: str
     page: int | None = None
-    breadcrumb: str
+    breadcrumb: str = ""
     parent_id: str
     collection: str
     dense_score: float
@@ -40,7 +40,7 @@ class ParentChunk(BaseModel):
     text: str
     source_file: str
     page: int | None = None
-    breadcrumb: str
+    breadcrumb: str = ""
     collection: str
 
 
@@ -55,6 +55,21 @@ class GroundednessResult(BaseModel):
     verifications: list[ClaimVerification]
     overall_grounded: bool
     confidence_adjustment: float
+
+
+class IntentClassification(BaseModel):
+    """Structured output for classify_intent node (ENH-002)."""
+
+    intent: str  # "rag_query", "collection_mgmt", "ambiguous"
+    reason: str = ""
+
+
+class QueryRewrite(BaseModel):
+    """Structured output for query rewriting (ENH-002)."""
+
+    rewritten_query: str
+    sub_questions: list[str] = []
+    search_strategy: str = "hybrid"
 
 
 # --- API Response Schemas (match data-model.md) ---

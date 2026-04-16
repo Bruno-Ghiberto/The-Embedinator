@@ -1,7 +1,25 @@
 # NVIDIA GPU overlay — merge with docker-compose.yml
 # Usage: docker compose -f docker-compose.yml -f docker-compose.gpu-nvidia.yml up
+#
+# spec-26: backend now reserves GPU as well so the cross-encoder reranker
+# (sentence-transformers/ms-marco-MiniLM-L-6-v2, ~90 MiB VRAM) can run on
+# the device alongside the LLM. Backend image already ships GPU-capable
+# torch (cu130) — only the device reservation was missing. See
+# specs/026-performance-debug/audit.md §GPU + audit-synthesis.md.
 services:
   ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  backend:
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     deploy:
       resources:
         reservations:

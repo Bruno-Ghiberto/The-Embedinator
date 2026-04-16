@@ -116,3 +116,103 @@ class TestLegacyConfidence:
             {"relevance_score": 0.5},
         ])
         assert 0 < result < 100
+
+
+# ---------------------------------------------------------------------------
+# BUG-010 regression tests (spec-26: FR-003)
+# ---------------------------------------------------------------------------
+
+class TestBug010Regression:
+    """Regression tests for BUG-010: confidence must be non-zero on real retrieval.
+
+    Root cause: aggregate_answers previously passed list[dict] (Citation projections)
+    to compute_confidence; the 5-signal formula _signal_confidence uses attribute
+    access (c.rerank_score, c.dense_score) which fails on dicts, leaving confidence=0.
+    Fix: pass RetrievedChunk objects so all 5 signals are computed correctly.
+    """
+
+    def test_confidence_nonzero_on_four_relevant_chunks(self):
+        """BUG-010 regression: 4+ relevant chunks MUST produce confidence > 30."""
+        chunks = [
+            RetrievedChunk(
+                chunk_id=f"c{i}",
+                text="This is a relevant passage about the test topic.",
+                source_file="test.md",
+                parent_id=f"p{i}",
+                collection="col1",
+                dense_score=0.85,
+                sparse_score=0.70,
+                rerank_score=0.80,
+            )
+            for i in range(4)
+        ]
+        score = compute_confidence(chunks, num_collections_searched=1, num_collections_total=1)
+        # _signal_confidence returns float 0-1; int(score * 100) > 30
+        assert isinstance(score, float), "RetrievedChunk input must return float"
+        assert score > 0.30, f"BUG-010 regression: score={score:.3f} on 4 relevant chunks — must be > 0.30"
+
+    def test_confidence_low_on_zero_chunks(self):
+        """Calibration: 0 chunks MUST produce confidence == 0.0."""
+        score = compute_confidence([])
+        assert score == 0.0, f"Expected 0.0 for empty chunks, got {score}"
+
+    def test_confidence_deterministic_same_input(self):
+        """Determinism: same RetrievedChunk input → same score across 3 calls."""
+        chunks = [
+            RetrievedChunk(
+                chunk_id=f"c{i}",
+                text="Deterministic test passage.",
+                source_file="doc.md",
+                parent_id=f"p{i}",
+                collection="col1",
+                dense_score=0.75,
+                sparse_score=0.60,
+                rerank_score=0.72,
+            )
+            for i in range(3)
+        ]
+        scores = [
+            compute_confidence(chunks, num_collections_searched=1, num_collections_total=1)
+            for _ in range(3)
+        ]
+        assert len(set(scores)) == 1, f"BUG-010: non-deterministic scores: {scores}"
+
+    def test_chunks_with_no_rerank_score_fallback_to_dense(self):
+        """No rerank_score must fall back to dense_score and still be non-zero."""
+        chunks = [
+            RetrievedChunk(
+                chunk_id=f"c{i}",
+                text="Dense-only retrieval passage.",
+                source_file="doc.md",
+                parent_id=f"p{i}",
+                collection="col1",
+                dense_score=0.82,
+                sparse_score=0.65,
+                rerank_score=None,
+            )
+            for i in range(3)
+        ]
+        score = compute_confidence(chunks)
+        assert score > 0.0, f"BUG-010: dense-fallback path returned {score} — must be > 0"
+
+    def test_int_conversion_to_0_100_scale_is_nonzero(self):
+        """Verify int(score * 100) > 30 for good retrieval (aggregate_answers contract)."""
+        chunks = [
+            RetrievedChunk(
+                chunk_id=f"c{i}",
+                text="High-quality retrieved chunk.",
+                source_file="src.md",
+                parent_id=f"p{i}",
+                collection="col1",
+                dense_score=0.90,
+                sparse_score=0.80,
+                rerank_score=0.88,
+            )
+            for i in range(5)
+        ]
+        raw = compute_confidence(chunks, num_collections_searched=1, num_collections_total=1)
+        score_int = int(raw * 100) if isinstance(raw, float) else int(raw)
+        assert score_int > 30, (
+            f"BUG-010: int(score*100)={score_int} on 5 high-quality chunks — "
+            f"aggregate_answers would emit 0 to chat.py"
+        )

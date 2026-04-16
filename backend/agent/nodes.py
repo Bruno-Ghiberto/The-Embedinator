@@ -21,6 +21,8 @@ from pydantic import ValidationError
 
 from statistics import mean
 
+from langchain_core.messages import trim_messages
+
 from backend.agent.prompts import (
     CLASSIFY_INTENT_SYSTEM,
     CLASSIFY_INTENT_USER,
@@ -29,7 +31,7 @@ from backend.agent.prompts import (
     SUMMARIZE_HISTORY_SYSTEM,
     VERIFY_PROMPT,
 )
-from backend.agent.schemas import GroundednessResult, QueryAnalysis
+from backend.agent.schemas import GroundednessResult, IntentClassification, QueryAnalysis
 from backend.agent.state import ConversationState
 from backend.config import settings
 
@@ -97,6 +99,32 @@ def get_context_budget(model_name: str) -> int:
     return int(window * 0.75)
 
 
+def count_message_tokens(messages: list, model: Any) -> int:
+    """Count tokens across a list of messages using provider-aware counter when possible.
+
+    spec-26: FR-007 — replaces the broken token_counter=len pattern in trim_messages.
+    Per research.md §Decision 1: prefer model.count_tokens() (LangChain 1.2+);
+    fall back to tiktoken cl100k_base encoding if unavailable or raises.
+    """
+    try:
+        if model is not None and hasattr(model, "count_tokens"):
+            return sum(
+                model.count_tokens(m.content)
+                for m in messages
+                if getattr(m, "content", None)
+            )
+    except Exception:  # noqa: BLE001 — fall through to tiktoken
+        pass
+
+    import tiktoken  # lazy import; tiktoken>=0.8 in requirements.txt
+    enc = tiktoken.get_encoding("cl100k_base")
+    return sum(
+        len(enc.encode(str(m.content)))
+        for m in messages
+        if getattr(m, "content", None)
+    )
+
+
 # --- Inference Service Circuit Breaker (FR-017, ADR-001) ---
 _inf_circuit_open: bool = False
 _inf_failure_count: int = 0
@@ -145,61 +173,29 @@ def _record_inference_failure() -> None:
 # --- Node implementations ---
 
 
-async def init_session(state: ConversationState, **kwargs: Any) -> dict:
-    """Load or create session state, restore conversation history from SQLite."""
-    from langchain_core.messages import messages_from_dict
 
-    db = kwargs.get("db")
-    session_id = state["session_id"]
-    log = logger.bind(session_id=session_id)
-
-    try:
-        cursor = await db.execute(
-            "SELECT messages_json, selected_collections, llm_model, embed_model"
-            " FROM sessions WHERE id = ?",
-            (session_id,),
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            raise ValueError(f"Session not found in database: {session_id}")
-
-        messages_json, selected_collections_json, llm_model, embed_model = row
-
-        raw_messages = json.loads(messages_json) if messages_json else []
-        messages = messages_from_dict(raw_messages) if raw_messages else []
-
-        selected_collections = (
-            json.loads(selected_collections_json) if selected_collections_json else []
-        )
-
-        return {
-            "messages": messages,
-            "selected_collections": selected_collections,
-            "llm_model": llm_model or state.get("llm_model", ""),
-            "embed_model": embed_model or state.get("embed_model", ""),
-        }
-
-    except Exception as exc:
-        log.warning("agent_init_session_failed", error=type(exc).__name__)
-        return {
-            "messages": state.get("messages", []),  # preserve incoming messages
-            "selected_collections": state.get("selected_collections", []),
-            "llm_model": state.get("llm_model", ""),
-            "embed_model": state.get("embed_model", ""),
-        }
-
-
-async def classify_intent(state: ConversationState, config: RunnableConfig = None) -> dict:
-    llm = (config or {}).get("configurable", {}).get("llm")
+async def classify_intent(state: ConversationState, config: RunnableConfig = None, *, store=None) -> dict:
     """Classify user message as rag_query, collection_mgmt, or ambiguous.
 
-    Calls the LLM with CLASSIFY_INTENT prompts, parses JSON response.
-    On any failure (LLM error, JSON parse, invalid intent), defaults to "rag_query".
+    Uses with_structured_output(IntentClassification) for reliable parsing (ENH-002).
+    Reads preferred_collections from LangGraph Store when available (ENH-001).
+    On any failure (LLM error, validation), defaults to "rag_query".
     """
+    llm = (config or {}).get("configurable", {}).get("llm")
     log = logger.bind(session_id=state["session_id"])
     _VALID_INTENTS = {"rag_query", "collection_mgmt", "ambiguous"}
     _t0 = time.perf_counter()
+
+    # ENH-001: Read preferred collections from store
+    preferred_collections: list[str] = []
+    if store is not None:
+        try:
+            user_id = (config or {}).get("configurable", {}).get("user_id", "default")
+            prefs_item = await store.aget(("user_prefs", user_id), "settings")
+            if prefs_item:
+                preferred_collections = prefs_item.value.get("preferred_collections", [])
+        except Exception as store_exc:
+            log.debug("agent_store_read_failed", error=type(store_exc).__name__)
 
     try:
         # Format conversation history for the prompt
@@ -218,6 +214,8 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
                 break
 
         collections_text = ", ".join(state["selected_collections"]) or "none"
+        if preferred_collections:
+            collections_text += f" (preferred: {', '.join(preferred_collections)})"
 
         user_prompt = CLASSIFY_INTENT_USER.format(
             history=history_text,
@@ -225,27 +223,26 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
             collections=collections_text,
         )
 
-        response = await llm.ainvoke([
+        # ENH-002: Structured output replaces manual JSON parsing
+        structured_llm = llm.with_structured_output(IntentClassification, method="json_mode")
+        result: IntentClassification = await structured_llm.ainvoke([
             SystemMessage(content=CLASSIFY_INTENT_SYSTEM),
             HumanMessage(content=user_prompt),
         ])
 
-        # Parse JSON from LLM response
-        response_text = response.content.strip()
-        parsed = json.loads(response_text)
-        intent = parsed.get("intent", "rag_query")
-
+        intent = result.intent
         if intent not in _VALID_INTENTS:
             log.warning("agent_invalid_intent_value", intent=intent, defaulting_to="rag_query")
             intent = "rag_query"
 
-        log.info("agent_intent_classified", intent=intent)
-        result = {"intent": intent}
-        result["stage_timings"] = {
-            **state.get("stage_timings", {}),
-            "intent_classification": {"duration_ms": round((time.perf_counter() - _t0) * 1000, 1)},
+        log.info("agent_intent_classified", intent=intent, reason=result.reason)
+        return {
+            "intent": intent,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "intent_classification": {"duration_ms": round((time.perf_counter() - _t0) * 1000, 1)},
+            },
         }
-        return result
 
     except Exception as exc:
         log.warning("agent_classify_intent_failed", exc_info=True, defaulting_to="rag_query", error=type(exc).__name__)
@@ -294,7 +291,7 @@ async def rewrite_query(state: ConversationState, config: RunnableConfig = None)
         context=context_text,
     )
 
-    structured_llm = llm.with_structured_output(QueryAnalysis)
+    structured_llm = llm.with_structured_output(QueryAnalysis, method="json_mode")
     messages = [
         SystemMessage(content=REWRITE_QUERY_SYSTEM),
         HumanMessage(content=user_prompt),
@@ -359,7 +356,15 @@ def request_clarification(state: ConversationState) -> dict:
     """
     log = logger.bind(session_id=state["session_id"])
 
-    clarification_question = state["query_analysis"].clarification_needed
+    query_analysis = state.get("query_analysis")
+    if query_analysis is None or not getattr(query_analysis, "clarification_needed", None):
+        # Fallback: treat as research query instead of crashing
+        return {
+            "final_response": "I'm not sure I understand your question. Could you please provide more details about what you'd like to know?",
+            "intent": "rag_query",
+        }
+
+    clarification_question = query_analysis.clarification_needed
     log.info("agent_interrupting_for_clarification", question=clarification_question)
 
     user_response = interrupt(clarification_question)
@@ -437,11 +442,34 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
         reverse=True,
     )
 
-    # Compute 0-100 confidence from citation relevance scores
-    passages_for_confidence = [
-        {"relevance_score": c.relevance_score} for c in deduped_citations
-    ]
-    confidence_score = compute_confidence(passages_for_confidence)
+    # spec-26: FR-003 BUG-010 — collect RetrievedChunk objects from sa.chunks instead
+    # of building a dict projection of Citations.  The dict-based path routes to
+    # _legacy_confidence (1-signal) or triggers AttributeError in _signal_confidence;
+    # either way the 5-signal formula (R8) is never reached, producing score 0.
+    # Passing the actual chunks activates _signal_confidence with all 5 signals.
+    all_chunks_flat = [chunk for sa in valid for chunk in sa.chunks]
+    _seen_chunk_ids: set[str] = set()
+    unique_chunks_for_confidence: list = []
+    for _chunk in all_chunks_flat:
+        if _chunk.chunk_id not in _seen_chunk_ids:
+            _seen_chunk_ids.add(_chunk.chunk_id)
+            unique_chunks_for_confidence.append(_chunk)
+
+    _num_colls_searched = (
+        len({c.collection for c in unique_chunks_for_confidence})
+        if unique_chunks_for_confidence else 1
+    )
+    _num_colls_total = len(state.get("selected_collections", [])) or 1
+    _raw_confidence = compute_confidence(
+        unique_chunks_for_confidence,
+        num_collections_searched=_num_colls_searched,
+        num_collections_total=_num_colls_total,
+    )
+    # spec-26: FR-003 BUG-010 unify confidence_score to int 0-100 at every write site
+    confidence_score: int = (
+        int(_raw_confidence * 100) if isinstance(_raw_confidence, float)
+        else int(_raw_confidence)
+    )
 
     log.info(
         "agent_aggregate_answers_merged",
@@ -524,11 +552,15 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
         log.info("agent_verify_groundedness_empty_context")
         return {"groundedness_result": None}
 
+    # spec-26: FR-006 BUG-018 — import exception types for fine-grained counter control
+    from backend.errors import CircuitOpenError  # noqa: PLC0415
+    from langchain_core.exceptions import OutputParserException  # noqa: PLC0415
+
     try:
         _check_inference_circuit()
 
         prompt = VERIFY_PROMPT.format(context=context, answer=final_response)
-        structured_llm = llm.with_structured_output(GroundednessResult)
+        structured_llm = llm.with_structured_output(GroundednessResult, method="json_mode")
         result: GroundednessResult = await structured_llm.ainvoke(prompt)
 
         _record_inference_success()
@@ -559,7 +591,39 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
             },
         }
 
+    except CircuitOpenError:
+        # spec-26: FR-006 BUG-018 — circuit already open; do NOT double-count as new failure
+        log.info("agent_verify_groundedness_circuit_open")
+        return {
+            "groundedness_result": None,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "grounded_verification": {
+                    "duration_ms": round((time.perf_counter() - _t0) * 1000, 1),
+                    "skipped": True,
+                },
+            },
+        }
+
+    except OutputParserException as exc:
+        # spec-26: FR-006 BUG-018 — parse errors mean the LLM responded but JSON was
+        # malformed; this is NOT an infrastructure failure. Do NOT increment the
+        # failure counter so transient parse errors don't trip the circuit breaker.
+        log.warning("agent_verify_groundedness_parse_error", error=str(exc)[:200])
+        return {
+            "groundedness_result": None,
+            "stage_timings": {
+                **state.get("stage_timings", {}),
+                "grounded_verification": {
+                    "duration_ms": round((time.perf_counter() - _t0) * 1000, 1),
+                    "parse_error": True,
+                },
+            },
+        }
+
     except Exception as exc:
+        # spec-26: FR-006 BUG-018 — only genuine infrastructure failures count
+        # (connection errors, timeouts, LLM call errors)
         _record_inference_failure()
         log.warning("agent_verify_groundedness_failed", error=type(exc).__name__)
         return {
@@ -687,7 +751,11 @@ async def validate_citations(state: ConversationState, *, reranker: Any = None) 
 
 
 async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
-    """Compress conversation history when token budget is approached."""
+    """Compress conversation history when token budget is approached.
+
+    ENH-003: Uses trim_messages to cap input before LLM summarization,
+    preventing context overflow on very long histories.
+    """
     from langchain_core.messages.utils import count_tokens_approximately
 
     llm = kwargs.get("llm")
@@ -706,8 +774,18 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
     old_messages = messages[:split_idx]
     recent_messages = messages[split_idx:]
 
+    # ENH-003: Trim old messages before summarization to prevent LLM overflow
+    trimmed_old = trim_messages(
+        old_messages,
+        max_tokens=4096,
+        token_counter=lambda msgs: count_message_tokens(msgs, llm),  # spec-26: FR-007 correct token counting
+        strategy="last",
+        include_system=True,
+        allow_partial=False,
+    )
+
     history_text = "\n".join(
-        f"{type(m).__name__}: {m.content}" for m in old_messages
+        f"{type(m).__name__}: {m.content}" for m in trimmed_old
     )
 
     try:

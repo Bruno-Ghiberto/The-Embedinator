@@ -165,14 +165,6 @@ class TestConversationGraphNodes:
         assert params["reranker"].default is None
 
     # Pattern B: **kwargs (VAR_KEYWORD DI)
-    def test_init_session_var_keyword(self):
-        from backend.agent.nodes import init_session
-        sig = inspect.signature(init_session)
-        param_kinds = [p.kind for p in sig.parameters.values()]
-        assert inspect.Parameter.VAR_KEYWORD in param_kinds, (
-            "init_session must accept **kwargs"
-        )
-
     def test_fan_out_var_keyword(self):
         from backend.agent.nodes import fan_out
         sig = inspect.signature(fan_out)
@@ -230,10 +222,10 @@ class TestConversationGraphNodes:
         )
 
     def test_all_nodes_callable(self):
-        """All 11 ConversationGraph nodes are callable."""
+        """All 10 ConversationGraph nodes are callable."""
         from backend.agent import nodes
         node_names = [
-            "init_session", "classify_intent", "rewrite_query",
+            "classify_intent", "rewrite_query",
             "request_clarification", "fan_out", "aggregate_answers",
             "verify_groundedness", "validate_citations", "summarize_history",
             "format_response", "handle_collection_mgmt",

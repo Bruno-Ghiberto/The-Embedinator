@@ -6,7 +6,6 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   MessageSquare,
   FolderOpen,
-  FileText,
   Settings,
   Activity,
   Plus,
@@ -31,7 +30,6 @@ import { useChatHistory } from "@/hooks/useChatHistory";
 const NAV_LINKS = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/collections", label: "Collections", icon: FolderOpen },
-  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/observability", label: "Observability", icon: Activity },
 ] as const;
@@ -44,19 +42,19 @@ export default function SidebarNav() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
               <span className="truncate text-base font-bold">
                 The Embedinator
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <Button
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => router.push("/chat")}
+              onClick={() => router.push("/chat?new=1")}
             >
               <Plus className="h-4 w-4 mr-2" />
               New Chat

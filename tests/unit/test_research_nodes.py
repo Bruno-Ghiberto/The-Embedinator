@@ -238,11 +238,12 @@ class TestCompressContext:
 class TestCollectAnswer:
     @pytest.mark.asyncio
     async def test_computes_confidence_from_chunks(self):
+        # spec-26: FR-003 BUG-010 — confidence unified to int 0-100 across writers (commit 4d1f421)
         chunks = [_chunk(rerank_score=0.9, chunk_id=f"c{i}") for i in range(3)]
         state = _make_state(retrieved_chunks=chunks)
         result = await collect_answer(state, config=None)
-        assert isinstance(result["confidence_score"], float)
-        assert 0.0 <= result["confidence_score"] <= 1.0
+        assert isinstance(result["confidence_score"], int)
+        assert 0 <= result["confidence_score"] <= 100
 
     @pytest.mark.asyncio
     async def test_returns_answer_text(self):

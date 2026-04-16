@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from backend.config import settings
 from backend.providers.base import ProviderRateLimitError
-from backend.errors import EmbeddinatorError, QdrantConnectionError, OllamaConnectionError
+from backend.errors import EmbeddinatorError, QdrantConnectionError, OllamaConnectionError, UnsupportedModelError
 from backend.middleware import (
     RateLimitMiddleware,
     RequestLoggingMiddleware,
@@ -118,6 +118,38 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
             _warn_logger.warning(event_name, **kwargs)
 
 
+async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) -> int:
+    # spec-26 DISK-001: keep most-recent max_threads threads, delete the rest.
+    # checkpoint_id is UUIDv6 — lex-sort = time-sort. 0 disables.
+    if max_threads <= 0:
+        return 0
+    async with checkpointer.conn.execute(
+        "SELECT thread_id, MAX(checkpoint_id) AS latest "
+        "FROM checkpoints GROUP BY thread_id ORDER BY latest DESC"
+    ) as cursor:
+        rows = await cursor.fetchall()
+    if len(rows) <= max_threads:
+        return 0
+    pruned = 0
+    for tid, _latest in rows[max_threads:]:
+        try:
+            await checkpointer.adelete_thread(tid)
+            pruned += 1
+        except Exception as e:
+            logger.warning("storage_checkpoint_prune_failed", thread_id=tid, error=str(e))
+    return pruned
+
+
+def _validate_model_support(model: str, supported: list[str]) -> None:
+    """Fail fast if the configured LLM is not in the supported list.
+
+    spec-26: FR-004 Path B — raises UnsupportedModelError on unsupported/thinking models.
+    Called from lifespan before any graph compilation so the container never starts silently broken.
+    """
+    if model not in supported:
+        raise UnsupportedModelError(model=model, supported=supported)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: init DB, Qdrant, providers, checkpointer. Shutdown: close connections."""
@@ -125,6 +157,10 @@ async def lifespan(app: FastAPI):
 
     _configure_logging(settings.log_level, settings.log_level_overrides)
     logger = structlog.get_logger().bind(component=__name__)
+
+    # spec-26: FR-004 Path B — fail fast before any graph or provider initialization
+    _validate_model_support(settings.default_llm_model, settings.supported_llm_models)
+    logger.info("startup_model_validated", model=settings.default_llm_model)
 
     # FR-044: Ensure upload directory exists before any I/O
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
@@ -177,9 +213,25 @@ async def lifespan(app: FastAPI):
     checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
     checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
+    pruned = await _prune_old_checkpoint_threads(
+        checkpointer, settings.checkpoint_max_threads, logger
+    )
+    if pruned > 0:
+        logger.info(
+            "storage_checkpoint_pruned",
+            pruned_threads=pruned,
+            max_threads=settings.checkpoint_max_threads,
+        )
     app.state.checkpointer = checkpointer
     app.state._checkpointer_cm = checkpointer_cm
     logger.info("storage_checkpointer_initialized", path=checkpoint_path)
+
+    # ENH-001: Cross-session store for user preferences and query patterns
+    from langgraph.store.memory import InMemoryStore
+
+    store = InMemoryStore()
+    app.state.store = store
+    logger.info("agent_cross_session_store_initialized")
 
     # --- Spec 03: ResearchGraph infrastructure ---
     from backend.retrieval.searcher import HybridSearcher
@@ -224,6 +276,7 @@ async def lifespan(app: FastAPI):
     conversation_graph = build_conversation_graph(
         research_graph=research_graph,
         checkpointer=checkpointer,
+        store=store,
     )
     app.state.conversation_graph = conversation_graph
     logger.info("agent_graphs_compiled", meta_reasoning_enabled=meta_reasoning_graph is not None)

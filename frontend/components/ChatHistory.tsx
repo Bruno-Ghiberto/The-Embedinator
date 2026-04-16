@@ -139,7 +139,7 @@ export default function ChatHistory({
 
   return (
     <>
-      <SidebarGroup>
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
         <SidebarGroupLabel>Conversations</SidebarGroupLabel>
         <SidebarGroupContent>
           <div className="px-2 py-1.5">

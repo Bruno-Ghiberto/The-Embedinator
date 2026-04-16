@@ -5,24 +5,26 @@ are resolved from RunnableConfig at invocation time.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
 import structlog
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage, ToolMessage
+from langchain_core.messages import trim_messages
 from langchain_core.messages.utils import count_tokens_approximately
 
 from backend.agent.confidence import compute_confidence
-from backend.agent.nodes import get_context_budget
+from backend.agent.nodes import get_context_budget, count_message_tokens
 from backend.agent.prompts import (
     COLLECT_ANSWER_SYSTEM,
     COMPRESS_CONTEXT_SYSTEM,
     ORCHESTRATOR_SYSTEM,
     ORCHESTRATOR_USER,
 )
-from backend.agent.schemas import Citation, RetrievedChunk
+from backend.agent.schemas import Citation, RetrievedChunk, SubAnswer
 from backend.agent.state import ResearchState
 from backend.config import settings
 from backend.errors import LLMCallError
@@ -40,6 +42,46 @@ def dedup_key(query: str, parent_id: str) -> str:
     return f"{normalize_query(query)}:{parent_id}"
 
 
+async def _maybe_summarize_research_messages(
+    messages: list, llm: Any, log: Any,
+) -> list:
+    """ENH-008: Summarize research messages when accumulation exceeds 15.
+
+    Keeps the last 4 messages intact, summarizes the rest into a single
+    SystemMessage. Returns the original list unchanged if <= 15 messages.
+    On LLM failure, returns the original messages untouched.
+    """
+    if len(messages) <= 15:
+        return messages
+
+    messages_to_summarize = messages[:-4]
+    recent_messages = messages[-4:]
+
+    try:
+        summary_response = await llm.ainvoke([
+            SystemMessage(
+                content="Briefly summarize the key findings from this research "
+                "session in 2-3 sentences:"
+            ),
+            *messages_to_summarize,
+        ])
+        summary_msg = SystemMessage(
+            content=f"Research session summary: {summary_response.content}"
+        )
+        log.info(
+            "agent_research_messages_summarized",
+            original=len(messages),
+            summarized=len(messages_to_summarize),
+            kept=len(recent_messages),
+        )
+        # Return RemoveMessage markers for old messages + summary + recent
+        removals = [RemoveMessage(id=m.id) for m in messages_to_summarize if hasattr(m, "id") and m.id]
+        return removals + [summary_msg] + list(recent_messages)
+    except Exception as exc:
+        log.debug("agent_research_summarize_failed", error=type(exc).__name__)
+        return messages
+
+
 async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> dict:
     """Decide which tools to call based on current context.
 
@@ -47,6 +89,9 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     prompt. Parses tool calls from the AIMessage response. Increments
     iteration_count. If the LLM returns zero tool calls, sets _no_new_tools
     flag so should_continue_loop detects tool exhaustion (F4).
+
+    ENH-003: Trims messages before LLM invocation to prevent context overflow.
+    ENH-008: Summarizes accumulated research messages when > 15.
 
     Reads: sub_question, retrieved_chunks, tool_call_count, iteration_count
     Writes: iteration_count, messages (with AIMessage containing tool_calls),
@@ -66,6 +111,15 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         chunk_count=len(state["retrieved_chunks"]),
     )
 
+    # spec-26: FR-005 observability — accumulate orchestrator LLM-call latency
+    # across research-loop iterations so the 91% un-instrumented gap surfaced by
+    # the iter1 benchmark (audit §ConfigChanges) becomes a first-class timing key.
+    _t0 = time.perf_counter()
+
+    # BUG-008: stamp loop start time on the first iteration so should_continue_loop
+    # can enforce a wall-clock deadline
+    _first_iter: dict = {"loop_start_time": time.monotonic()} if state["iteration_count"] == 0 else {}
+
     # --- Resolve LLM + tools from config ---
     configurable = (config or {}).get("configurable", {})
     llm = configurable.get("llm")
@@ -73,10 +127,32 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
 
     if llm is None:
         log.warning("agent_orchestrator_no_llm")
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            "stage_timings": {
+                **_prior,
+                "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+                "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+            },
+            **_first_iter,
         }
+
+    # ENH-008: Summarize research messages if accumulation is too large
+    state_messages = state.get("messages", [])
+    summarized_msgs = await _maybe_summarize_research_messages(state_messages, llm, log)
+
+    # ENH-003: Trim messages before LLM call to prevent context overflow
+    trimmed_messages = trim_messages(
+        summarized_msgs,
+        max_tokens=6000,
+        token_counter=lambda msgs: count_message_tokens(msgs, llm),  # spec-26: FR-007 correct token counting
+        strategy="last",
+        include_system=True,
+        allow_partial=False,
+    )
 
     llm_with_tools = llm.bind_tools(tools_list) if tools_list else llm
 
@@ -102,13 +178,23 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     ))
 
     # --- Invoke LLM with tools bound (R1) ---
+    # Use trimmed messages as conversation context alongside the prompt
+    invoke_messages = [system_msg] + list(trimmed_messages) + [user_msg]
     try:
-        response = await llm_with_tools.ainvoke([system_msg, user_msg])
+        response = await llm_with_tools.ainvoke(invoke_messages)
     except Exception as exc:
         log.warning("agent_orchestrator_llm_failed", error=type(exc).__name__)
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
         return {
             "iteration_count": state["iteration_count"] + 1,
             "_no_new_tools": True,
+            "stage_timings": {
+                **_prior,
+                "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+                "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+            },
+            **_first_iter,
         }
 
     tool_calls = response.tool_calls  # list[dict] from AIMessage
@@ -122,23 +208,77 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
         no_new_tools=no_new_tools,
     )
 
+    # Include RemoveMessage markers if summarization occurred
+    result_messages = [response]  # AIMessage with tool_calls
+    if any(isinstance(m, RemoveMessage) for m in summarized_msgs):
+        result_messages = [m for m in summarized_msgs if isinstance(m, (RemoveMessage, SystemMessage))] + result_messages
+
+    _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+    _prior = state.get("stage_timings", {})
     return {
         "iteration_count": state["iteration_count"] + 1,
-        "messages": [response],  # AIMessage with tool_calls
+        "messages": result_messages,
         "_no_new_tools": no_new_tools,
+        "stage_timings": {
+            **_prior,
+            "research_orchestrator_ms": _prior.get("research_orchestrator_ms", 0) + _duration_ms,
+            "research_orchestrator_calls": _prior.get("research_orchestrator_calls", 0) + 1,
+        },
+        **_first_iter,
     }
 
 
+async def _execute_single_tool(
+    tc: dict,
+    tools_by_name: dict,
+    sub_question: str,
+    log: Any,
+) -> tuple[str | None, Any, int, str]:
+    """Execute a single tool call with retry-once (FR-016).
+
+    Returns: (tool_name, result, calls_consumed, tool_call_id)
+    calls_consumed counts both original + retry attempts against the budget.
+    """
+    tool_name = tc["name"]
+    tool_args = tc["args"]
+    tool_call_id = tc["id"]
+    tool_fn = tools_by_name.get(tool_name)
+
+    if not tool_fn:
+        log.warning("agent_unknown_tool", tool=tool_name)
+        return tool_name, None, 0, tool_call_id
+
+    # Retry-once pattern (R7, FR-016)
+    calls_consumed = 1  # original attempt counts
+    try:
+        result = await tool_fn.ainvoke(tool_args)
+        return tool_name, result, calls_consumed, tool_call_id
+    except Exception as first_err:
+        log.warning("agent_tool_call_failed", tool=tool_name, error=type(first_err).__name__)
+        calls_consumed += 1  # retry also counts against budget
+        try:
+            result = await tool_fn.ainvoke(tool_args)
+            return tool_name, result, calls_consumed, tool_call_id
+        except Exception as retry_err:
+            log.warning(
+                "agent_tool_call_failed_after_retry",
+                tool=tool_name, error=type(retry_err).__name__,
+            )
+            return tool_name, retry_err, calls_consumed, tool_call_id
+
+
 async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dict:
-    """Execute pending tool calls from orchestrator with retry-once (FR-016).
+    """Execute pending tool calls from orchestrator in PARALLEL (ENH-007).
+
+    ENH-007: Uses asyncio.gather for concurrent tool execution while
+    preserving deduplication and budget counting logic.
 
     For each tool call from the orchestrator's AIMessage:
     1. Look up the tool function by name
-    2. Execute with retry-once: try -> except -> count+1 -> retry -> count+1
-       Both the original attempt and the retry count against the budget (R7)
-    3. Deduplicate results against retrieval_keys
+    2. Execute ALL tool calls concurrently with retry-once (FR-016)
+    3. Post-process: deduplicate results against retrieval_keys
     4. Merge new chunks into retrieved_chunks
-    5. Increment tool_call_count per execution (including retries)
+    5. Sum tool_call_count from all executions (including retries)
 
     Deduplication key: f"{normalize_query(query)}:{parent_id}"
 
@@ -167,6 +307,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms},
                 "retrieval": {"duration_ms": _duration_ms},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -177,42 +320,50 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
     updated_keys = set(state["retrieval_keys"])
     tool_call_count = state["tool_call_count"]
     tool_messages: list[ToolMessage] = []
-    original_new_count = 0
 
     try:
-        for tc in tool_calls:
-            tool_name = tc["name"]
-            tool_args = tc["args"]
-            tool_fn = tools_by_name.get(tool_name)
+        # ENH-007: Execute all tool calls concurrently via asyncio.gather
+        parallel_results = await asyncio.gather(
+            *[
+                _execute_single_tool(tc, tools_by_name, state["sub_question"], log)
+                for tc in tool_calls
+            ],
+            return_exceptions=True,
+        )
 
-            if not tool_fn:
-                log.warning("agent_unknown_tool", tool=tool_name)
+        # Post-process results: dedup, budget counting, build ToolMessages
+        for i, outcome in enumerate(parallel_results):
+            if isinstance(outcome, Exception):
+                tc = tool_calls[i]
+                log.warning("agent_tool_call_gather_error", tool=tc["name"], error=type(outcome).__name__)
                 tool_messages.append(ToolMessage(
-                    content=f"Unknown tool: {tool_name}",
+                    content=f"Tool {tc['name']} failed: {outcome}",
                     tool_call_id=tc["id"],
                 ))
                 continue
 
-            # --- Retry-once pattern (R7, FR-016) ---
-            tool_call_count += 1  # original attempt counts
-            result = None
-            try:
-                result = await tool_fn.ainvoke(tool_args)
-            except Exception as first_err:
-                log.warning("agent_tool_call_failed", tool=tool_name, error=type(first_err).__name__)
-                tool_call_count += 1  # retry also counts against budget
-                try:
-                    result = await tool_fn.ainvoke(tool_args)
-                except Exception as retry_err:
-                    log.warning("agent_tool_call_failed_after_retry",
-                                tool=tool_name, error=type(retry_err).__name__)
-                    tool_messages.append(ToolMessage(
-                        content=f"Tool {tool_name} failed: {retry_err}",
-                        tool_call_id=tc["id"],
-                    ))
-                    continue
+            tool_name, result, calls_consumed, tool_call_id = outcome
+            tool_call_count += calls_consumed
+
+            # Unknown tool — already logged inside _execute_single_tool
+            if result is None and calls_consumed == 0:
+                tool_messages.append(ToolMessage(
+                    content=f"Unknown tool: {tool_name}",
+                    tool_call_id=tool_call_id,
+                ))
+                continue
+
+            # Failed after retry — result is the exception
+            if isinstance(result, Exception):
+                tool_messages.append(ToolMessage(
+                    content=f"Tool {tool_name} failed: {result}",
+                    tool_call_id=tool_call_id,
+                ))
+                continue
 
             # --- Deduplication (US4) ---
+            tc = tool_calls[i]
+            tool_args = tc["args"]
             if isinstance(result, list):
                 before_count = len(new_chunks)
                 for chunk in result:
@@ -233,7 +384,7 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
 
             tool_messages.append(ToolMessage(
                 content=str(result),
-                tool_call_id=tc["id"],
+                tool_call_id=tool_call_id,
             ))
 
             log.info("agent_tool_call_complete", tool=tool_name,
@@ -250,6 +401,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms},
                 "retrieval": {"duration_ms": _duration_ms},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -265,6 +419,9 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 **_prior,
                 "embedding": {"duration_ms": _duration_ms, "failed": True},
                 "retrieval": {"duration_ms": _duration_ms, "failed": True},
+                # spec-26: FR-005 observability — accumulate tools_node cost across iterations (failure path)
+                "research_tools_ms": _prior.get("research_tools_ms", 0) + _duration_ms,
+                "research_tools_calls": _prior.get("research_tools_calls", 0) + 1,
             },
         }
 
@@ -315,13 +472,17 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
     log = logger.bind(session_id=state["session_id"])
     log.info("agent_compress_context_start", chunk_count=len(state["retrieved_chunks"]))
 
+    # spec-26: FR-005 observability — compress_context runs one more LLM round-trip
+    # per compression event; track it separately so re-benches can attribute the cost.
+    _t0 = time.perf_counter()
+
     # --- Resolve LLM from config ---
     configurable = (config or {}).get("configurable", {})
     llm = configurable.get("llm")
 
     if llm is None:
         log.warning("agent_compress_context_no_llm")
-        return {}  # Skip compression
+        return {}  # Skip compression (no timing recorded — early exit before work)
 
     chunks_text = "\n\n---\n\n".join(
         f"[{c.collection} | {c.source_file}] {c.text}"
@@ -334,15 +495,18 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
             HumanMessage(content=f"Compress the following retrieved context:\n\n{chunks_text}"),
         ])
 
-        # Build a single compressed RetrievedChunk preserving citation metadata
-        # from the first chunk as representative metadata (FR-011)
+        # Build sources map: "[N] source_file:page" for citation reconstruction
+        sources_map = "; ".join(
+            f"[{i+1}] {c.source_file}:{c.page or 'N/A'}"
+            for i, c in enumerate(state["retrieved_chunks"][:20])
+        )
         first_chunk = state["retrieved_chunks"][0] if state["retrieved_chunks"] else None
         compressed_chunk = RetrievedChunk(
             chunk_id="compressed-context",
             text=response.content,
             source_file=first_chunk.source_file if first_chunk else "compressed",
             page=None,
-            breadcrumb="compressed-context",
+            breadcrumb=f"compressed-context | sources: {sources_map}",
             parent_id=first_chunk.parent_id if first_chunk else "compressed",
             collection=first_chunk.collection if first_chunk else "compressed",
             dense_score=max(
@@ -361,57 +525,49 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
             before_chunks=len(state["retrieved_chunks"]),
             after_chunks=1,
         )
-        return {"retrieved_chunks": [compressed_chunk], "context_compressed": True}
+        _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
+        _prior = state.get("stage_timings", {})
+        return {
+            "retrieved_chunks": [compressed_chunk],
+            "context_compressed": True,
+            "stage_timings": {
+                **_prior,
+                "research_compress_ms": _prior.get("research_compress_ms", 0) + _duration_ms,
+                "research_compress_calls": _prior.get("research_compress_calls", 0) + 1,
+            },
+        }
 
     except Exception as exc:
         log.warning("agent_compress_context_failed", error=type(exc).__name__)
-        return {}  # Skip compression on failure
+        # Preserve existing contract: failure returns {} so the reducer makes no state change.
+        # Failed-compression latency is rare and not worth breaking the skip invariant.
+        return {}
 
 
 def _build_citations(
     chunks: list[RetrievedChunk],
     answer_text: str,
 ) -> list[Citation]:
-    """Build Citation objects from retrieved chunks referenced in answer.
+    """Build Citation objects from retrieved chunks in passage index order.
 
-    Maps each chunk to a Citation with relevance based on rerank_score.
+    Returns citations ordered by passage index so citations[N-1] maps to
+    passage [N] that the LLM references in its answer text.
     """
-    citations = []
-    for chunk in chunks:
-        # Check if the chunk's source_file or text snippet appears in the answer
-        if chunk.source_file in answer_text or chunk.text[:50] in answer_text:
-            citations.append(Citation(
-                passage_id=chunk.chunk_id,
-                document_id=chunk.parent_id,
-                document_name=chunk.source_file,
-                start_offset=0,
-                end_offset=len(chunk.text),
-                text=chunk.text[:500],
-                relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
-            ))
-
-    # If no citations matched by text, include top chunks by score
-    if not citations and chunks:
-        scored = sorted(
-            chunks,
-            key=lambda c: c.rerank_score if c.rerank_score is not None else c.dense_score,
-            reverse=True,
+    return [
+        Citation(
+            passage_id=chunk.chunk_id,
+            document_id=chunk.parent_id,
+            document_name=chunk.source_file,
+            start_offset=0,
+            end_offset=len(chunk.text),
+            text=chunk.text[:500],
+            relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
         )
-        for chunk in scored[:5]:
-            citations.append(Citation(
-                passage_id=chunk.chunk_id,
-                document_id=chunk.parent_id,
-                document_name=chunk.source_file,
-                start_offset=0,
-                end_offset=len(chunk.text),
-                text=chunk.text[:500],
-                relevance_score=chunk.rerank_score if chunk.rerank_score is not None else chunk.dense_score,
-            ))
-
-    return citations
+        for chunk in chunks[:20]
+    ]
 
 
-async def collect_answer(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def collect_answer(state: ResearchState, config: RunnableConfig = None, *, store=None) -> dict:
     """Generate answer from retrieved chunks, compute confidence, build citations.
 
     1. Build prompt with sub_question + retrieved chunks
@@ -419,6 +575,9 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None) ->
     3. Build Citation objects mapping references to chunks
     4. Compute confidence_score from retrieval signals via compute_confidence()
        -- 5-signal formula (R8), NOT LLM self-assessment
+
+    ENH-001: Writes back used collections to LangGraph Store for cross-session
+    preference learning.
 
     CONFIDENCE SCALE: state["confidence_score"] is float 0.0-1.0.
     SubAnswer.confidence_score is int 0-100. Conversion: int(score * 100).
@@ -469,13 +628,19 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None) ->
         _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
         _prior = state.get("stage_timings", {})
         return {
-            "confidence_score": confidence,
-            "answer": answer_text,
+            "confidence_score": int(confidence * 100),  # spec-26: FR-003 BUG-010 unify int 0-100
             "citations": citations,
             "stage_timings": {
                 **_prior,
                 "answer_generation": {"duration_ms": _duration_ms},
             },
+            "sub_answers": [SubAnswer(
+                sub_question=state["sub_question"],
+                answer=answer_text,
+                citations=citations,
+                chunks=chunks,
+                confidence_score=int(confidence * 100),
+            )],
         }
 
     try:
@@ -495,6 +660,18 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None) ->
 
     citations = _build_citations(chunks, answer_text)
 
+    # ENH-001: Write back used collections to store for cross-session preferences
+    if store is not None and state.get("selected_collections"):
+        try:
+            user_id = configurable.get("user_id", "default")
+            await store.aput(
+                ("user_prefs", user_id),
+                "settings",
+                {"preferred_collections": list(state["selected_collections"])},
+            )
+        except Exception as store_exc:
+            log.debug("agent_store_write_failed", error=type(store_exc).__name__)
+
     log.info(
         "agent_research_loop_end",
         confidence=confidence,
@@ -506,13 +683,19 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None) ->
     _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
     _prior = state.get("stage_timings", {})
     return {
-        "confidence_score": confidence,
-        "answer": answer_text,
+        "confidence_score": int(confidence * 100),  # spec-26: FR-003 BUG-010 unify int 0-100
         "citations": citations,
         "stage_timings": {
             **_prior,
             "answer_generation": {"duration_ms": _duration_ms},
         },
+        "sub_answers": [SubAnswer(
+            sub_question=state["sub_question"],
+            answer=answer_text,
+            citations=citations,
+            chunks=chunks,
+            confidence_score=int(confidence * 100),
+        )],
     }
 
 
@@ -550,7 +733,13 @@ async def fallback_response(state: ResearchState) -> dict:
              tool_calls=state["tool_call_count"])
 
     return {
-        "answer": answer,
         "citations": [],
-        "confidence_score": 0.0,
+        "confidence_score": 0,  # spec-26: FR-003 BUG-010 unify int 0-100
+        "sub_answers": [SubAnswer(
+            sub_question=state["sub_question"],
+            answer=answer,
+            citations=[],
+            chunks=[],
+            confidence_score=0,
+        )],
     }

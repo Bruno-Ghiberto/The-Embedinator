@@ -6,6 +6,8 @@ ConversationGraph → ResearchGraph → MetaReasoningGraph
 import operator
 from typing import Annotated, TypedDict
 
+from langgraph.graph.message import add_messages
+
 from backend.agent.schemas import (
     Citation,
     GroundednessResult,
@@ -28,9 +30,14 @@ def _merge_dicts(existing, new):
     return merged
 
 
+def _merge_sets(existing, new):
+    """Reducer for set fields: union merge, handles None on first call."""
+    return (existing or set()) | (new or set())
+
+
 class ConversationState(TypedDict):
     session_id: Annotated[str, _keep_last]
-    messages: Annotated[list, operator.add]
+    messages: Annotated[list, add_messages]
     query_analysis: Annotated[QueryAnalysis | None, _keep_last]
     sub_answers: Annotated[list[SubAnswer], operator.add]
     selected_collections: Annotated[list[str], _keep_last]
@@ -51,18 +58,25 @@ class ResearchState(TypedDict):
     selected_collections: Annotated[list[str], _keep_last]
     llm_model: Annotated[str, _keep_last]
     embed_model: Annotated[str, _keep_last]
-    retrieved_chunks: Annotated[list[RetrievedChunk], operator.add]
-    retrieval_keys: set[str]
+    retrieved_chunks: Annotated[list[RetrievedChunk], _keep_last]
+    retrieval_keys: Annotated[set[str], _merge_sets]
     tool_call_count: Annotated[int, _keep_last]
     iteration_count: Annotated[int, _keep_last]
     confidence_score: Annotated[float, _keep_last]
     answer: Annotated[str | None, _keep_last]
     citations: Annotated[list[Citation], operator.add]
     context_compressed: Annotated[bool, _keep_last]
-    messages: Annotated[list, operator.add]
+    messages: Annotated[list, add_messages]
     _no_new_tools: Annotated[bool, _keep_last]
     _needs_compression: Annotated[bool, _keep_last]
     stage_timings: Annotated[dict, _merge_dicts]
+    sub_answers: Annotated[list, operator.add]
+    _meta_attempt_count: Annotated[int, _keep_last]
+    _attempted_strategies: Annotated[set, _keep_last]
+    _top_k_retrieval: Annotated[int | None, _keep_last]
+    _top_k_rerank: Annotated[int | None, _keep_last]
+    _payload_filters: Annotated[dict | None, _keep_last]
+    loop_start_time: Annotated[float | None, _keep_last]
 
 
 class MetaReasoningState(TypedDict):
@@ -76,4 +90,4 @@ class MetaReasoningState(TypedDict):
     modified_state: dict | None
     answer: str | None
     uncertainty_reason: str | None
-    attempted_strategies: set[str]
+    attempted_strategies: Annotated[set[str], _keep_last]

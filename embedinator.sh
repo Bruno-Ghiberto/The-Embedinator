@@ -246,6 +246,52 @@ detect_gpu() {
   echo "none"
 }
 
+# ── Host Ollama conflict detection ────────────────────────────────────────────
+# The Embedinator runs Ollama exclusively in Docker. This function blocks
+# startup if a host-native ollama daemon (or any other non-Docker process) is
+# holding port 11434, so Docker Ollama can always bind cleanly.
+check_host_ollama_conflict() {
+  # If our Docker Ollama container is already running, the port is ours — OK.
+  if docker ps --filter 'name=embedinator-ollama' --filter 'status=running' --format '{{.Names}}' 2>/dev/null | grep -q '.'; then
+    return 0
+  fi
+
+  # Is anything listening on :11434?
+  local bound=false
+  if command -v lsof &>/dev/null && lsof -iTCP:11434 -sTCP:LISTEN -n -P &>/dev/null 2>&1; then
+    bound=true
+  elif command -v ss &>/dev/null && ss -tln 2>/dev/null | awk '{print $4}' | grep -Eq '(^|:)11434$'; then
+    bound=true
+  fi
+  $bound || return 0
+
+  # Port is bound and it's not our container. Identify the owner for the
+  # error message (best-effort — not required for the block to trigger).
+  local owner="unknown"
+  if pgrep -f 'ollama serve' &>/dev/null 2>&1; then
+    owner="host-native ollama daemon"
+  elif command -v lsof &>/dev/null; then
+    local pid
+    pid=$(lsof -tiTCP:11434 -sTCP:LISTEN 2>/dev/null | head -1 || true)
+    if [[ -n "$pid" ]]; then
+      owner="PID $pid ($(ps -p "$pid" -o comm= 2>/dev/null || echo unknown))"
+    fi
+  fi
+
+  error "Port 11434 (Ollama) is held by a non-Docker process: $owner"
+  error ""
+  error "  The Embedinator runs Ollama exclusively in Docker."
+  error "  A host-native Ollama is interfering with startup."
+  error ""
+  error "  Stop and disable the host daemon:"
+  error "    sudo systemctl stop ollama 2>/dev/null || pkill -f 'ollama serve'"
+  error "    sudo systemctl disable ollama 2>/dev/null || true"
+  error ""
+  error "  The host 'ollama' CLI binary is harmless — only the daemon must"
+  error "  be stopped. After stopping, re-run: ./embedinator.sh"
+  exit 1
+}
+
 # ── Port conflict detection ───────────────────────────────────────────────────
 check_port() {
   local port="$1"
@@ -618,6 +664,9 @@ echo -e "${BOLD}The Embedinator — Starting up${NC}"
 echo ""
 
 preflight_checks
+
+# Block early if a host-native Ollama is conflicting with Docker Ollama.
+check_host_ollama_conflict
 
 # Detect GPU profile
 GPU_PROFILE="$(detect_gpu)"

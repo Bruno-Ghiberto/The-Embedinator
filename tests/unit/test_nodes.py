@@ -1,6 +1,6 @@
 """Unit tests for ConversationGraph node functions.
 
-Covers: init_session, classify_intent, handle_collection_mgmt, rewrite_query,
+Covers: classify_intent, handle_collection_mgmt, rewrite_query,
         aggregate_answers, format_response, summarize_history, request_clarification.
 
 NEVER uses real LLM calls, real database, or real network.
@@ -20,7 +20,6 @@ from backend.agent.nodes import (
     classify_intent,
     format_response,
     handle_collection_mgmt,
-    init_session,
     request_clarification,
     rewrite_query,
     summarize_history,
@@ -116,56 +115,6 @@ def _make_llm_mock(content: str) -> AsyncMock:
     llm_mock = AsyncMock()
     llm_mock.ainvoke = AsyncMock(return_value=response_mock)
     return llm_mock
-
-
-# ---------------------------------------------------------------------------
-# init_session tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_init_session_successful_load():
-    """init_session should restore messages, collections, and models from SQLite."""
-    messages_data = [{"type": "human", "data": {"content": "Hello", "additional_kwargs": {}}}]
-    row = (
-        json.dumps(messages_data),  # messages_json
-        json.dumps(["col-a"]),       # selected_collections_json
-        "gpt-4o",                    # llm_model
-        "text-embed-3",              # embed_model
-    )
-    db = _make_async_db(row)
-    state = _make_state(session_id="sess-load")
-    result = await init_session(state, db=db)
-
-    assert result["llm_model"] == "gpt-4o"
-    assert result["embed_model"] == "text-embed-3"
-    assert result["selected_collections"] == ["col-a"]
-    # Messages were loaded from JSON -- length may vary by langchain version
-    assert isinstance(result["messages"], list)
-
-
-@pytest.mark.asyncio
-async def test_init_session_sqlite_failure_returns_fresh_session():
-    """init_session should return an empty session and not raise on DB error."""
-    db_mock = AsyncMock()
-    db_mock.execute = AsyncMock(side_effect=Exception("DB connection refused"))
-    state = _make_state(session_id="sess-fail", llm_model="qwen2.5:7b", selected_collections=[])
-    result = await init_session(state, db=db_mock)
-
-    assert result["messages"] == []
-    assert result["selected_collections"] == []
-    assert isinstance(result["llm_model"], str)
-
-
-@pytest.mark.asyncio
-async def test_init_session_missing_row_returns_fresh_session():
-    """init_session should return a fresh session when the session row is not found."""
-    db = _make_async_db(row=None)  # fetchone returns None -> session not found
-    state = _make_state(session_id="sess-new", llm_model="qwen2.5:7b")
-    result = await init_session(state, db=db)
-
-    assert result["messages"] == []
-    assert isinstance(result["selected_collections"], list)
 
 
 # ---------------------------------------------------------------------------

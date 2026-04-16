@@ -1,0 +1,107 @@
+# docker-compose.yml — The Embedinator (managed by the embedinator CLI)
+# Do not edit manually. Re-run 'embedinator setup' to modify settings.
+#
+# This compose file pulls pre-built images from ghcr.io. For development
+# with local source builds, clone the repo and use the project-root compose.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: embedinator-qdrant
+    ports:
+      - "${EMBEDINATOR_PORT_QDRANT:-6333}:6333"
+      - "${EMBEDINATOR_PORT_QDRANT_GRPC:-6334}:6334"
+    volumes:
+      - ./data/qdrant_db:/qdrant/storage:z
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo -e \"GET /healthz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: embedinator-ollama
+    ports:
+      - "${EMBEDINATOR_PORT_OLLAMA:-11434}:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    entrypoint: ["ollama", "serve"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo -e \"GET /api/tags HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" > /dev/tcp/localhost/11434'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/bruno-ghiberto/embedinator-backend:${EMBEDINATOR_VERSION:-latest}
+    container_name: embedinator-backend
+    ports:
+      - "${EMBEDINATOR_PORT_BACKEND:-8000}:8000"
+    env_file: .env
+    environment:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      META_REASONING_MAX_ATTEMPTS: 0
+      OLLAMA_BASE_URL: http://ollama:11434
+      SQLITE_PATH: /data/embedinator.db
+      UPLOAD_DIR: /data/uploads
+      LOG_LEVEL_OVERRIDES: ${LOG_LEVEL_OVERRIDES:-}
+      RUST_WORKER_PATH: /app/ingestion-worker/target/release/embedinator-worker
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./data:/data:z
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/bruno-ghiberto/embedinator-frontend:${EMBEDINATOR_VERSION:-latest}
+    container_name: embedinator-frontend
+    ports:
+      - "${EMBEDINATOR_PORT_FRONTEND:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - BACKEND_URL=http://backend:8000
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: unless-stopped
+
+volumes:
+  ollama_models:

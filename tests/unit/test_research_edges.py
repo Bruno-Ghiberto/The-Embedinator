@@ -77,8 +77,12 @@ class TestShouldContinueLoop:
         assert should_continue_loop(state) == "continue"
 
     def test_iteration_at_limit_minus_one(self):
-        """Boundary: iteration_count == 9 (limit is 10) -> continue"""
-        state = _make_state(confidence_score=0.3, iteration_count=9)
+        """Boundary: iteration_count == max_iterations - 1 -> continue"""
+        # spec-26: FR-005 iter2 — max_iterations capped 10→3 (commit fa3bbc8); boundary adjusts
+        from backend.config import settings
+        state = _make_state(
+            confidence_score=0.3, iteration_count=settings.max_iterations - 1
+        )
         assert should_continue_loop(state) == "continue"
 
     def test_tool_calls_at_limit_minus_one(self):

@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import SidebarNav from "@/components/SidebarNav";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { StatusBanner } from "@/components/StatusBanner";
 
-function getInitialOpen(): boolean {
-  if (typeof window === "undefined") return true;
-  const stored = localStorage.getItem("sidebar-open");
-  return stored === null ? true : stored === "true";
-}
-
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(getInitialOpen);
+  // Start with `true` on both server and client to avoid hydration mismatch.
+  // After mount, read the persisted value from localStorage.
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-open");
+    if (stored === "false") {
+      setOpen(false);
+    }
+  }, []);
 
   const handleOpenChange = useCallback((value: boolean) => {
     setOpen(value);

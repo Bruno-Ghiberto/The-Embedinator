@@ -32,6 +32,7 @@ class TestErrorHierarchy:
         "StructuredOutputParseError",
         "RerankerError",
         "CircuitOpenError",
+        "UnsupportedModelError",  # spec-26: FR-004 fail-fast startup gate
     }
 
     def test_all_required_classes_exist(self):
@@ -46,8 +47,8 @@ class TestErrorHierarchy:
             cls for _, cls in members
             if issubclass(cls, Exception) and cls.__module__ == errors_module.__name__
         ]
-        assert len(exception_classes) == 11, (
-            f"Expected 11 exception classes (1 base + 10 subclasses), "
+        assert len(exception_classes) == 12, (
+            f"Expected 12 exception classes (1 base + 11 subclasses), "
             f"found {len(exception_classes)}: {[c.__name__ for c in exception_classes]}"
         )
 
@@ -75,7 +76,11 @@ class TestErrorHierarchy:
         import backend.errors as errors_module
         for name in self.REQUIRED_SUBCLASS_NAMES:
             cls = getattr(errors_module, name)
-            exc = cls("test message")
+            if name == "UnsupportedModelError":
+                # custom __init__ requires (model: str, supported: list[str])
+                exc = cls("unsupported-model", ["qwen2.5:7b"])
+            else:
+                exc = cls("test message")
             assert isinstance(exc, cls)
 
 
@@ -138,9 +143,10 @@ class TestCircuitBreakerConfig:
         assert s.circuit_breaker_failure_threshold == 5
         assert isinstance(s.circuit_breaker_failure_threshold, int)
 
-    def test_circuit_breaker_cooldown_secs_is_int_30(self):
+    def test_circuit_breaker_cooldown_secs_is_int_60(self):
+        # spec-26: FR-009 — cooldown raised 30→60 per audit.md §ConfigChanges (commit 8a1107e)
         s = Settings()
-        assert s.circuit_breaker_cooldown_secs == 30
+        assert s.circuit_breaker_cooldown_secs == 60
 
     def test_retry_max_attempts_exists_reserved(self):
         """retry_max_attempts is dead config -- reserved for future spec. MUST NOT be removed."""

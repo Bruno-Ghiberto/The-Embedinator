@@ -80,6 +80,7 @@ class ProviderRegistry:
             return ChatOllama(
                 base_url=self.settings.ollama_base_url,
                 model=ollama_model,
+                request_timeout=120.0,
             )
 
         config = json.loads(active["config_json"] or "{}")
@@ -102,6 +103,7 @@ class ProviderRegistry:
             return ChatOllama(
                 base_url=self.settings.ollama_base_url,
                 model=self.settings.default_llm_model,
+                request_timeout=120.0,
             )
 
         if name in ("openrouter", "openai"):
@@ -120,6 +122,7 @@ class ProviderRegistry:
         return ChatOllama(
             base_url=self.settings.ollama_base_url,
             model=self.settings.default_llm_model,
+            request_timeout=120.0,
         )
 
     async def get_embedding_provider(self) -> EmbeddingProvider:

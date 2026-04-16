@@ -26,9 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
-      <body className={`${inter.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable, "dark")}>
+      <body suppressHydrationWarning className={`${inter.variable} antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem enableColorScheme={false}>
           <BackendStatusProvider>
             <SidebarLayout>
               {children}
