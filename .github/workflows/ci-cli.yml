@@ -27,7 +27,7 @@ jobs:
           - macos-latest
           - windows-latest
         go:
-          - "1.24"
+          - "1.25"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: cli/go.sum
 
       - name: Run golangci-lint

@@ -362,6 +362,7 @@ func TestReadDotEnvValue_SkipsComments(t *testing.T) {
 
 func TestManagedEnvVars_ContainsExpectedKeys(t *testing.T) {
 	expected := []string{
+		"EMBEDINATOR_VERSION",
 		"EMBEDINATOR_PORT_FRONTEND",
 		"EMBEDINATOR_PORT_BACKEND",
 		"EMBEDINATOR_PORT_QDRANT",

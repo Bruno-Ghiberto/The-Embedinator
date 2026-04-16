@@ -5,9 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 // IsDockerEngineInstalled checks if Docker Engine (not Desktop) is available on Linux.
@@ -98,32 +96,6 @@ func CheckDockerCompose() PreflightResult {
 	return result
 }
 
-// CheckDiskSpace checks available disk space at the given path.
-// Returns the result with available GB and whether it meets the minimum.
-func CheckDiskSpace(path string, minGB uint64) PreflightResult {
-	result := PreflightResult{Name: "Disk space"}
-
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		result.OK = false
-		result.Error = fmt.Sprintf("unable to check disk space: %v", err)
-		return result
-	}
-
-	availableBytes := stat.Bavail * uint64(stat.Bsize)
-	availableGB := availableBytes / (1024 * 1024 * 1024)
-
-	if availableGB < minGB {
-		result.OK = false
-		result.Error = fmt.Sprintf("%d GB available, %d GB required", availableGB, minGB)
-		return result
-	}
-
-	result.OK = true
-	result.Detail = fmt.Sprintf("%d GB available (%d GB required)", availableGB, minGB)
-	return result
-}
-
 // CheckRAM checks available system RAM.
 func CheckRAM(minGB uint64) PreflightResult {
 	result := PreflightResult{Name: "RAM"}
@@ -144,49 +116,6 @@ func CheckRAM(minGB uint64) PreflightResult {
 	result.OK = true
 	result.Detail = fmt.Sprintf("%d GB available (%d GB minimum)", totalGB, minGB)
 	return result
-}
-
-// getSystemRAMGB returns total system RAM in GB.
-func getSystemRAMGB() uint64 {
-	switch runtime.GOOS {
-	case "linux":
-		return getLinuxRAMGB()
-	case "darwin":
-		return getDarwinRAMGB()
-	default:
-		return 0
-	}
-}
-
-// getLinuxRAMGB reads total RAM from /proc/meminfo.
-func getLinuxRAMGB() uint64 {
-	out, err := exec.Command("grep", "MemTotal", "/proc/meminfo").Output()
-	if err != nil {
-		return 0
-	}
-	// Format: "MemTotal:       16384000 kB"
-	fields := strings.Fields(string(out))
-	if len(fields) < 2 {
-		return 0
-	}
-	kb, err := strconv.ParseUint(fields[1], 10, 64)
-	if err != nil {
-		return 0
-	}
-	return kb / (1024 * 1024)
-}
-
-// getDarwinRAMGB reads total RAM via sysctl.
-func getDarwinRAMGB() uint64 {
-	out, err := exec.Command("sysctl", "-n", "hw.memsize").Output()
-	if err != nil {
-		return 0
-	}
-	bytes, err := strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
-	if err != nil {
-		return 0
-	}
-	return bytes / (1024 * 1024 * 1024)
 }
 
 // CheckHostOllamaConflictPreflight runs the host Ollama conflict probe and
