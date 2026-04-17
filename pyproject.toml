@@ -1,0 +1,18 @@
+[project]
+name = "the-embedinator-backend"
+description = "Backend for The Embedinator (CI config only — deps in requirements.txt)"
+requires-python = ">=3.14"
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.14"
+no_implicit_optional = true
+warn_unused_ignores = true
+ignore_missing_imports = false
+follow_imports = "normal"
+exclude = ["^build/", "^dist/", "^\\.venv/", "^migrations/"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
