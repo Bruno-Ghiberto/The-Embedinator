@@ -174,13 +174,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
       - name: Install deps
         working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Lint
         working-directory: frontend
-        run: pnpm run lint
+        run: npm run lint
 
   frontend-test:
     name: frontend-test
@@ -191,13 +192,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
       - name: Install deps
         working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Run tests
         working-directory: frontend
-        run: pnpm test
+        run: npm test
 
   frontend-coverage:
     name: frontend-coverage
@@ -210,15 +212,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
       - name: Install deps
         working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Frontend tests with coverage
         id: cov
         working-directory: frontend
         run: |
-          pnpm test --coverage
+          npm run test:coverage
           PCT=$(awk -F: '/^LH/{lh+=$2} /^LF/{lf+=$2} END{if(lf>0) print int(lh/lf*100); else print 0}' coverage/lcov.info)
           echo "frontend_cov_pct=${PCT:-0}" >> "$GITHUB_OUTPUT"
 
@@ -248,18 +251,19 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
       - name: Install deps
         working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Install Playwright browsers
         working-directory: frontend
-        run: pnpm exec playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
       - name: Start stack
         run: docker compose up -d --wait
       - name: Run Playwright E2E
         working-directory: frontend
-        run: pnpm exec playwright test
+        run: npm run test:e2e
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
