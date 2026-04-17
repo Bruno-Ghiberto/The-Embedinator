@@ -1,3 +1,11 @@
+# Build and release CLI binaries via GoReleaser for The Embedinator.
+# Purpose:  Publish CLI binaries and Homebrew tap ONLY when CI passes on
+#           the tagged commit — prevents broken CLI releases from shipping.
+# Triggers: push of a CLI semver tag (cli/v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           goreleaser runs.  A failed CI run produces no binaries or tap update.
+# Future:   A6 (Wave 3) adds SBOM generation via goreleaser checksums config.
+
 name: Release CLI
 
 on:
@@ -10,9 +18,25 @@ permissions:
   packages: write
 
 jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact tagged commit
+  # ---------------------------------------------------------------------------
+
+  ci:
+    uses: ./.github/workflows/_ci-core.yml
+    permissions: inherit
+
+  # ---------------------------------------------------------------------------
+  # Release — only runs when CI passes
+  # ---------------------------------------------------------------------------
+
   release:
     name: Build and release CLI
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
