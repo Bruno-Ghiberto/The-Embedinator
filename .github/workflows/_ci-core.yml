@@ -160,28 +160,106 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - run: echo "A5 fills this"  # cd frontend && npm run lint
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.2"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        working-directory: frontend
+        run: pnpm run lint
 
   frontend-test:
     name: frontend-test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - run: echo "A5 fills this"  # cd frontend && npm run test
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.2"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Run tests
+        working-directory: frontend
+        run: pnpm test
 
   frontend-coverage:
     name: frontend-coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      frontend_cov_pct: ${{ steps.cov.outputs.frontend_cov_pct }}
     steps:
-      - run: echo "A5 fills this"  # vitest run --coverage (threshold 70%)
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.2"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Frontend tests with coverage
+        id: cov
+        working-directory: frontend
+        run: |
+          pnpm test --coverage
+          PCT=$(awk -F: '/^LH/{lh+=$2} /^LF/{lf+=$2} END{if(lf>0) print int(lh/lf*100); else print 0}' coverage/lcov.info)
+          echo "frontend_cov_pct=${PCT:-0}" >> "$GITHUB_OUTPUT"
+
+  detect-frontend-changes:
+    name: detect-frontend-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
 
   frontend-e2e:
     name: frontend-e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20     # Playwright sessions can take longer
+    timeout-minutes: 20
+    needs: [detect-frontend-changes]
+    if: needs.detect-frontend-changes.outputs.frontend == 'true' || github.event_name == 'push'
     steps:
-      - run: echo "A5 fills this"  # playwright test (path-conditional on frontend/**)
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.2"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Start stack
+        run: docker compose up -d --wait
+      - name: Run Playwright E2E
+        working-directory: frontend
+        run: pnpm exec playwright test
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
 
   # ---------------------------------------------------------------------------
   # Docker smoke test (A6 fills body in Wave 3)
@@ -226,6 +304,7 @@ jobs:
       - frontend-lint
       - frontend-test
       - frontend-coverage
+      - detect-frontend-changes
       - frontend-e2e
       - docker-build-smoke
       - pre-commit-parity
@@ -245,4 +324,4 @@ jobs:
             echo "all_passed=true" >> "$GITHUB_OUTPUT"
           fi
           echo "backend_cov_pct=${{ needs.backend-test.outputs.backend_cov_pct || '0' }}" >> "$GITHUB_OUTPUT"
-          echo "frontend_cov_pct=0" >> "$GITHUB_OUTPUT"
+          echo "frontend_cov_pct=${{ needs.frontend-coverage.outputs.frontend_cov_pct || '0' }}" >> "$GITHUB_OUTPUT"
