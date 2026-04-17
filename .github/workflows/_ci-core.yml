@@ -71,7 +71,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run backend tests with coverage
-        run: pytest tests/ --cov-report=xml
+        run: pytest tests/ --cov=backend --cov-report=xml --cov-fail-under=80
       - name: Export coverage percentage
         id: cov-pct
         run: |
