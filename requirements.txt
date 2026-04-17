@@ -55,6 +55,8 @@ tiktoken>=0.8
 ruff>=0.9
 
 # Type checking and security auditing (CI dev-deps)
+# Note: pydantic.mypy plugin auto-activates via pyproject.toml [tool.mypy].plugins
+# when pydantic is installed (see line above). No separate `pydantic[mypy]` extra needed
+# (deprecated in pydantic 2.x).
 mypy>=1.11
-pydantic[mypy]
 pip-audit>=2.9
