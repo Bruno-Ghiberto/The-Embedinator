@@ -1,5 +1,13 @@
 # Build and push backend + frontend Docker images to ghcr.io.
-# Triggered on semver tags (v*) and pushes to main (tagged as 'latest').
+# Purpose:  Publish container images ONLY when CI passes on the exact
+#           triggering commit SHA — no race window possible.
+# Triggers: push to main (tagged 'latest'), semver tags (v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           any image is pushed.  A failed CI run short-circuits both
+#           build-backend and build-frontend.
+# Future:   A6 (Wave 3) adds trivy scan, cosign keyless signing, and
+#           syft SBOM attestation after the 'ci' gate.
+
 name: Docker Publish
 
 on:
@@ -13,8 +21,24 @@ env:
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/embedinator-frontend
 
 jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact commit before pushing anything
+  # ---------------------------------------------------------------------------
+
+  ci:
+    uses: ./.github/workflows/_ci-core.yml
+    permissions: inherit
+
+  # ---------------------------------------------------------------------------
+  # Publish jobs — only execute when CI passes
+  # ---------------------------------------------------------------------------
+
   build-backend:
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
@@ -52,7 +76,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
   build-frontend:
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
