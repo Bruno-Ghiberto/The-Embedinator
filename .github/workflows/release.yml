@@ -1,3 +1,10 @@
+# Create GitHub Releases for The Embedinator.
+# Purpose:  Publish a GitHub release ONLY when CI passes on the tagged
+#           commit — prevents broken releases from reaching users.
+# Triggers: push of a semver tag (v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           the release job runs.  A failed CI run leaves no release artifact.
+
 name: Release
 
 on:
@@ -9,9 +16,25 @@ permissions:
   contents: write
 
 jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact tagged commit
+  # ---------------------------------------------------------------------------
+
+  ci:
+    uses: ./.github/workflows/_ci-core.yml
+    permissions: inherit
+
+  # ---------------------------------------------------------------------------
+  # Release — only runs when CI passes
+  # ---------------------------------------------------------------------------
+
   release:
     name: Create GitHub Release
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
