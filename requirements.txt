@@ -53,3 +53,8 @@ tiktoken>=0.8
 
 # Linting
 ruff>=0.9
+
+# Type checking and security auditing (CI dev-deps)
+mypy>=1.11
+pydantic[mypy]
+pip-audit>=2.9
