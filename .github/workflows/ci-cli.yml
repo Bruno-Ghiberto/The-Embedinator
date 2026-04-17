@@ -27,7 +27,7 @@ jobs:
           - macos-latest
           - windows-latest
         go:
-          - "1.25"
+          - "1.25.4"
     runs-on: ${{ matrix.os }}
     # 20 min accommodates the Windows matrix leg (2x slower than ubuntu per research.md).
     timeout-minutes: 20
@@ -69,7 +69,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.25"
+          go-version: "1.25.4"
           cache-dependency-path: cli/go.sum
 
       - name: Install golangci-lint
