@@ -1,0 +1,183 @@
+# Reusable CI core workflow for The Embedinator.
+# Purpose:  Centralised quality gate — every publish/release workflow MUST call
+#           this before pushing any artifact.  Each job here becomes a required
+#           status check on main and develop (see docs/cicd.md §Required Checks).
+# Triggers: Called via `uses: ./.github/workflows/_ci-core.yml` from
+#           ci.yml, docker-publish.yml, release.yml, and release-cli.yml.
+# Blockers: Publication is blocked if any job resolves to 'failure' or
+#           'cancelled'.  A 'skipped' job (path-conditional) counts as pass.
+# Role:     Source of truth for CI / backend-*, CI / frontend-*,
+#           CI / docker-build-smoke, and CI / pre-commit-parity checks.
+#           Job bodies marked "A<N> fills this" are stubs — Wave 2/3 agents
+#           will populate them without re-wiring the callers.
+
+name: CI Core
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        type: string
+        required: false
+        description: "Commit SHA to run CI against. Defaults to caller's GITHUB_SHA."
+    outputs:
+      backend_cov_pct:
+        description: "Backend test coverage percentage (integer). Populated by A3 in Wave 2."
+        value: ${{ jobs.aggregate.outputs.backend_cov_pct }}
+      frontend_cov_pct:
+        description: "Frontend test coverage percentage (integer). Populated by A5 in Wave 2."
+        value: ${{ jobs.aggregate.outputs.frontend_cov_pct }}
+      all_passed:
+        description: "true only if every required job passed or was skipped; false otherwise."
+        value: ${{ jobs.aggregate.outputs.all_passed }}
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  id-token: write   # REQUIRED for A6's cosign keyless signing in Wave 3
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Backend gates (A3 fills bodies in Wave 2)
+  # ---------------------------------------------------------------------------
+
+  backend-lint:
+    name: backend-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # ruff check backend/ --output-format=github
+
+  backend-test:
+    name: backend-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # pytest tests/ --cov=backend --cov-fail-under=80
+
+  backend-format-check:
+    name: backend-format-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # ruff format --check backend/
+
+  backend-type-check:
+    name: backend-type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # mypy backend/
+
+  backend-integration:
+    name: backend-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # pytest tests/ -m require_docker --no-cov (Qdrant service container)
+
+  backend-pip-audit:
+    name: backend-pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A3 fills this"  # pip-audit --requirement requirements.txt
+
+  # ---------------------------------------------------------------------------
+  # Frontend gates (A5 fills bodies in Wave 2)
+  # ---------------------------------------------------------------------------
+
+  frontend-lint:
+    name: frontend-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A5 fills this"  # cd frontend && npm run lint
+
+  frontend-test:
+    name: frontend-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A5 fills this"  # cd frontend && npm run test
+
+  frontend-coverage:
+    name: frontend-coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A5 fills this"  # vitest run --coverage (threshold 70%)
+
+  frontend-e2e:
+    name: frontend-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20     # Playwright sessions can take longer
+    steps:
+      - run: echo "A5 fills this"  # playwright test (path-conditional on frontend/**)
+
+  # ---------------------------------------------------------------------------
+  # Docker smoke test (A6 fills body in Wave 3)
+  # ---------------------------------------------------------------------------
+
+  docker-build-smoke:
+    name: docker-build-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25     # Multi-stage build + health-check polling
+    steps:
+      - run: echo "A6 fills this"  # docker compose up -d; curl /api/health; docker compose down
+
+  # ---------------------------------------------------------------------------
+  # Pre-commit parity (A7 fills body in Wave 3)
+  # ---------------------------------------------------------------------------
+
+  pre-commit-parity:
+    name: pre-commit-parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "A7 fills this"  # pre-commit run --all-files
+
+  # ---------------------------------------------------------------------------
+  # Aggregator — collects results from every required job and surfaces
+  # all_passed + coverage percentages to callers.  Runs even when upstream
+  # jobs fail so callers always receive an all_passed value.
+  # ---------------------------------------------------------------------------
+
+  aggregate:
+    name: aggregate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs:
+      - backend-lint
+      - backend-test
+      - backend-format-check
+      - backend-type-check
+      - backend-integration
+      - backend-pip-audit
+      - frontend-lint
+      - frontend-test
+      - frontend-coverage
+      - frontend-e2e
+      - docker-build-smoke
+      - pre-commit-parity
+    outputs:
+      backend_cov_pct: ${{ steps.results.outputs.backend_cov_pct }}
+      frontend_cov_pct: ${{ steps.results.outputs.frontend_cov_pct }}
+      all_passed: ${{ steps.results.outputs.all_passed }}
+    steps:
+      - name: Aggregate required-job results
+        id: results
+        env:
+          HAS_FAILURE: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          if [ "$HAS_FAILURE" = "true" ]; then
+            echo "all_passed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "all_passed=true" >> "$GITHUB_OUTPUT"
+          fi
+          # Placeholder percentages — A3 and A5 wire real values in Wave 2
+          echo "backend_cov_pct=0" >> "$GITHUB_OUTPUT"
+          echo "frontend_cov_pct=0" >> "$GITHUB_OUTPUT"
