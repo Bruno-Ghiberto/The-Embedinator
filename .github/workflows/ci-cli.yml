@@ -1,3 +1,17 @@
+# CLI test and lint pipeline for the Go installer (cli/**).
+# Purpose:  Run `go vet`, `go build`, race-enabled tests with coverage, and
+#           golangci-lint on every change that touches `cli/**`.  Keeps the
+#           CLI binary green across Linux/macOS/Windows without holding up
+#           backend/frontend CI.
+# Triggers: push to main (paths: cli/**), pull_request (paths: cli/**).
+# Blockers: Not a blocker for _ci-core.yml's gate — this is an independent
+#           path-scoped pipeline.  Still treated as REQUIRED for merges that
+#           touch `cli/**` so a broken installer never lands on main.
+# Role:     REQUIRED (path-scoped) — see docs/cicd.md §Required Checks.
+# PR #2:    Preserves `install-from-source` golangci-lint, Windows `shell: bash`,
+#           and the `ci-cli-env` preflight test.  Version pins (Go, golangci-lint)
+#           live inline because this workflow does NOT consume _ci-core.yml.
+
 name: CI (CLI)
 
 on:

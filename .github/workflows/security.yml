@@ -1,3 +1,14 @@
+# Static analysis security scanning via GitHub CodeQL.
+# Purpose:  Run CodeQL's semantic analysis across Python and JavaScript/
+#           TypeScript sources to surface injection, hardcoded-secret, and
+#           unsafe-deserialization findings before they reach main.
+# Triggers: push to main; weekly schedule (Mondays 06:00 UTC) to catch newly
+#           published rules against unchanged code.
+# Blockers: Runs post-push; does NOT gate merges by default (ADVISORY).  A6
+#           extends the language matrix to Go in Wave 3 and may flip role to
+#           REQUIRED for security-events findings.
+# Role:     ADVISORY (informational) — surfaces findings in the Security tab.
+
 name: Security
 
 on:
