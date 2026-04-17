@@ -22,10 +22,14 @@ jobs:
   # ---------------------------------------------------------------------------
 
   ci:
-    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps. Inner jobs
-    # have their own per-job timeouts in _ci-core.yml.
+    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps/`permissions: inherit`.
+    # Explicit permissions mirror _ci-core.yml's internal declaration.
     uses: ./.github/workflows/_ci-core.yml
-    permissions: inherit
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write
 
   # ---------------------------------------------------------------------------
   # Release — only runs when CI passes

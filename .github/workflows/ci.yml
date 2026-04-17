@@ -22,8 +22,12 @@ concurrency:
 jobs:
   ci:
     # Reusable-workflow caller jobs CANNOT declare timeout-minutes / runs-on /
-    # steps — those fields are only valid on runner jobs. Inner jobs inside
-    # _ci-core.yml have their own per-job timeouts (the reason the original
-    # caller-side timeout was attempted). Keep this block minimal.
+    # steps (runner-job fields) OR `permissions: inherit` (not a valid value).
+    # Explicit permissions mirror what _ci-core.yml declares internally for its
+    # jobs (id-token for cosign, checks/pull-requests for status reporting).
     uses: ./.github/workflows/_ci-core.yml
-    permissions: inherit
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write
