@@ -4,6 +4,7 @@ Tools are created via create_research_tools() factory which closes over
 infrastructure dependencies (HybridSearcher, Reranker, ParentStore).
 This avoids module-level singletons and supports testing with mocks.
 """
+
 from __future__ import annotations
 
 from langchain_core.tools import tool

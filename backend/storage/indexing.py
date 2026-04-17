@@ -35,17 +35,19 @@ async def index_chunks(app, doc_id: str, chunks: list[dict]):
     points = []
     for chunk, embedding in zip(chunks, embeddings):
         point_id = str(uuid.uuid4())
-        points.append({
-            "id": point_id,
-            "vector": embedding,
-            "payload": {
-                "document_id": doc_id,
-                "text": chunk["text"],
-                "chunk_index": chunk["chunk_index"],
-                "start_offset": chunk["start_offset"],
-                "end_offset": chunk["end_offset"],
-            },
-        })
+        points.append(
+            {
+                "id": point_id,
+                "vector": embedding,
+                "payload": {
+                    "document_id": doc_id,
+                    "text": chunk["text"],
+                    "chunk_index": chunk["chunk_index"],
+                    "start_offset": chunk["start_offset"],
+                    "end_offset": chunk["end_offset"],
+                },
+            }
+        )
 
     # Upsert to Qdrant
     await qdrant.upsert("embeddings", points)

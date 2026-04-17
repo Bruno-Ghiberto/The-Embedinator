@@ -77,7 +77,7 @@ async def list_traces(
         cs = d.get("collections_searched", "[]")
         try:
             d["collections_searched"] = json.loads(cs) if cs else []
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             d["collections_searched"] = []
         d["meta_reasoning_triggered"] = bool(d.get("meta_reasoning_triggered", 0))
         traces.append(d)
@@ -104,14 +104,17 @@ async def get_trace(trace_id: str, request: Request) -> dict:
 
     if not row:
         trace_id_req = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "TRACE_NOT_FOUND",
-                "message": f"Trace '{trace_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "TRACE_NOT_FOUND",
+                    "message": f"Trace '{trace_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id_req,
             },
-            "trace_id": trace_id_req,
-        })
+        )
 
     d = dict(row)
 
@@ -122,7 +125,7 @@ async def get_trace(trace_id: str, request: Request) -> dict:
             return default
         try:
             return json.loads(val)
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             return default
 
     return {
@@ -233,7 +236,7 @@ async def metrics(
             try:
                 dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 ts = int(dt.timestamp())
-            except (ValueError, OSError):
+            except ValueError, OSError:
                 continue
         else:
             ts = int(created_at) if created_at else 0
@@ -248,30 +251,32 @@ async def metrics(
     for bk in all_bucket_keys:
         data = bucket_data.get(bk, [])
         if not data:
-            buckets.append(MetricsBucket(
-                timestamp=datetime.fromtimestamp(bk, tz=timezone.utc).isoformat(),
-                query_count=0,
-                avg_latency_ms=0,
-                p95_latency_ms=0,
-                avg_confidence=0,
-                meta_reasoning_count=0,
-                error_count=0,
-            ))
+            buckets.append(
+                MetricsBucket(
+                    timestamp=datetime.fromtimestamp(bk, tz=timezone.utc).isoformat(),
+                    query_count=0,
+                    avg_latency_ms=0,
+                    p95_latency_ms=0,
+                    avg_confidence=0,
+                    meta_reasoning_count=0,
+                    error_count=0,
+                )
+            )
         else:
             latencies = sorted([t.get("latency_ms", 0) or 0 for t in data])
             p95_idx = max(0, math.ceil(0.95 * len(latencies)) - 1)
             confidences = [t.get("confidence_score", 0) or 0 for t in data]
-            buckets.append(MetricsBucket(
-                timestamp=datetime.fromtimestamp(bk, tz=timezone.utc).isoformat(),
-                query_count=len(data),
-                avg_latency_ms=int(sum(latencies) / len(latencies)),
-                p95_latency_ms=latencies[p95_idx],
-                avg_confidence=round(sum(confidences) / len(confidences)),
-                meta_reasoning_count=sum(
-                    1 for t in data if t.get("meta_reasoning_triggered")
-                ),
-                error_count=sum(1 for t in data if t.get("error_type")),
-            ))
+            buckets.append(
+                MetricsBucket(
+                    timestamp=datetime.fromtimestamp(bk, tz=timezone.utc).isoformat(),
+                    query_count=len(data),
+                    avg_latency_ms=int(sum(latencies) / len(latencies)),
+                    p95_latency_ms=latencies[p95_idx],
+                    avg_confidence=round(sum(confidences) / len(confidences)),
+                    meta_reasoning_count=sum(1 for t in data if t.get("meta_reasoning_triggered")),
+                    error_count=sum(1 for t in data if t.get("error_type")),
+                )
+            )
 
     # Sort ascending by timestamp
     buckets.sort(key=lambda b: b.timestamp)

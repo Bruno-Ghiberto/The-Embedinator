@@ -3,6 +3,7 @@
 Edge functions determine which node to execute next based on the current state.
 These are separate from edges.py which contains ConversationGraph edges.
 """
+
 from __future__ import annotations
 
 import time
@@ -58,8 +59,7 @@ def should_continue_loop(state: ResearchState) -> str:
             return "exhausted"
 
     # 3. Budget exhaustion
-    if (state["iteration_count"] >= settings.max_iterations or
-            state["tool_call_count"] >= settings.max_tool_calls):
+    if state["iteration_count"] >= settings.max_iterations or state["tool_call_count"] >= settings.max_tool_calls:
         logger.info(
             "agent_loop_exit_exhausted",
             iteration_count=state["iteration_count"],

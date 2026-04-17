@@ -14,6 +14,7 @@ self-assessment (FR-009).
 Backward compatibility: aggregate_answers still passes list[dict] with
 "relevance_score" keys — detected and handled via legacy path.
 """
+
 from __future__ import annotations
 
 import math
@@ -57,8 +58,7 @@ def compute_confidence(
         return _legacy_confidence(chunks, top_k)
 
     # --- New path: list[RetrievedChunk] with 5-signal formula (R8) ---
-    return _signal_confidence(chunks, top_k, expected_chunk_count,
-                              num_collections_searched, num_collections_total)
+    return _signal_confidence(chunks, top_k, expected_chunk_count, num_collections_searched, num_collections_total)
 
 
 def _legacy_confidence(passages: list[dict], top_k: int = 5) -> int:
@@ -75,10 +75,7 @@ def _legacy_confidence(passages: list[dict], top_k: int = 5) -> int:
     weights = list(range(n, 0, -1))
     total_weight = sum(weights)
 
-    weighted_sum = sum(
-        p["relevance_score"] * w
-        for p, w in zip(top_passages, weights)
-    )
+    weighted_sum = sum(p["relevance_score"] * w for p, w in zip(top_passages, weights))
 
     avg_score = weighted_sum / total_weight
     return min(100, max(0, int(avg_score * 100)))
@@ -137,12 +134,6 @@ def _signal_confidence(
     coverage = min(1.0, num_collections_searched / max(1, num_collections_total))
 
     # Weighted sum
-    confidence = (
-        mean_rerank * 0.4
-        + chunk_ratio * 0.2
-        + top_score * 0.2
-        + inverse_variance * 0.1
-        + coverage * 0.1
-    )
+    confidence = mean_rerank * 0.4 + chunk_ratio * 0.2 + top_score * 0.2 + inverse_variance * 0.1 + coverage * 0.1
 
     return max(0.0, min(1.0, confidence))

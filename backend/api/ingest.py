@@ -15,8 +15,18 @@ from backend.ingestion.pipeline import IngestionPipeline
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {
-    ".pdf", ".md", ".txt", ".py", ".js", ".ts",
-    ".rs", ".go", ".java", ".c", ".cpp", ".h",
+    ".pdf",
+    ".md",
+    ".txt",
+    ".py",
+    ".js",
+    ".ts",
+    ".rs",
+    ".go",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
 }
 
 _SAFE_FILENAME = _re.compile(r"[^a-zA-Z0-9._-]")
@@ -43,53 +53,65 @@ async def ingest_file(
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=400, detail={
-            "error": {
-                "code": "FILE_FORMAT_NOT_SUPPORTED",
-                "message": f"File type '{suffix}' is not supported. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
-                "details": {"allowed_extensions": sorted(ALLOWED_EXTENSIONS)},
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "code": "FILE_FORMAT_NOT_SUPPORTED",
+                    "message": f"File type '{suffix}' is not supported. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+                    "details": {"allowed_extensions": sorted(ALLOWED_EXTENSIONS)},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # 2. Read and validate size
     content = await file.read()
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
     if len(content) > max_bytes:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=413, detail={
-            "error": {
-                "code": "FILE_TOO_LARGE",
-                "message": f"File exceeds maximum size of {settings.max_upload_size_mb} MB",
-                "details": {"max_size_mb": settings.max_upload_size_mb, "file_size_bytes": len(content)},
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "error": {
+                    "code": "FILE_TOO_LARGE",
+                    "message": f"File exceeds maximum size of {settings.max_upload_size_mb} MB",
+                    "details": {"max_size_mb": settings.max_upload_size_mb, "file_size_bytes": len(content)},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # 3. PDF magic byte check (FR-004)
     if suffix == ".pdf" and content[:4] != b"%PDF":
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=400, detail={
-            "error": {
-                "code": "FILE_CONTENT_MISMATCH",
-                "message": "File content does not match declared type",
-                "details": {"expected_magic": "%PDF"},
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "code": "FILE_CONTENT_MISMATCH",
+                    "message": "File content does not match declared type",
+                    "details": {"expected_magic": "%PDF"},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # 4. Verify collection exists
     collection = await db.get_collection(collection_id)
     if not collection:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "COLLECTION_NOT_FOUND",
-                "message": f"Collection '{collection_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "COLLECTION_NOT_FOUND",
+                    "message": f"Collection '{collection_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # 4. Save file
     filename = _sanitize_filename(file.filename or f"document{suffix}")
@@ -107,14 +129,17 @@ async def ingest_file(
     if is_dup:
         file_path.unlink(missing_ok=True)
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=409, detail={
-            "error": {
-                "code": "DUPLICATE_DOCUMENT",
-                "message": "A document with identical content already exists in this collection",
-                "details": {"existing_document_id": existing_id},
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": "DUPLICATE_DOCUMENT",
+                    "message": "A document with identical content already exists in this collection",
+                    "details": {"existing_document_id": existing_id},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # 6. Check for changed file (same filename, different hash)
     registry = getattr(request.app.state, "registry", None)
@@ -187,14 +212,17 @@ async def get_ingestion_job(collection_id: str, job_id: str, request: Request):
     job = await db.get_ingestion_job(job_id)
     if not job:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "JOB_NOT_FOUND",
-                "message": f"Ingestion job '{job_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "JOB_NOT_FOUND",
+                    "message": f"Ingestion job '{job_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
     return IngestionJobResponse(
         job_id=job["id"],
         document_id=job["document_id"],
