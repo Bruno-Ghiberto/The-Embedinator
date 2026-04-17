@@ -48,14 +48,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - run: echo "A3 fills this"  # ruff check backend/ --output-format=github
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14.4"
+      - name: Install linter
+        run: pip install "ruff>=0.9"
+      - name: Lint backend
+        run: ruff check backend/ --output-format=github
 
   backend-test:
     name: backend-test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      backend_cov_pct: ${{ steps.cov-pct.outputs.backend_cov_pct }}
     steps:
-      - run: echo "A3 fills this"  # pytest tests/ --cov=backend --cov-fail-under=80
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14.4"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run backend tests with coverage
+        run: pytest tests/ --cov-report=xml
+      - name: Export coverage percentage
+        id: cov-pct
+        run: |
+          PCT=$(python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          print(int(float(root.attrib['line-rate']) * 100))
+          ")
+          echo "backend_cov_pct=$PCT" >> "$GITHUB_OUTPUT"
 
   backend-format-check:
     name: backend-format-check
@@ -178,6 +204,5 @@ jobs:
           else
             echo "all_passed=true" >> "$GITHUB_OUTPUT"
           fi
-          # Placeholder percentages — A3 and A5 wire real values in Wave 2
-          echo "backend_cov_pct=0" >> "$GITHUB_OUTPUT"
+          echo "backend_cov_pct=${{ needs.backend-test.outputs.backend_cov_pct || '0' }}" >> "$GITHUB_OUTPUT"
           echo "frontend_cov_pct=0" >> "$GITHUB_OUTPUT"
