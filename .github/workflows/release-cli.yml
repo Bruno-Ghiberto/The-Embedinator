@@ -24,7 +24,8 @@ jobs:
   # ---------------------------------------------------------------------------
 
   ci:
-    timeout-minutes: 60
+    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps. Inner jobs
+    # have their own per-job timeouts in _ci-core.yml.
     uses: ./.github/workflows/_ci-core.yml
     permissions: inherit
 

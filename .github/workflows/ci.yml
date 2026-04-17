@@ -21,8 +21,9 @@ concurrency:
 
 jobs:
   ci:
-    # Caller-side timeout caps the full reusable-workflow invocation.
-    # Inner jobs have their own per-job timeouts in _ci-core.yml.
-    timeout-minutes: 60
+    # Reusable-workflow caller jobs CANNOT declare timeout-minutes / runs-on /
+    # steps — those fields are only valid on runner jobs. Inner jobs inside
+    # _ci-core.yml have their own per-job timeouts (the reason the original
+    # caller-side timeout was attempted). Keep this block minimal.
     uses: ./.github/workflows/_ci-core.yml
     permissions: inherit
