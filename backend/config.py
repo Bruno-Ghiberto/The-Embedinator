@@ -37,7 +37,9 @@ class Settings(BaseSettings):
 
     # SQLite
     sqlite_path: str = "data/embedinator.db"
-    checkpoint_max_threads: int = 100  # spec-26 DISK-001: cap LangGraph checkpoints.db growth; prune oldest threads on startup. Set 0 to disable.
+    checkpoint_max_threads: int = (
+        100  # spec-26 DISK-001: cap LangGraph checkpoints.db growth; prune oldest threads on startup. Set 0 to disable.
+    )
 
     # Ingestion
     upload_dir: str = "data/uploads"

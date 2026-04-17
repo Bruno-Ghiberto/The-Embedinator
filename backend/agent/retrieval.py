@@ -29,15 +29,17 @@ async def retrieve_passages(
         if doc and doc["status"] != "deleted":
             doc_collections = doc.get("collection_ids", [])
             if any(c in collection_ids for c in doc_collections):
-                passages.append({
-                    "id": r["id"],
-                    "document_id": doc_id,
-                    "document_name": doc.get("name", "unknown"),
-                    "text": payload.get("text", ""),
-                    "relevance_score": r["score"],
-                    "chunk_index": payload.get("chunk_index", 0),
-                    "source_removed": False,
-                })
+                passages.append(
+                    {
+                        "id": r["id"],
+                        "document_id": doc_id,
+                        "document_name": doc.get("name", "unknown"),
+                        "text": payload.get("text", ""),
+                        "relevance_score": r["score"],
+                        "chunk_index": payload.get("chunk_index", 0),
+                        "source_removed": False,
+                    }
+                )
 
     # Sort by relevance and return top_k
     passages.sort(key=lambda p: p["relevance_score"], reverse=True)

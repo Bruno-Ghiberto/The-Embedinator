@@ -3,6 +3,7 @@
 Uses AsyncQdrantClient (R4) with prefetch (dense + sparse) and FusionQuery(Fusion.RRF).
 All Qdrant calls are wrapped with the circuit breaker pattern per C1.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,15 +35,15 @@ class HybridSearcher:
 
     def __init__(self, client: AsyncQdrantClient, settings: Settings):
         self.client = client
-        self.dense_weight = settings.hybrid_dense_weight    # 0.7
+        self.dense_weight = settings.hybrid_dense_weight  # 0.7
         self.sparse_weight = settings.hybrid_sparse_weight  # 0.3
-        self.default_top_k = settings.top_k_retrieval       # 20
+        self.default_top_k = settings.top_k_retrieval  # 20
 
         # Circuit breaker state (C1)
         self._circuit_open = False
         self._failure_count = 0
         self._max_failures = settings.circuit_breaker_failure_threshold  # 5
-        self._cooldown_secs = settings.circuit_breaker_cooldown_secs     # 30
+        self._cooldown_secs = settings.circuit_breaker_cooldown_secs  # 30
 
     async def _check_circuit(self) -> None:
         """Check circuit breaker state. Raises if circuit is open."""
@@ -71,15 +72,11 @@ class HybridSearcher:
         for key, value in filters.items():
             if key not in ALLOWED_FILTER_KEYS:
                 continue  # FR-002: silently ignore unknown keys
-            conditions.append(
-                FieldCondition(key=key, match=MatchValue(value=value))
-            )
+            conditions.append(FieldCondition(key=key, match=MatchValue(value=value)))
 
         return Filter(must=conditions) if conditions else None
 
-    def _points_to_chunks(
-        self, points: list[Any], collection: str
-    ) -> list[RetrievedChunk]:
+    def _points_to_chunks(self, points: list[Any], collection: str) -> list[RetrievedChunk]:
         """Convert Qdrant ScoredPoint results to RetrievedChunk objects."""
         chunks = []
         for point in points:
@@ -177,9 +174,7 @@ class HybridSearcher:
                 error=type(exc).__name__,
                 error_detail=str(exc)[:500],
             )
-            raise QdrantConnectionError(
-                f"Hybrid search failed for collection {collection}: {exc}"
-            ) from exc
+            raise QdrantConnectionError(f"Hybrid search failed for collection {collection}: {exc}") from exc
 
     async def search_all_collections(
         self,
@@ -209,9 +204,7 @@ class HybridSearcher:
 
         try:
             collections_response = await self.client.get_collections()
-            collection_names = [
-                c.name for c in collections_response.collections
-            ]
+            collection_names = [c.name for c in collections_response.collections]
         except Exception as exc:
             self._record_failure()
             logger.warning("retrieval_list_collections_failed", error=type(exc).__name__)
@@ -222,10 +215,7 @@ class HybridSearcher:
             return []
 
         # Fan-out search per collection
-        tasks = [
-            self.search(query, name, top_k=top_k, embed_fn=embed_fn)
-            for name in collection_names
-        ]
+        tasks = [self.search(query, name, top_k=top_k, embed_fn=embed_fn) for name in collection_names]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Merge successful results, log failures

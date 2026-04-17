@@ -4,6 +4,7 @@ Uses model.rank() API (R5) -- NOT model.predict(). The rank() method
 returns a list of dicts with corpus_id and score, which avoids manual
 pair construction.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -25,6 +26,7 @@ class Reranker:
 
     def __init__(self, settings: Settings):
         from sentence_transformers import CrossEncoder
+
         self.model = CrossEncoder(settings.reranker_model)
         self.default_top_k = settings.top_k_rerank  # 5
 
@@ -60,9 +62,7 @@ class Reranker:
 
         try:
             # R5: model.rank() returns [{"corpus_id": int, "score": float}]
-            rankings = self.model.rank(
-                query, documents, top_k=top_k, return_documents=False
-            )
+            rankings = self.model.rank(query, documents, top_k=top_k, return_documents=False)
         except Exception as exc:
             logger.warning("retrieval_reranker_failed", error=type(exc).__name__)
             raise RerankerError(f"Cross-encoder reranking failed: {exc}") from exc
@@ -74,6 +74,5 @@ class Reranker:
             chunk.rerank_score = float(entry["score"])
             ranked_chunks.append(chunk)
 
-        logger.info("retrieval_rerank_complete", input_count=len(chunks),
-                     output_count=len(ranked_chunks))
+        logger.info("retrieval_rerank_complete", input_count=len(chunks), output_count=len(ranked_chunks))
         return ranked_chunks

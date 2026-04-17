@@ -88,9 +88,7 @@ class QdrantClientWrapper:
         """Create collection if it doesn't exist."""
         self._check_circuit()
         try:
-            result = await self._ensure_collection_with_retry(
-                collection_name, vector_size
-            )
+            result = await self._ensure_collection_with_retry(collection_name, vector_size)
             self._record_success()
             return result
         except Exception:
@@ -103,9 +101,7 @@ class QdrantClientWrapper:
         retry=retry_if_exception_type(Exception),
         reraise=True,
     )
-    async def _ensure_collection_with_retry(
-        self, collection_name: str, vector_size: int
-    ):
+    async def _ensure_collection_with_retry(self, collection_name: str, vector_size: int):
         collections = await self.client.get_collections()
         existing = [c.name for c in collections.collections]
         if collection_name not in existing:
@@ -115,9 +111,7 @@ class QdrantClientWrapper:
             )
             logger.info("storage_qdrant_collection_created", name=collection_name)
 
-    async def search(
-        self, collection_name: str, query_vector: list[float], limit: int = 20
-    ) -> list[dict]:
+    async def search(self, collection_name: str, query_vector: list[float], limit: int = 20) -> list[dict]:
         """Search for similar vectors with circuit breaker protection."""
         self._check_circuit()
         try:
@@ -134,9 +128,7 @@ class QdrantClientWrapper:
         retry=retry_if_exception_type(Exception),
         reraise=True,
     )
-    async def _search_with_retry(
-        self, collection_name: str, query_vector: list[float], limit: int
-    ) -> list[dict]:
+    async def _search_with_retry(self, collection_name: str, query_vector: list[float], limit: int) -> list[dict]:
         results = await self.client.search(
             collection_name=collection_name,
             query_vector=query_vector,
@@ -178,9 +170,7 @@ class QdrantClientWrapper:
             )
             for p in points
         ]
-        await self.client.upsert(
-            collection_name=collection_name, points=qdrant_points
-        )
+        await self.client.upsert(collection_name=collection_name, points=qdrant_points)
 
 
 # ---------------------------------------------------------------------------
@@ -318,9 +308,7 @@ class QdrantStorage:
         """Create collection with dense (HNSW cosine) + sparse (BM25 IDF) config."""
         self._check_circuit()
         try:
-            await self._create_collection_with_retry(
-                collection_name, vector_size, distance
-            )
+            await self._create_collection_with_retry(collection_name, vector_size, distance)
             self._record_success()
         except Exception:
             self._record_failure()
@@ -421,17 +409,13 @@ class QdrantStorage:
             raise ValueError(f"Payload missing required fields: {missing}")
         doc_type = payload.get("doc_type")
         if doc_type not in self.VALID_DOC_TYPES:
-            raise ValueError(
-                f"Invalid doc_type '{doc_type}'. Must be one of {sorted(self.VALID_DOC_TYPES)}"
-            )
+            raise ValueError(f"Invalid doc_type '{doc_type}'. Must be one of {sorted(self.VALID_DOC_TYPES)}")
 
     # ------------------------------------------------------------------
     # Batch upsert
     # ------------------------------------------------------------------
 
-    async def batch_upsert(
-        self, collection_name: str, points: list[QdrantPoint]
-    ) -> int:
+    async def batch_upsert(self, collection_name: str, points: list[QdrantPoint]) -> int:
         """Idempotent batch upsert. Validates all 11 payload fields. Returns count."""
         if not points:
             return 0
@@ -452,9 +436,7 @@ class QdrantStorage:
         retry=retry_if_exception_type(Exception),
         reraise=True,
     )
-    async def _batch_upsert_with_retry(
-        self, collection_name: str, points: list[QdrantPoint]
-    ) -> int:
+    async def _batch_upsert_with_retry(self, collection_name: str, points: list[QdrantPoint]) -> int:
         from qdrant_client.models import PointStruct
         from qdrant_client.models import SparseVector as QdrantSparseVec
 
@@ -466,9 +448,7 @@ class QdrantStorage:
                     indices=point.sparse_vector.indices,
                     values=point.sparse_vector.values,
                 )
-            qdrant_points.append(
-                PointStruct(id=point.id, vector=vectors, payload=point.payload)
-            )
+            qdrant_points.append(PointStruct(id=point.id, vector=vectors, payload=point.payload))
         client = await self._get_client()
         await client.upsert(collection_name=collection_name, points=qdrant_points)
         return len(points)
@@ -537,13 +517,9 @@ class QdrantStorage:
         )
         dense_hits = dense_response.points
 
-        dense_scores: dict[str, float] = {
-            str(hit.id): hit.score for hit in dense_hits
-        }
+        dense_scores: dict[str, float] = {str(hit.id): hit.score for hit in dense_hits}
         sparse_scores: dict[str, float] = {}
-        payload_map: dict[str, dict] = {
-            str(hit.id): (hit.payload or {}) for hit in dense_hits
-        }
+        payload_map: dict[str, dict] = {str(hit.id): (hit.payload or {}) for hit in dense_hits}
 
         # Sparse search (named vector "sparse"), only if sparse vector provided
         if sparse_vector is not None:
@@ -567,15 +543,12 @@ class QdrantStorage:
         all_ids = set(dense_scores) | set(sparse_scores)
         fused: list[SearchResult] = []
         for sid in all_ids:
-            hybrid_score = (
-                dense_weight * dense_scores.get(sid, 0.0)
-                + sparse_weight * sparse_scores.get(sid, 0.0)
-            )
+            hybrid_score = dense_weight * dense_scores.get(sid, 0.0) + sparse_weight * sparse_scores.get(sid, 0.0)
             if score_threshold is not None and hybrid_score < score_threshold:
                 continue
             try:
                 orig_id: int | str = int(sid)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 orig_id = sid
             fused.append(
                 SearchResult(
@@ -592,9 +565,7 @@ class QdrantStorage:
     # Point deletion
     # ------------------------------------------------------------------
 
-    async def delete_points(
-        self, collection_name: str, point_ids: list[int]
-    ) -> int:
+    async def delete_points(self, collection_name: str, point_ids: list[int]) -> int:
         """Delete points by ID list. Returns count of submitted IDs."""
         if not point_ids:
             return 0
@@ -613,9 +584,7 @@ class QdrantStorage:
             self._record_failure()
             raise
 
-    async def delete_points_by_filter(
-        self, collection_name: str, filter: dict
-    ) -> int:
+    async def delete_points_by_filter(self, collection_name: str, filter: dict) -> int:
         """Delete points matching payload filter dict. Returns 0 (count unknown)."""
         self._check_circuit()
         try:
@@ -637,19 +606,14 @@ class QdrantStorage:
         """Convert a simple key→value dict into a Qdrant Filter."""
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-        conditions = [
-            FieldCondition(key=k, match=MatchValue(value=v))
-            for k, v in filter_dict.items()
-        ]
+        conditions = [FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filter_dict.items()]
         return Filter(must=conditions)
 
     # ------------------------------------------------------------------
     # Point retrieval
     # ------------------------------------------------------------------
 
-    async def get_point(
-        self, collection_name: str, point_id: int
-    ) -> dict | None:
+    async def get_point(self, collection_name: str, point_id: int) -> dict | None:
         """Return {id, vector, payload} for a single point, or None if not found."""
         self._check_circuit()
         try:
@@ -669,9 +633,7 @@ class QdrantStorage:
             self._record_failure()
             raise
 
-    async def get_points_by_ids(
-        self, collection_name: str, point_ids: list[int]
-    ) -> list[dict]:
+    async def get_points_by_ids(self, collection_name: str, point_ids: list[int]) -> list[dict]:
         """Batch retrieval of points by ID list."""
         if not point_ids:
             return []
@@ -685,10 +647,7 @@ class QdrantStorage:
                 with_vectors=True,
             )
             self._record_success()
-            return [
-                {"id": p.id, "vector": p.vector, "payload": p.payload or {}}
-                for p in results
-            ]
+            return [{"id": p.id, "vector": p.vector, "payload": p.payload or {}} for p in results]
         except Exception:
             self._record_failure()
             raise

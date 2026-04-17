@@ -3,6 +3,7 @@
 Used when merging results from multiple Qdrant collections to ensure
 scores are comparable across collections.
 """
+
 from __future__ import annotations
 
 from backend.agent.schemas import RetrievedChunk

@@ -7,6 +7,7 @@ Flow:
   START -> generate_alternative_queries -> evaluate_retrieval_quality
         -> decide_strategy -> [retry: END | report: report_uncertainty -> END]
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -41,10 +42,14 @@ def build_meta_reasoning_graph() -> Any:
     graph.add_edge(START, "generate_alternative_queries")
     graph.add_edge("generate_alternative_queries", "evaluate_retrieval_quality")
     graph.add_edge("evaluate_retrieval_quality", "decide_strategy")
-    graph.add_conditional_edges("decide_strategy", route_after_strategy, {
-        "retry": END,                # modified_state ready; ResearchGraph re-enters
-        "report": "report_uncertainty",
-    })
+    graph.add_conditional_edges(
+        "decide_strategy",
+        route_after_strategy,
+        {
+            "retry": END,  # modified_state ready; ResearchGraph re-enters
+            "report": "report_uncertainty",
+        },
+    )
     graph.add_edge("report_uncertainty", END)
 
     return graph.compile()

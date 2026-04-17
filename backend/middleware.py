@@ -101,9 +101,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window = 60.0  # 1-minute sliding window
 
         # Clean expired entries
-        self._windows[bucket] = [
-            t for t in self._windows[bucket] if now - t < window
-        ]
+        self._windows[bucket] = [t for t in self._windows[bucket] if now - t < window]
 
         if len(self._windows[bucket]) >= limit:
             trace_id = getattr(request.state, "trace_id", str(uuid.uuid4()))

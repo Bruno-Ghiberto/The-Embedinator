@@ -17,9 +17,7 @@ class QueryAnalysis(BaseModel):
     sub_questions: list[str]
     clarification_needed: str | None = None
     collections_hint: list[str]
-    complexity_tier: Literal[
-        "factoid", "lookup", "comparison", "analytical", "multi_hop"
-    ]
+    complexity_tier: Literal["factoid", "lookup", "comparison", "analytical", "multi_hop"]
 
 
 class RetrievedChunk(BaseModel):
@@ -214,8 +212,13 @@ class IngestionJobResponse(BaseModel):
     job_id: str
     document_id: str
     status: Literal[
-        "pending", "started", "streaming", "embedding",
-        "completed", "failed", "paused",
+        "pending",
+        "started",
+        "streaming",
+        "embedding",
+        "completed",
+        "failed",
+        "paused",
     ]
     chunks_processed: int = 0
     chunks_total: int | None = None

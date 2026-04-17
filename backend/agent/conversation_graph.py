@@ -67,15 +67,18 @@ def build_conversation_graph(
 
     # Edges
     graph.add_edge(START, "classify_intent")
-    graph.add_conditional_edges("classify_intent", route_intent, {
-        "rag_query": "rewrite_query",
-        "collection_mgmt": "handle_collection_mgmt",
-        "ambiguous": "request_clarification",
-    })
+    graph.add_conditional_edges(
+        "classify_intent",
+        route_intent,
+        {
+            "rag_query": "rewrite_query",
+            "collection_mgmt": "handle_collection_mgmt",
+            "ambiguous": "request_clarification",
+        },
+    )
     graph.add_edge("handle_collection_mgmt", END)
     graph.add_edge("request_clarification", "classify_intent")
-    graph.add_conditional_edges("rewrite_query", route_after_rewrite,
-                               ["request_clarification", "research"])
+    graph.add_conditional_edges("rewrite_query", route_after_rewrite, ["request_clarification", "research"])
     graph.add_edge("research", "aggregate_answers")
     graph.add_edge("aggregate_answers", "verify_groundedness")
     graph.add_edge("verify_groundedness", "validate_citations")

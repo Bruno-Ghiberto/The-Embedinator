@@ -31,14 +31,17 @@ async def _fetch_ollama_models(model_type: str) -> list[ModelInfo]:
             resp = await client.get(f"{settings.ollama_base_url}/api/tags")
             resp.raise_for_status()
     except (httpx.HTTPError, httpx.ConnectError, httpx.ConnectTimeout) as e:
-        raise HTTPException(status_code=503, detail={
-            "error": {
-                "code": "SERVICE_UNAVAILABLE",
-                "message": f"Ollama is unreachable: {e}",
-                "details": {},
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": f"Ollama is unreachable: {e}",
+                    "details": {},
+                },
+                "trace_id": "",
             },
-            "trace_id": "",
-        })
+        )
 
     data = resp.json()
     ollama_models = data.get("models", [])
@@ -55,16 +58,18 @@ async def _fetch_ollama_models(model_type: str) -> list[ModelInfo]:
 
         details = m.get("details", {})
         size_bytes = m.get("size", 0)
-        size_gb = round(size_bytes / (1024 ** 3), 1) if size_bytes else None
+        size_gb = round(size_bytes / (1024**3), 1) if size_bytes else None
 
-        result.append(ModelInfo(
-            name=name,
-            provider="ollama",
-            model_type="embed" if is_embed else "llm",
-            size_gb=size_gb,
-            quantization=details.get("quantization_level"),
-            context_length=None,
-        ))
+        result.append(
+            ModelInfo(
+                name=name,
+                provider="ollama",
+                model_type="embed" if is_embed else "llm",
+                size_gb=size_gb,
+                quantization=details.get("quantization_level"),
+                context_length=None,
+            )
+        )
 
     return result
 
@@ -86,11 +91,13 @@ async def list_llm_models(request: Request) -> dict:
         config = json.loads(p.get("config_json") or "{}")
         model_name = config.get("model", "")
         if model_name:
-            models.append(ModelInfo(
-                name=model_name,
-                provider=name,
-                model_type="llm",
-            ))
+            models.append(
+                ModelInfo(
+                    name=model_name,
+                    provider=name,
+                    model_type="llm",
+                )
+            )
 
     return {"models": [m.model_dump() for m in models]}
 

@@ -121,12 +121,11 @@ async def _probe_ollama() -> HealthServiceStatus:
                     settings.default_llm_model: settings.default_llm_model in available_names,
                     settings.default_embed_model: settings.default_embed_model in available_names,
                 }
-                return HealthServiceStatus(
-                    name="ollama", status="ok", latency_ms=latency, models=models
-                )
+                return HealthServiceStatus(name="ollama", status="ok", latency_ms=latency, models=models)
             else:
                 return HealthServiceStatus(
-                    name="ollama", status="error",
+                    name="ollama",
+                    status="error",
                     error_message=f"HTTP {resp.status_code}",
                 )
     except Exception as e:

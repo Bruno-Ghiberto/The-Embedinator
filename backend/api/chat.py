@@ -107,23 +107,33 @@ async def chat(body: ChatRequest, request: Request):
     async def generate():
         # FR-050: Reject requests during graceful shutdown
         if getattr(request.app.state, "shutting_down", False):
-            yield json.dumps({
-                "type": "error",
-                "code": "SHUTTING_DOWN",
-                "message": "Server is shutting down. Please retry in a moment.",
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "code": "SHUTTING_DOWN",
+                        "message": "Server is shutting down. Please retry in a moment.",
+                    }
+                )
+                + "\n"
+            )
             return
 
         start_time = time.monotonic()
 
         # Empty-collections guard
         if not body.collection_ids:
-            yield json.dumps({
-                "type": "error",
-                "message": "Please select at least one collection before searching.",
-                "code": "NO_COLLECTIONS",
-                "trace_id": trace_id,
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Please select at least one collection before searching.",
+                        "code": "NO_COLLECTIONS",
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
             return
 
         # 1. Session event (BEFORE astream)
@@ -188,10 +198,15 @@ async def chat(body: ChatRequest, request: Request):
                         # Interrupt detection (clarification request)
                         if "__interrupt__" in data:
                             interrupt_value = data["__interrupt__"][0].value
-                            yield json.dumps({
-                                "type": "clarification",
-                                "question": interrupt_value,
-                            }) + "\n"
+                            yield (
+                                json.dumps(
+                                    {
+                                        "type": "clarification",
+                                        "question": interrupt_value,
+                                    }
+                                )
+                                + "\n"
+                            )
                             return
                     elif chunk["type"] == "messages":
                         chunk_msg, metadata = chunk["data"]
@@ -221,10 +236,7 @@ async def chat(body: ChatRequest, request: Request):
             # 4. Citation event
             citations = final_state.get("citations", [])
             if citations:
-                citation_dicts = [
-                    c.model_dump() if hasattr(c, "model_dump") else c
-                    for c in citations
-                ]
+                citation_dicts = [c.model_dump() if hasattr(c, "model_dump") else c for c in citations]
                 # Deduplicate by passage_id (BUG-017: Send() fan-out produces N copies)
                 seen_pids = set()
                 unique_citations = []
@@ -239,10 +251,15 @@ async def chat(body: ChatRequest, request: Request):
             attempted = final_state.get("attempted_strategies")
             if attempted:
                 strategies_list = list(attempted) if isinstance(attempted, set) else attempted
-                yield json.dumps({
-                    "type": "meta_reasoning",
-                    "strategies_attempted": strategies_list,
-                }) + "\n"
+                yield (
+                    json.dumps(
+                        {
+                            "type": "meta_reasoning",
+                            "strategies_attempted": strategies_list,
+                        }
+                    )
+                    + "\n"
+                )
 
             # 6. Confidence event (ALWAYS int 0-100)
             confidence = int(final_state.get("confidence_score", 0))
@@ -251,13 +268,22 @@ async def chat(body: ChatRequest, request: Request):
             # 7. Groundedness event
             groundedness_result = final_state.get("groundedness_result")
             if groundedness_result is not None:
-                yield json.dumps({
-                    "type": "groundedness",
-                    "overall_grounded": groundedness_result.overall_grounded,
-                    "supported": sum(1 for v in groundedness_result.verifications if v.verdict == "supported"),
-                    "unsupported": sum(1 for v in groundedness_result.verifications if v.verdict == "unsupported"),
-                    "contradicted": sum(1 for v in groundedness_result.verifications if v.verdict == "contradicted"),
-                }) + "\n"
+                yield (
+                    json.dumps(
+                        {
+                            "type": "groundedness",
+                            "overall_grounded": groundedness_result.overall_grounded,
+                            "supported": sum(1 for v in groundedness_result.verifications if v.verdict == "supported"),
+                            "unsupported": sum(
+                                1 for v in groundedness_result.verifications if v.verdict == "unsupported"
+                            ),
+                            "contradicted": sum(
+                                1 for v in groundedness_result.verifications if v.verdict == "contradicted"
+                            ),
+                        }
+                    )
+                    + "\n"
+                )
 
             # 8. Write trace to DB via create_query_trace()
             try:
@@ -273,13 +299,11 @@ async def chat(body: ChatRequest, request: Request):
                     llm_model=llm_model,
                     embed_model=embed_model,
                     confidence_score=confidence,
-                    sub_questions_json=json.dumps(
-                        final_state.get("sub_questions", [])
-                    ) if final_state.get("sub_questions") else None,
+                    sub_questions_json=json.dumps(final_state.get("sub_questions", []))
+                    if final_state.get("sub_questions")
+                    else None,
                     reasoning_steps_json=None,
-                    strategy_switches_json=json.dumps(
-                        list(attempted)
-                    ) if attempted else None,
+                    strategy_switches_json=json.dumps(list(attempted)) if attempted else None,
                     meta_reasoning_triggered=bool(attempted),
                     provider_name=provider_name,
                     stage_timings_json=json.dumps(stage_timings) if stage_timings else None,
@@ -288,47 +312,72 @@ async def chat(body: ChatRequest, request: Request):
                 logger.warning("http_query_trace_write_failed", session_id=session_id)
 
             # 9. Done event (LAST on success)
-            yield json.dumps({
-                "type": "done",
-                "latency_ms": latency_ms,
-                "trace_id": trace_id,
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "done",
+                        "latency_ms": latency_ms,
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
 
         except GraphRecursionError:
             logger.warning("http_chat_recursion_limit", session_id=session_id)
-            yield json.dumps({
-                "type": "error",
-                "message": "The query required too many reasoning steps. Try a more specific question.",
-                "code": "RECURSION_LIMIT",
-                "trace_id": trace_id,
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "The query required too many reasoning steps. Try a more specific question.",
+                        "code": "RECURSION_LIMIT",
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
         except RuntimeError as e:
             if "call limit exceeded" in str(e):
                 logger.warning("http_chat_call_limit", session_id=session_id, detail=str(e))
-                yield json.dumps({
-                    "type": "error",
-                    "message": "The query exceeded the maximum number of allowed operations. Try a simpler question.",
-                    "code": "CALL_LIMIT_EXCEEDED",
-                    "trace_id": trace_id,
-                }) + "\n"
+                yield (
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "message": "The query exceeded the maximum number of allowed operations. Try a simpler question.",
+                            "code": "CALL_LIMIT_EXCEEDED",
+                            "trace_id": trace_id,
+                        }
+                    )
+                    + "\n"
+                )
             else:
                 raise
         except CircuitOpenError:
             logger.warning("http_circuit_open_during_chat", session_id=session_id, error="CircuitOpenError")
-            yield json.dumps({
-                "type": "error",
-                "message": "A required service is temporarily unavailable. Please try again in a few seconds.",
-                "code": "CIRCUIT_OPEN",
-                "trace_id": trace_id,
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "A required service is temporarily unavailable. Please try again in a few seconds.",
+                        "code": "CIRCUIT_OPEN",
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
         except Exception as e:
             logger.error("http_chat_stream_error", error=type(e).__name__, detail=str(e), session_id=session_id)
-            yield json.dumps({
-                "type": "error",
-                "message": "Unable to process your request. Please retry.",
-                "code": "SERVICE_UNAVAILABLE",
-                "trace_id": trace_id,
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Unable to process your request. Please retry.",
+                        "code": "SERVICE_UNAVAILABLE",
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
 
     return StreamingResponse(
         generate(),

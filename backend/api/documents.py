@@ -27,14 +27,17 @@ async def get_document(doc_id: str, request: Request) -> dict:
     doc = await db.get_document(doc_id)
     if not doc:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "DOCUMENT_NOT_FOUND",
-                "message": f"Document '{doc_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "DOCUMENT_NOT_FOUND",
+                    "message": f"Document '{doc_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
     return doc
 
 
@@ -45,12 +48,15 @@ async def delete_document(doc_id: str, request: Request):
     doc = await db.get_document(doc_id)
     if not doc:
         trace_id = getattr(request.state, "trace_id", "")
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "DOCUMENT_NOT_FOUND",
-                "message": f"Document '{doc_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "DOCUMENT_NOT_FOUND",
+                    "message": f"Document '{doc_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
     await db.delete_document(doc_id)

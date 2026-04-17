@@ -32,7 +32,7 @@ def _build_settings_response(db_settings: dict[str, str]) -> SettingsResponse:
         if key in db_settings:
             try:
                 values[key] = type_fn(db_settings[key])
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 values[key] = getattr(app_config, config_attr)
         else:
             values[key] = getattr(app_config, config_attr)
@@ -56,14 +56,17 @@ async def update_settings(body: SettingsUpdateRequest, request: Request):
     # Validate confidence_threshold range explicitly for clear error code
     if body.confidence_threshold is not None:
         if body.confidence_threshold < 0 or body.confidence_threshold > 100:
-            raise HTTPException(status_code=400, detail={
-                "error": {
-                    "code": "SETTINGS_VALIDATION_ERROR",
-                    "message": "confidence_threshold must be between 0 and 100",
-                    "details": {"field": "confidence_threshold", "value": body.confidence_threshold},
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": {
+                        "code": "SETTINGS_VALIDATION_ERROR",
+                        "message": "confidence_threshold must be between 0 and 100",
+                        "details": {"field": "confidence_threshold", "value": body.confidence_threshold},
+                    },
+                    "trace_id": trace_id,
                 },
-                "trace_id": trace_id,
-            })
+            )
 
     # Persist each non-None field
     update_dict = body.model_dump(exclude_none=True)

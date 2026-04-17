@@ -3,6 +3,7 @@
 All node functions are async, stateless, and pure. Dependencies (LLM, tools)
 are resolved from RunnableConfig at invocation time.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -43,7 +44,9 @@ def dedup_key(query: str, parent_id: str) -> str:
 
 
 async def _maybe_summarize_research_messages(
-    messages: list, llm: Any, log: Any,
+    messages: list,
+    llm: Any,
+    log: Any,
 ) -> list:
     """ENH-008: Summarize research messages when accumulation exceeds 15.
 
@@ -58,16 +61,15 @@ async def _maybe_summarize_research_messages(
     recent_messages = messages[-4:]
 
     try:
-        summary_response = await llm.ainvoke([
-            SystemMessage(
-                content="Briefly summarize the key findings from this research "
-                "session in 2-3 sentences:"
-            ),
-            *messages_to_summarize,
-        ])
-        summary_msg = SystemMessage(
-            content=f"Research session summary: {summary_response.content}"
+        summary_response = await llm.ainvoke(
+            [
+                SystemMessage(
+                    content="Briefly summarize the key findings from this research session in 2-3 sentences:"
+                ),
+                *messages_to_summarize,
+            ]
         )
+        summary_msg = SystemMessage(content=f"Research session summary: {summary_response.content}")
         log.info(
             "agent_research_messages_summarized",
             original=len(messages),
@@ -157,25 +159,29 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     llm_with_tools = llm.bind_tools(tools_list) if tools_list else llm
 
     # --- Build prompt ---
-    chunk_summaries = "\n".join(
-        f"- [{c.collection}] {c.text[:120]}..." for c in state["retrieved_chunks"][:10]
-    ) or "(none yet)"
+    chunk_summaries = (
+        "\n".join(f"- [{c.collection}] {c.text[:120]}..." for c in state["retrieved_chunks"][:10]) or "(none yet)"
+    )
 
-    system_msg = SystemMessage(content=ORCHESTRATOR_SYSTEM.format(
-        tool_descriptions="(auto-populated by bind_tools)",
-        chunk_count=len(state["retrieved_chunks"]),
-        chunk_summaries=chunk_summaries,
-        iteration=state["iteration_count"] + 1,
-        max_iterations=settings.max_iterations,
-        tool_call_count=state["tool_call_count"],
-        max_tool_calls=settings.max_tool_calls,
-    ))
+    system_msg = SystemMessage(
+        content=ORCHESTRATOR_SYSTEM.format(
+            tool_descriptions="(auto-populated by bind_tools)",
+            chunk_count=len(state["retrieved_chunks"]),
+            chunk_summaries=chunk_summaries,
+            iteration=state["iteration_count"] + 1,
+            max_iterations=settings.max_iterations,
+            tool_call_count=state["tool_call_count"],
+            max_tool_calls=settings.max_tool_calls,
+        )
+    )
 
-    user_msg = HumanMessage(content=ORCHESTRATOR_USER.format(
-        sub_question=state["sub_question"],
-        collections=", ".join(state["selected_collections"]),
-        confidence_score=f"{state['confidence_score']:.2f}",
-    ))
+    user_msg = HumanMessage(
+        content=ORCHESTRATOR_USER.format(
+            sub_question=state["sub_question"],
+            collections=", ".join(state["selected_collections"]),
+            confidence_score=f"{state['confidence_score']:.2f}",
+        )
+    )
 
     # --- Invoke LLM with tools bound (R1) ---
     # Use trimmed messages as conversation context alongside the prompt
@@ -211,7 +217,9 @@ async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> d
     # Include RemoveMessage markers if summarization occurred
     result_messages = [response]  # AIMessage with tool_calls
     if any(isinstance(m, RemoveMessage) for m in summarized_msgs):
-        result_messages = [m for m in summarized_msgs if isinstance(m, (RemoveMessage, SystemMessage))] + result_messages
+        result_messages = [
+            m for m in summarized_msgs if isinstance(m, (RemoveMessage, SystemMessage))
+        ] + result_messages
 
     _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
     _prior = state.get("stage_timings", {})
@@ -262,7 +270,8 @@ async def _execute_single_tool(
         except Exception as retry_err:
             log.warning(
                 "agent_tool_call_failed_after_retry",
-                tool=tool_name, error=type(retry_err).__name__,
+                tool=tool_name,
+                error=type(retry_err).__name__,
             )
             return tool_name, retry_err, calls_consumed, tool_call_id
 
@@ -324,10 +333,7 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
     try:
         # ENH-007: Execute all tool calls concurrently via asyncio.gather
         parallel_results = await asyncio.gather(
-            *[
-                _execute_single_tool(tc, tools_by_name, state["sub_question"], log)
-                for tc in tool_calls
-            ],
+            *[_execute_single_tool(tc, tools_by_name, state["sub_question"], log) for tc in tool_calls],
             return_exceptions=True,
         )
 
@@ -336,10 +342,12 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
             if isinstance(outcome, Exception):
                 tc = tool_calls[i]
                 log.warning("agent_tool_call_gather_error", tool=tc["name"], error=type(outcome).__name__)
-                tool_messages.append(ToolMessage(
-                    content=f"Tool {tc['name']} failed: {outcome}",
-                    tool_call_id=tc["id"],
-                ))
+                tool_messages.append(
+                    ToolMessage(
+                        content=f"Tool {tc['name']} failed: {outcome}",
+                        tool_call_id=tc["id"],
+                    )
+                )
                 continue
 
             tool_name, result, calls_consumed, tool_call_id = outcome
@@ -347,18 +355,22 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
 
             # Unknown tool — already logged inside _execute_single_tool
             if result is None and calls_consumed == 0:
-                tool_messages.append(ToolMessage(
-                    content=f"Unknown tool: {tool_name}",
-                    tool_call_id=tool_call_id,
-                ))
+                tool_messages.append(
+                    ToolMessage(
+                        content=f"Unknown tool: {tool_name}",
+                        tool_call_id=tool_call_id,
+                    )
+                )
                 continue
 
             # Failed after retry — result is the exception
             if isinstance(result, Exception):
-                tool_messages.append(ToolMessage(
-                    content=f"Tool {tool_name} failed: {result}",
-                    tool_call_id=tool_call_id,
-                ))
+                tool_messages.append(
+                    ToolMessage(
+                        content=f"Tool {tool_name} failed: {result}",
+                        tool_call_id=tool_call_id,
+                    )
+                )
                 continue
 
             # --- Deduplication (US4) ---
@@ -377,18 +389,18 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                             new_chunks.append(chunk)
                 deduped_count = len(new_chunks) - before_count
                 original_new_count = len([c for c in result if isinstance(c, RetrievedChunk)])
-                log.info("agent_dedup_filtered",
-                         tool=tool_name,
-                         original=original_new_count,
-                         kept=deduped_count)
+                log.info("agent_dedup_filtered", tool=tool_name, original=original_new_count, kept=deduped_count)
 
-            tool_messages.append(ToolMessage(
-                content=str(result),
-                tool_call_id=tool_call_id,
-            ))
+            tool_messages.append(
+                ToolMessage(
+                    content=str(result),
+                    tool_call_id=tool_call_id,
+                )
+            )
 
-            log.info("agent_tool_call_complete", tool=tool_name,
-                     new_chunks=len(new_chunks), tool_call_count=tool_call_count)
+            log.info(
+                "agent_tool_call_complete", tool=tool_name, new_chunks=len(new_chunks), tool_call_count=tool_call_count
+            )
 
         _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
         _prior = state.get("stage_timings", {})
@@ -484,21 +496,19 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
         log.warning("agent_compress_context_no_llm")
         return {}  # Skip compression (no timing recorded — early exit before work)
 
-    chunks_text = "\n\n---\n\n".join(
-        f"[{c.collection} | {c.source_file}] {c.text}"
-        for c in state["retrieved_chunks"]
-    )
+    chunks_text = "\n\n---\n\n".join(f"[{c.collection} | {c.source_file}] {c.text}" for c in state["retrieved_chunks"])
 
     try:
-        response = await llm.ainvoke([
-            SystemMessage(content=COMPRESS_CONTEXT_SYSTEM),
-            HumanMessage(content=f"Compress the following retrieved context:\n\n{chunks_text}"),
-        ])
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=COMPRESS_CONTEXT_SYSTEM),
+                HumanMessage(content=f"Compress the following retrieved context:\n\n{chunks_text}"),
+            ]
+        )
 
         # Build sources map: "[N] source_file:page" for citation reconstruction
         sources_map = "; ".join(
-            f"[{i+1}] {c.source_file}:{c.page or 'N/A'}"
-            for i, c in enumerate(state["retrieved_chunks"][:20])
+            f"[{i + 1}] {c.source_file}:{c.page or 'N/A'}" for i, c in enumerate(state["retrieved_chunks"][:20])
         )
         first_chunk = state["retrieved_chunks"][0] if state["retrieved_chunks"] else None
         compressed_chunk = RetrievedChunk(
@@ -509,13 +519,10 @@ async def compress_context(state: ResearchState, config: RunnableConfig = None) 
             breadcrumb=f"compressed-context | sources: {sources_map}",
             parent_id=first_chunk.parent_id if first_chunk else "compressed",
             collection=first_chunk.collection if first_chunk else "compressed",
-            dense_score=max(
-                (c.dense_score for c in state["retrieved_chunks"]), default=0.0
-            ),
+            dense_score=max((c.dense_score for c in state["retrieved_chunks"]), default=0.0),
             sparse_score=0.0,
             rerank_score=max(
-                (c.rerank_score for c in state["retrieved_chunks"]
-                 if c.rerank_score is not None),
+                (c.rerank_score for c in state["retrieved_chunks"] if c.rerank_score is not None),
                 default=None,
             ),
         )
@@ -608,7 +615,7 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
 
     # --- Build passages text for LLM ---
     passages_text = "\n\n".join(
-        f"[{i+1}] [{c.source_file}] (score: {c.rerank_score or c.dense_score:.3f})\n{c.text}"
+        f"[{i + 1}] [{c.source_file}] (score: {c.rerank_score or c.dense_score:.3f})\n{c.text}"
         for i, c in enumerate(chunks[:20])  # Cap at 20 passages
     )
 
@@ -619,10 +626,13 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
     if llm is None or not chunks:
         # No LLM or no chunks — return with computed confidence only
         answer_text = (
-            f"Based on {len(chunks)} retrieved passage(s), here is what I found "
-            f"regarding: \"{state['sub_question']}\"\n\n"
-            + "\n".join(f"- {c.text[:200]}..." for c in chunks[:5])
-        ) if chunks else f"No passages found for: \"{state['sub_question']}\""
+            (
+                f"Based on {len(chunks)} retrieved passage(s), here is what I found "
+                f'regarding: "{state["sub_question"]}"\n\n' + "\n".join(f"- {c.text[:200]}..." for c in chunks[:5])
+            )
+            if chunks
+            else f'No passages found for: "{state["sub_question"]}"'
+        )
 
         citations = _build_citations(chunks, answer_text)
         _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
@@ -634,28 +644,30 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
                 **_prior,
                 "answer_generation": {"duration_ms": _duration_ms},
             },
-            "sub_answers": [SubAnswer(
-                sub_question=state["sub_question"],
-                answer=answer_text,
-                citations=citations,
-                chunks=chunks,
-                confidence_score=int(confidence * 100),
-            )],
+            "sub_answers": [
+                SubAnswer(
+                    sub_question=state["sub_question"],
+                    answer=answer_text,
+                    citations=citations,
+                    chunks=chunks,
+                    confidence_score=int(confidence * 100),
+                )
+            ],
         }
 
     try:
-        response = await llm.ainvoke([
-            SystemMessage(content=COLLECT_ANSWER_SYSTEM.format(passages=passages_text)),
-            HumanMessage(content=f"Sub-question: {state['sub_question']}"),
-        ])
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=COLLECT_ANSWER_SYSTEM.format(passages=passages_text)),
+                HumanMessage(content=f"Sub-question: {state['sub_question']}"),
+            ]
+        )
         answer_text = response.content
     except Exception as exc:
         log.warning("agent_collect_answer_llm_failed", error=type(exc).__name__)
         # Fallback: summarize chunks directly
-        answer_text = (
-            f"Based on {len(chunks)} retrieved passage(s) for "
-            f"\"{state['sub_question']}\":\n\n"
-            + "\n".join(f"- {c.text[:200]}..." for c in chunks[:5])
+        answer_text = f'Based on {len(chunks)} retrieved passage(s) for "{state["sub_question"]}":\n\n' + "\n".join(
+            f"- {c.text[:200]}..." for c in chunks[:5]
         )
 
     citations = _build_citations(chunks, answer_text)
@@ -689,13 +701,15 @@ async def collect_answer(state: ResearchState, config: RunnableConfig = None, *,
             **_prior,
             "answer_generation": {"duration_ms": _duration_ms},
         },
-        "sub_answers": [SubAnswer(
-            sub_question=state["sub_question"],
-            answer=answer_text,
-            citations=citations,
-            chunks=chunks,
-            confidence_score=int(confidence * 100),
-        )],
+        "sub_answers": [
+            SubAnswer(
+                sub_question=state["sub_question"],
+                answer=answer_text,
+                citations=citations,
+                chunks=chunks,
+                confidence_score=int(confidence * 100),
+            )
+        ],
     }
 
 
@@ -717,29 +731,34 @@ async def fallback_response(state: ResearchState) -> dict:
         answer = (
             f"I searched {len(collections_searched)} collection(s) and found "
             f"{chunk_count} passage(s), but none were sufficiently relevant to "
-            f"answer: \"{state['sub_question']}\". The documents may not cover "
+            f'answer: "{state["sub_question"]}". The documents may not cover '
             f"this specific topic in enough detail."
         )
     else:
         answer = (
             f"I could not find any relevant information to answer: "
-            f"\"{state['sub_question']}\". The indexed documents may not "
+            f'"{state["sub_question"]}". The indexed documents may not '
             f"cover this topic."
         )
 
-    log.info("agent_fallback_triggered", chunk_count=chunk_count,
-             collections_searched=collections_searched,
-             iterations=state["iteration_count"],
-             tool_calls=state["tool_call_count"])
+    log.info(
+        "agent_fallback_triggered",
+        chunk_count=chunk_count,
+        collections_searched=collections_searched,
+        iterations=state["iteration_count"],
+        tool_calls=state["tool_call_count"],
+    )
 
     return {
         "citations": [],
         "confidence_score": 0,  # spec-26: FR-003 BUG-010 unify int 0-100
-        "sub_answers": [SubAnswer(
-            sub_question=state["sub_question"],
-            answer=answer,
-            citations=[],
-            chunks=[],
-            confidence_score=0,
-        )],
+        "sub_answers": [
+            SubAnswer(
+                sub_question=state["sub_question"],
+                answer=answer,
+                citations=[],
+                chunks=[],
+                confidence_score=0,
+            )
+        ],
     }

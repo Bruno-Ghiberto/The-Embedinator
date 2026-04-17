@@ -149,9 +149,7 @@ class SQLiteDB:
             ("config_json", "TEXT"),
         ]:
             if col not in columns:
-                await self.db.execute(
-                    f"ALTER TABLE providers ADD COLUMN {col} {col_def}"
-                )
+                await self.db.execute(f"ALTER TABLE providers ADD COLUMN {col} {col_def}")
         await self.db.commit()
 
     async def _migrate_query_traces_columns(self) -> None:
@@ -159,13 +157,9 @@ class SQLiteDB:
         cursor = await self.db.execute("PRAGMA table_info(query_traces)")
         columns = {row[1] for row in await cursor.fetchall()}
         if "provider_name" not in columns:
-            await self.db.execute(
-                "ALTER TABLE query_traces ADD COLUMN provider_name TEXT"
-            )
+            await self.db.execute("ALTER TABLE query_traces ADD COLUMN provider_name TEXT")
         if "stage_timings_json" not in columns:
-            await self.db.execute(
-                "ALTER TABLE query_traces ADD COLUMN stage_timings_json TEXT"
-            )
+            await self.db.execute("ALTER TABLE query_traces ADD COLUMN stage_timings_json TEXT")
         await self.db.commit()
 
     # ── Collections ───────────────────────────────────────────────
@@ -428,9 +422,7 @@ class SQLiteDB:
         return [dict(r) for r in rows]
 
     async def delete_parent_chunks(self, document_id: str) -> None:
-        await self.db.execute(
-            "DELETE FROM parent_chunks WHERE document_id = ?", (document_id,)
-        )
+        await self.db.execute("DELETE FROM parent_chunks WHERE document_id = ?", (document_id,))
         await self.db.commit()
 
     # ── Query Traces ──────────────────────────────────────────────
@@ -462,10 +454,22 @@ class SQLiteDB:
                 confidence_score, provider_name, stage_timings_json, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                id, session_id, query, sub_questions_json, collections_searched,
-                chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,
-                int(meta_reasoning_triggered), latency_ms, llm_model, embed_model,
-                confidence_score, provider_name, stage_timings_json, now,
+                id,
+                session_id,
+                query,
+                sub_questions_json,
+                collections_searched,
+                chunks_retrieved_json,
+                reasoning_steps_json,
+                strategy_switches_json,
+                int(meta_reasoning_triggered),
+                latency_ms,
+                llm_model,
+                embed_model,
+                confidence_score,
+                provider_name,
+                stage_timings_json,
+                now,
             ),
         )
         await self.db.commit()
@@ -539,8 +543,9 @@ class SQLiteDB:
         if raw:
             try:
                 import json as _json
+
                 d["stage_timings"] = _json.loads(raw)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 d["stage_timings"] = {}
         else:
             d["stage_timings"] = {}
@@ -567,9 +572,7 @@ class SQLiteDB:
     # ── Settings ──────────────────────────────────────────────────
 
     async def get_setting(self, key: str) -> str | None:
-        cursor = await self.db.execute(
-            "SELECT value FROM settings WHERE key = ?", (key,)
-        )
+        cursor = await self.db.execute("SELECT value FROM settings WHERE key = ?", (key,))
         row = await cursor.fetchone()
         return row["value"] if row else None
 
@@ -619,9 +622,7 @@ class SQLiteDB:
         return result
 
     async def list_providers(self) -> list[dict]:
-        cursor = await self.db.execute(
-            "SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers"
-        )
+        cursor = await self.db.execute("SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers")
         rows = await cursor.fetchall()
         results = []
         for r in rows:
@@ -684,9 +685,7 @@ class SQLiteDB:
     ) -> None:
         """Insert or replace a provider record."""
         if is_active:
-            await self.db.execute(
-                "UPDATE providers SET is_active = 0 WHERE name != ?", (name,)
-            )
+            await self.db.execute("UPDATE providers SET is_active = 0 WHERE name != ?", (name,))
         await self.db.execute(
             """INSERT OR REPLACE INTO providers
                (name, provider_type, config_json, is_active)
