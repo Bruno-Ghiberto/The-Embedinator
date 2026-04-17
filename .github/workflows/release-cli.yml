@@ -24,6 +24,7 @@ jobs:
   # ---------------------------------------------------------------------------
 
   ci:
+    timeout-minutes: 60
     uses: ./.github/workflows/_ci-core.yml
     permissions: inherit
 

@@ -20,5 +20,8 @@ concurrency:
 
 jobs:
   ci:
+    # Caller-side timeout caps the full reusable-workflow invocation.
+    # Inner jobs have their own per-job timeouts in _ci-core.yml.
+    timeout-minutes: 60
     uses: ./.github/workflows/_ci-core.yml
     permissions: inherit
