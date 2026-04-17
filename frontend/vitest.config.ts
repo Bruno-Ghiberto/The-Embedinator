@@ -12,11 +12,16 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/e2e/**"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "lcov"],
       thresholds: {
         lines: 70,
+        branches: 70,
+        functions: 70,
+        statements: 70,
+        autoUpdate: false,  // gate, not ratchet — never auto-raise/lower
       },
       include: ["lib/**", "hooks/**", "components/**"],
+      exclude: ["**/*.config.ts", "**/*.d.ts", "node_modules/**"],
     },
   },
   resolve: {
