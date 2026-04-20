@@ -108,10 +108,12 @@ async def test_non_pdf_skips_magic_check():
     checker_mock.check_change = AsyncMock(return_value=(False, None))
 
     transport = ASGITransport(app=app)
-    with patch("backend.api.ingest.IncrementalChecker", return_value=checker_mock), \
-         patch("backend.api.ingest.IncrementalChecker.compute_file_hash", return_value="abc123"), \
-         patch("backend.api.ingest.IngestionPipeline"), \
-         patch("asyncio.create_task"):
+    with (
+        patch("backend.api.ingest.IncrementalChecker", return_value=checker_mock),
+        patch("backend.api.ingest.IncrementalChecker.compute_file_hash", return_value="abc123"),
+        patch("backend.api.ingest.IngestionPipeline"),
+        patch("asyncio.create_task"),
+    ):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             md_file = io.BytesIO(b"AAAA random bytes in a markdown file")
             response = await client.post(

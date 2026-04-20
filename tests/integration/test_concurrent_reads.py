@@ -5,6 +5,7 @@ without blocking and that writers don't starve readers.
 
 All tests use file-based SQLite (WAL mode requires a real file).
 """
+
 from __future__ import annotations
 
 import asyncio

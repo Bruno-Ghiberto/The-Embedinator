@@ -36,11 +36,13 @@ class TestFilterKeyWhitelist:
 
     def test_mixed_keys_keep_known_only(self, searcher):
         """Mixed known+unknown filters only keep known keys."""
-        result = searcher._build_filter({
-            "doc_type": "Prose",
-            "evil_field": "hack",
-            "source_file": "readme.md",
-        })
+        result = searcher._build_filter(
+            {
+                "doc_type": "Prose",
+                "evil_field": "hack",
+                "source_file": "readme.md",
+            }
+        )
         assert result is not None
         assert len(result.must) == 2
         keys = {c.key for c in result.must}
@@ -48,19 +50,23 @@ class TestFilterKeyWhitelist:
 
     def test_all_unknown_returns_none(self, searcher):
         """All-unknown filters return None (unfiltered results)."""
-        result = searcher._build_filter({
-            "unknown1": "a",
-            "unknown2": "b",
-        })
+        result = searcher._build_filter(
+            {
+                "unknown1": "a",
+                "unknown2": "b",
+            }
+        )
         assert result is None
 
     def test_all_allowed_keys_accepted(self, searcher):
         """All 4 allowed keys pass through."""
-        result = searcher._build_filter({
-            "doc_type": "Code",
-            "source_file": "main.py",
-            "page": 1,
-            "chunk_index": 0,
-        })
+        result = searcher._build_filter(
+            {
+                "doc_type": "Code",
+                "source_file": "main.py",
+                "page": 1,
+                "chunk_index": 0,
+            }
+        )
         assert result is not None
         assert len(result.must) == 4

@@ -49,9 +49,7 @@ class TestProviderRegistryFlow:
         async with SQLiteDB(":memory:") as db:
             registry = ProviderRegistry(Settings())
             await registry.initialize(db)
-            await registry.set_active_provider(
-                db, "openrouter", {"api_key": "sk-test", "model": "openai/gpt-4o-mini"}
-            )
+            await registry.set_active_provider(db, "openrouter", {"api_key": "sk-test", "model": "openai/gpt-4o-mini"})
             llm = await registry.get_active_llm(db)
 
         assert isinstance(llm, OpenRouterLLMProvider)
@@ -70,9 +68,7 @@ class TestProviderRegistryFlow:
         async with SQLiteDB(":memory:") as db:
             registry = ProviderRegistry(Settings())
             await registry.initialize(db)
-            await registry.set_active_provider(
-                db, "openrouter", {"api_key": "sk-test", "model": "openai/gpt-4o-mini"}
-            )
+            await registry.set_active_provider(db, "openrouter", {"api_key": "sk-test", "model": "openai/gpt-4o-mini"})
             active = await db.get_active_provider()
 
         assert active is not None

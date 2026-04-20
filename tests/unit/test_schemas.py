@@ -65,14 +65,22 @@ def test_confidence_score_bounds():
 
     with pytest.raises(ValidationError):
         AnswerResponse(
-            id="ans-1", query_id="q-1", answer_text="test",
-            citations=[], confidence_score=101, generated_at="2026-03-10T00:00:00Z",
+            id="ans-1",
+            query_id="q-1",
+            answer_text="test",
+            citations=[],
+            confidence_score=101,
+            generated_at="2026-03-10T00:00:00Z",
         )
 
     with pytest.raises(ValidationError):
         AnswerResponse(
-            id="ans-1", query_id="q-1", answer_text="test",
-            citations=[], confidence_score=-1, generated_at="2026-03-10T00:00:00Z",
+            id="ans-1",
+            query_id="q-1",
+            answer_text="test",
+            citations=[],
+            confidence_score=-1,
+            generated_at="2026-03-10T00:00:00Z",
         )
 
 
@@ -105,8 +113,12 @@ def test_trace_response_serialization():
 def test_passage_source_removed_default():
     """Verify source_removed defaults to False."""
     p = Passage(
-        id="p-1", document_id="d-1", document_name="test.pdf",
-        text="content", relevance_score=0.8, chunk_index=0,
+        id="p-1",
+        document_id="d-1",
+        document_name="test.pdf",
+        text="content",
+        relevance_score=0.8,
+        chunk_index=0,
     )
     assert p.source_removed is False
 

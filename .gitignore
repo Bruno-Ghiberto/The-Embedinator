@@ -56,6 +56,9 @@ node_modules/
 out/
 frontend/.next/
 frontend/node_modules/
+# TypeScript incremental build output — transient, never commit
+tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
 
 # Docker
 *.log*

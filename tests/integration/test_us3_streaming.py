@@ -24,17 +24,19 @@ def streaming_app(tmp_path):
     mock_qdrant = AsyncMock()
     mock_qdrant.connect = AsyncMock()
     mock_qdrant.close = AsyncMock()
-    mock_qdrant.search = AsyncMock(return_value=[
-        {
-            "id": "chunk-1",
-            "score": 0.85,
-            "payload": {
-                "document_id": "doc-test",
-                "text": "Test passage content.",
-                "chunk_index": 0,
-            },
-        }
-    ])
+    mock_qdrant.search = AsyncMock(
+        return_value=[
+            {
+                "id": "chunk-1",
+                "score": 0.85,
+                "payload": {
+                    "document_id": "doc-test",
+                    "text": "Test passage content.",
+                    "chunk_index": 0,
+                },
+            }
+        ]
+    )
 
     mock_embed = AsyncMock()
     mock_embed.embed_single = AsyncMock(return_value=[0.1] * 768)
@@ -53,18 +55,21 @@ def streaming_app(tmp_path):
     mock_registry.get_embedding_provider = AsyncMock(return_value=mock_embed)
     mock_registry.get_active_llm = AsyncMock(return_value=mock_llm)
 
-    with patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant), \
-         patch("backend.main.ProviderRegistry", return_value=mock_registry), \
-         patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls:
-
+    with (
+        patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant),
+        patch("backend.main.ProviderRegistry", return_value=mock_registry),
+        patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls,
+    ):
         mock_saver_cls.from_conn_string.return_value = mock_checkpointer
 
         from backend.main import create_app
+
         app = create_app()
 
         with TestClient(app) as client:
             # Set up a simple mock graph (no LLM dependencies)
             from tests.mocks import build_simple_chat_graph
+
             app.state._conversation_graph = build_simple_chat_graph()
 
             # Pre-create a collection

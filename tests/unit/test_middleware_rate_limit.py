@@ -54,26 +54,17 @@ class TestCategoryDetection:
 
     def test_ingest_bucket_and_limit(self):
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/collections/xyz/ingest", "POST", "1.2.3.4")
-            == "ingest:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/collections/xyz/ingest", "POST", "1.2.3.4") == "ingest:1.2.3.4"
         assert mw._get_limit("/api/collections/xyz/ingest", "POST") == 10
 
     def test_provider_key_put_bucket_and_limit(self):
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/providers/openai/key", "PUT", "1.2.3.4")
-            == "provider_key:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/providers/openai/key", "PUT", "1.2.3.4") == "provider_key:1.2.3.4"
         assert mw._get_limit("/api/providers/openai/key", "PUT") == 5
 
     def test_provider_key_delete_bucket_and_limit(self):
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/providers/openai/key", "DELETE", "1.2.3.4")
-            == "provider_key:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/providers/openai/key", "DELETE", "1.2.3.4") == "provider_key:1.2.3.4"
         assert mw._get_limit("/api/providers/openai/key", "DELETE") == 5
 
     def test_provider_key_various_names(self):
@@ -85,26 +76,19 @@ class TestCategoryDetection:
 
     def test_general_bucket_and_limit(self):
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/collections", "GET", "1.2.3.4") == "general:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/collections", "GET", "1.2.3.4") == "general:1.2.3.4"
         assert mw._get_limit("/api/collections", "GET") == 120
 
     def test_general_for_non_matching_post(self):
         """POST to a non-chat, non-ingest path → general bucket."""
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/documents", "POST", "1.2.3.4") == "general:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/documents", "POST", "1.2.3.4") == "general:1.2.3.4"
         assert mw._get_limit("/api/documents", "POST") == 120
 
     def test_get_on_provider_key_is_general(self):
         """GET /api/providers/openai/key → general (only PUT/DELETE are limited)."""
         mw = RateLimitMiddleware(None)
-        assert (
-            mw._get_bucket("/api/providers/openai/key", "GET", "1.2.3.4")
-            == "general:1.2.3.4"
-        )
+        assert mw._get_bucket("/api/providers/openai/key", "GET", "1.2.3.4") == "general:1.2.3.4"
         assert mw._get_limit("/api/providers/openai/key", "GET") == 120
 
 

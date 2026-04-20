@@ -1,4 +1,5 @@
 """Trace context propagation tests -- Spec-15 observability."""
+
 import asyncio
 import json
 import uuid
@@ -43,6 +44,7 @@ def test_json_lines_format(capsys):
 # ---------------------------------------------------------------------------
 # T013 — TraceIDMiddleware binds trace_id to structlog contextvars
 # ---------------------------------------------------------------------------
+
 
 def test_middleware_binds_trace_id():
     """T013/FR-001: TraceIDMiddleware.dispatch() must call
@@ -99,6 +101,7 @@ def test_middleware_binds_trace_id():
 # T014 — Concurrent requests produce isolated trace IDs (SC-002)
 # ---------------------------------------------------------------------------
 
+
 def test_concurrent_request_trace_isolation():
     """T014/SC-002: Two concurrent requests must get independent trace IDs
     with no cross-contamination of structlog contextvars."""
@@ -136,6 +139,7 @@ def test_concurrent_request_trace_isolation():
 # T015 — session_id is bound to structlog contextvars during chat (FR-002)
 # ---------------------------------------------------------------------------
 
+
 def test_session_id_bound_in_chat():
     """T015/FR-002: chat endpoint must call
     structlog.contextvars.bind_contextvars(session_id=...) after extracting
@@ -167,14 +171,18 @@ def test_session_id_bound_in_chat():
         yield  # make it an async generator
 
     mock_graph.astream = _fake_astream
-    mock_graph.get_state = MagicMock(return_value=MagicMock(values={
-        "citations": [],
-        "attempted_strategies": None,
-        "confidence_score": 50,
-        "groundedness_result": None,
-        "stage_timings": {},
-        "sub_questions": [],
-    }))
+    mock_graph.get_state = MagicMock(
+        return_value=MagicMock(
+            values={
+                "citations": [],
+                "attempted_strategies": None,
+                "confidence_score": 50,
+                "groundedness_result": None,
+                "stage_timings": {},
+                "sub_questions": [],
+            }
+        )
+    )
     mini_app.state._conversation_graph = mock_graph
 
     mini_app.include_router(chat_module.router)
@@ -192,16 +200,14 @@ def test_session_id_bound_in_chat():
 
     # session_id must have been bound to contextvars
     session_binds = [c for c in bound_calls if "session_id" in c]
-    assert len(session_binds) >= 1, (
-        f"bind_contextvars(session_id=...) was never called. "
-        f"Calls captured: {bound_calls}"
-    )
+    assert len(session_binds) >= 1, f"bind_contextvars(session_id=...) was never called. Calls captured: {bound_calls}"
     assert session_binds[0]["session_id"] == "test-session-abc"
 
 
 # ---------------------------------------------------------------------------
 # T016 — IngestionPipeline.ingest_file() generates + binds trace_id (FR-014)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_ingest_file_generates_trace_id():
@@ -242,7 +248,7 @@ async def test_ingest_file_generates_trace_id():
         patch("structlog.contextvars.clear_contextvars", side_effect=capturing_clear),
         patch.object(pipeline, "_spawn_worker", new=AsyncMock(return_value=mock_proc)),
     ):
-        result = await pipeline.ingest_file(
+        await pipeline.ingest_file(
             file_path="/tmp/test.pdf",
             filename="test.pdf",
             collection_id="col-1",
@@ -253,9 +259,7 @@ async def test_ingest_file_generates_trace_id():
 
     # bind_contextvars must have been called with trace_id
     trace_binds = [c for c in bind_calls if "trace_id" in c]
-    assert len(trace_binds) >= 1, (
-        f"bind_contextvars(trace_id=...) was never called. Calls: {bind_calls}"
-    )
+    assert len(trace_binds) >= 1, f"bind_contextvars(trace_id=...) was never called. Calls: {bind_calls}"
     # The trace_id must be a valid UUID
     uuid.UUID(trace_binds[0]["trace_id"])
 

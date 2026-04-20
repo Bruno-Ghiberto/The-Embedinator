@@ -33,9 +33,7 @@ def _make_payload(text: str, collection_name: str) -> dict:
     }
 
 
-async def _seed_collection(
-    storage: QdrantStorage, name: str, vector_size: int = 384
-) -> None:
+async def _seed_collection(storage: QdrantStorage, name: str, vector_size: int = 384) -> None:
     """Create a collection and seed it with 3 known vectors.
 
     Vector for point id=1 is [1.0, 1.0, ...] — the "known-relevant" document.
@@ -89,9 +87,7 @@ async def test_known_relevant_document_appears_in_top_results():
         )
         assert len(results) >= 1
         result_ids = [str(r.id) for r in results]
-        assert "1" in result_ids, (
-            f"Known-relevant document (id=1) not in top-3, got: {result_ids}"
-        )
+        assert "1" in result_ids, f"Known-relevant document (id=1) not in top-3, got: {result_ids}"
     finally:
         await storage.delete_collection(name)
 
@@ -135,9 +131,7 @@ async def test_hybrid_search_returns_results_in_correct_ranking_order():
         )
         assert len(results) > 0
         scores = [r.score for r in results]
-        assert scores == sorted(scores, reverse=True), (
-            "Hybrid search results must be sorted by descending score"
-        )
+        assert scores == sorted(scores, reverse=True), "Hybrid search results must be sorted by descending score"
     finally:
         await storage.delete_collection(name)
 

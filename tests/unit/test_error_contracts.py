@@ -5,6 +5,7 @@ These tests perform static introspection -- they verify the error hierarchy,
 Pydantic models, and config field contracts WITHOUT starting a server.
 Tests must remain green after any refactor of error handling code.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -37,15 +38,16 @@ class TestErrorHierarchy:
 
     def test_all_required_classes_exist(self):
         import backend.errors as errors_module
+
         for name in self.REQUIRED_SUBCLASS_NAMES:
             assert hasattr(errors_module, name), f"Missing class: {name}"
 
     def test_no_extra_classes_in_errors_module(self):
         import backend.errors as errors_module
+
         members = inspect.getmembers(errors_module, inspect.isclass)
         exception_classes = [
-            cls for _, cls in members
-            if issubclass(cls, Exception) and cls.__module__ == errors_module.__name__
+            cls for _, cls in members if issubclass(cls, Exception) and cls.__module__ == errors_module.__name__
         ]
         assert len(exception_classes) == 12, (
             f"Expected 12 exception classes (1 base + 11 subclasses), "
@@ -58,22 +60,21 @@ class TestErrorHierarchy:
     def test_all_subclasses_extend_embedinator_error_directly(self):
         """No intermediate base classes -- flat hierarchy."""
         import backend.errors as errors_module
+
         for name in self.REQUIRED_SUBCLASS_NAMES:
             cls = getattr(errors_module, name)
             assert EmbeddinatorError in cls.__bases__, (
-                f"{name} does not directly extend EmbeddinatorError "
-                f"(bases: {cls.__bases__})"
+                f"{name} does not directly extend EmbeddinatorError (bases: {cls.__bases__})"
             )
 
     def test_embedinator_error_has_no_custom_init(self):
         """EmbeddinatorError.__init__ must not be overridden."""
-        assert EmbeddinatorError.__init__ is Exception.__init__, (
-            "EmbeddinatorError must not override __init__"
-        )
+        assert EmbeddinatorError.__init__ is Exception.__init__, "EmbeddinatorError must not override __init__"
 
     def test_exception_classes_are_instantiable_with_string(self):
         """All subclasses can be created with a plain string message."""
         import backend.errors as errors_module
+
         for name in self.REQUIRED_SUBCLASS_NAMES:
             cls = getattr(errors_module, name)
             if name == "UnsupportedModelError":
@@ -89,6 +90,7 @@ class TestProviderRateLimitError:
 
     def test_lives_in_providers_base(self):
         import backend.providers.base as providers_base
+
         assert hasattr(providers_base, "ProviderRateLimitError")
 
     def test_extends_exception_not_embedinator_error(self):

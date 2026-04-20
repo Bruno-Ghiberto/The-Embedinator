@@ -134,6 +134,7 @@ class TestCreateCollection:
         """Duplicate name returns 409 COLLECTION_NAME_CONFLICT."""
         db = AsyncMock()
         from aiosqlite import IntegrityError
+
         db.get_collection_by_name.return_value = _make_collection(name="existing")
         db.create_collection.side_effect = IntegrityError("UNIQUE constraint failed")
         app = _make_app(db=db)

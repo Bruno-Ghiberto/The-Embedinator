@@ -181,9 +181,7 @@ class TestFullRagPath:
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
 
-        result = await graph.ainvoke(
-            _initial_state("What is the capital of France?"), config
-        )
+        result = await graph.ainvoke(_initial_state("What is the capital of France?"), config)
 
         assert result["final_response"] is not None
         assert len(result["final_response"]) > 0
@@ -194,9 +192,7 @@ class TestFullRagPath:
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
 
-        result = await graph.ainvoke(
-            _initial_state("Explain the RAG architecture"), config
-        )
+        result = await graph.ainvoke(_initial_state("Explain the RAG architecture"), config)
 
         assert isinstance(result["confidence_score"], int)
         assert 0 <= result["confidence_score"] <= 100
@@ -207,9 +203,7 @@ class TestFullRagPath:
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
 
-        result = await graph.ainvoke(
-            _initial_state("How does vector search work?"), config
-        )
+        result = await graph.ainvoke(_initial_state("How does vector search work?"), config)
 
         assert isinstance(result["citations"], list)
         assert len(result["citations"]) > 0
@@ -223,9 +217,7 @@ class TestFullRagPath:
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
 
-        result = await graph.ainvoke(
-            _initial_state("What is embedding?"), config
-        )
+        result = await graph.ainvoke(_initial_state("What is embedding?"), config)
 
         assert result["intent"] == "rag_query"
 
@@ -262,16 +254,12 @@ class TestSessionContinuity:
             from backend.agent.conversation_graph import build_conversation_graph
 
             checkpointer = MemorySaver()
-            graph = build_conversation_graph(
-                research_graph=mock_research, checkpointer=checkpointer
-            )
+            graph = build_conversation_graph(research_graph=mock_research, checkpointer=checkpointer)
 
         # First invocation
         tid1 = _thread_id()
         config1 = {"configurable": {"thread_id": tid1}}
-        state1 = _initial_state(
-            "What is the capital of France?", session_id=session_id
-        )
+        state1 = _initial_state("What is the capital of France?", session_id=session_id)
         await graph.ainvoke(state1, config1)
 
         # Store messages from first run for session continuity
@@ -288,15 +276,9 @@ class TestSessionContinuity:
         messages = final2.get("messages", [])
 
         # Verify both questions are in the message history
-        texts = [
-            m.content for m in messages if hasattr(m, "content")
-        ]
-        assert any("France" in t for t in texts), (
-            f"First question not found in messages: {texts}"
-        )
-        assert any("Germany" in t for t in texts), (
-            f"Follow-up question not found in messages: {texts}"
-        )
+        texts = [m.content for m in messages if hasattr(m, "content")]
+        assert any("France" in t for t in texts), f"First question not found in messages: {texts}"
+        assert any("Germany" in t for t in texts), f"Follow-up question not found in messages: {texts}"
         assert len(messages) >= 2
 
 
@@ -340,9 +322,7 @@ class TestClarificationInterrupt:
                 )
             }
 
-        graph = _build_clarification_graph(
-            mock_research, rewrite_unclear_then_clear
-        )
+        graph = _build_clarification_graph(mock_research, rewrite_unclear_then_clear)
 
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
@@ -356,9 +336,7 @@ class TestClarificationInterrupt:
         assert graph_state.next, "Graph should be paused at an interrupt"
 
         # Resume with user clarification
-        result = await graph.ainvoke(
-            Command(resume="I meant the REST API docs"), config
-        )
+        result = await graph.ainvoke(Command(resume="I meant the REST API docs"), config)
 
         # Verify graph completed with an answer
         assert result.get("final_response") is not None
@@ -366,9 +344,7 @@ class TestClarificationInterrupt:
 
         # Verify the clarification response was incorporated into messages
         messages = result.get("messages", [])
-        msg_texts = [
-            m.content for m in messages if hasattr(m, "content")
-        ]
+        msg_texts = [m.content for m in messages if hasattr(m, "content")]
         assert any("REST API docs" in t for t in msg_texts), (
             f"Clarification response should be in messages: {msg_texts}"
         )
@@ -388,9 +364,7 @@ class TestClarificationInterrupt:
                 )
             }
 
-        graph = _build_clarification_graph(
-            mock_research, rewrite_always_unclear
-        )
+        graph = _build_clarification_graph(mock_research, rewrite_always_unclear)
 
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
@@ -436,9 +410,7 @@ class TestTwoRoundClarificationCap:
                 )
             }
 
-        graph = _build_clarification_graph(
-            mock_research, rewrite_always_unclear
-        )
+        graph = _build_clarification_graph(mock_research, rewrite_always_unclear)
 
         tid = _thread_id()
         config = {"configurable": {"thread_id": tid}}
@@ -450,18 +422,14 @@ class TestTwoRoundClarificationCap:
         assert gs1.next, "Should be paused after first clarification"
 
         # Resume with still-ambiguous response (round 1 → iteration_count = 1)
-        await graph.ainvoke(
-            Command(resume="Still not clear enough"), config
-        )
+        await graph.ainvoke(Command(resume="Still not clear enough"), config)
         gs2 = graph.get_state(config)
         assert gs2.next, "Should be paused after second clarification"
 
         # Resume again (round 2 → iteration_count = 2)
         # This time should_clarify returns False (cap reached),
         # graph proceeds to fan_out → research → aggregate → ... → END
-        result = await graph.ainvoke(
-            Command(resume="Best effort answer please"), config
-        )
+        result = await graph.ainvoke(Command(resume="Best effort answer please"), config)
 
         # Graph should complete — no more interrupts
         gs3 = graph.get_state(config)
@@ -472,9 +440,7 @@ class TestTwoRoundClarificationCap:
 
         # Verify both clarification responses are in messages
         messages = result.get("messages", [])
-        msg_texts = [
-            m.content for m in messages if hasattr(m, "content")
-        ]
+        msg_texts = [m.content for m in messages if hasattr(m, "content")]
         assert any("Still not clear enough" in t for t in msg_texts), (
             f"First clarification response should be in messages: {msg_texts}"
         )
@@ -514,9 +480,7 @@ class TestChatEndpointNDJSON:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={
@@ -535,7 +499,6 @@ class TestChatEndpointNDJSON:
         assert len(frames) >= 1
 
         # Separate frame types
-        chunk_frames = [f for f in frames if f["type"] == "chunk"]
         done_frames = [f for f in frames if f["type"] == "done"]
 
         # Done frame must exist and be last
@@ -547,9 +510,7 @@ class TestChatEndpointNDJSON:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={
@@ -575,9 +536,7 @@ class TestChatEndpointNDJSON:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={
@@ -616,9 +575,7 @@ class TestErrorPaths:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={
@@ -635,9 +592,7 @@ class TestErrorPaths:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={"collection_ids": ["coll-1"]},
@@ -651,9 +606,7 @@ class TestErrorPaths:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={
@@ -679,9 +632,7 @@ class TestErrorPaths:
         graph = _build_rag_graph(mock_research)
         app = self._create_test_app(graph)
 
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/chat",
                 json={"message": "What is the capital of France?"},

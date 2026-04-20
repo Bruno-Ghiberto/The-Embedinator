@@ -56,9 +56,7 @@ async def document_id(db: SQLiteDB, collection_id: str) -> str:
 class TestSchema:
     @pytest.mark.asyncio
     async def test_init_schema_creates_all_tables(self, db: SQLiteDB):
-        cursor = await db.db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = await db.db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         rows = await cursor.fetchall()
         tables = {row[0] for row in rows}
         expected = {
@@ -92,9 +90,7 @@ class TestSchema:
         """Calling _init_schema() again should not raise."""
         await db._init_schema()
         await db._init_schema()
-        cursor = await db.db.execute(
-            "SELECT count(*) FROM sqlite_master WHERE type='table'"
-        )
+        cursor = await db.db.execute("SELECT count(*) FROM sqlite_master WHERE type='table'")
         row = await cursor.fetchone()
         assert row[0] >= 7
 
@@ -758,9 +754,7 @@ class TestContextManager:
         async with SQLiteDB(":memory:") as db:
             assert db.db is not None
             # Verify schema was initialized
-            cursor = await db.db.execute(
-                "SELECT count(*) FROM sqlite_master WHERE type='table'"
-            )
+            cursor = await db.db.execute("SELECT count(*) FROM sqlite_master WHERE type='table'")
             row = await cursor.fetchone()
             assert row[0] >= 7
         # After exit, connection should be closed
@@ -805,9 +799,7 @@ class TestSpec10ProviderNameMigration:
             latency_ms=50,
             provider_name="openrouter",
         )
-        cursor = await db.db.execute(
-            "SELECT provider_name FROM query_traces WHERE id = ?", (tid,)
-        )
+        cursor = await db.db.execute("SELECT provider_name FROM query_traces WHERE id = ?", (tid,))
         row = await cursor.fetchone()
         assert row is not None
         assert row[0] == "openrouter"
@@ -827,9 +819,7 @@ class TestSpec10ProviderNameMigration:
             chunks_retrieved_json="[]",
             latency_ms=10,
         )
-        cursor = await db.db.execute(
-            "SELECT provider_name FROM query_traces WHERE id = ?", (tid,)
-        )
+        cursor = await db.db.execute("SELECT provider_name FROM query_traces WHERE id = ?", (tid,))
         row = await cursor.fetchone()
         assert row is not None
         assert row[0] is None  # NULL stored (backward compatible)

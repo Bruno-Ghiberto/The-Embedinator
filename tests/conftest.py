@@ -20,12 +20,8 @@ def _is_docker_qdrant_available() -> bool:
 
 
 def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "e2e: backend Python E2E tests using in-process ASGI"
-    )
-    config.addinivalue_line(
-        "markers", "require_docker: tests requiring Qdrant on localhost:6333"
-    )
+    config.addinivalue_line("markers", "e2e: backend Python E2E tests using in-process ASGI")
+    config.addinivalue_line("markers", "require_docker: tests requiring Qdrant on localhost:6333")
 
 
 def pytest_runtest_setup(item):

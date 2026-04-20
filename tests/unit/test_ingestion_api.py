@@ -194,9 +194,18 @@ class TestIngestEndpoint:
     def test_supported_formats_has_12_types(self):
         """SUPPORTED_FORMATS contains exactly 12 file types."""
         expected = {
-            ".pdf", ".md", ".txt",
-            ".py", ".js", ".ts", ".rs", ".go", ".java",
-            ".c", ".cpp", ".h",
+            ".pdf",
+            ".md",
+            ".txt",
+            ".py",
+            ".js",
+            ".ts",
+            ".rs",
+            ".go",
+            ".java",
+            ".c",
+            ".cpp",
+            ".h",
         }
         assert SUPPORTED_FORMATS == expected
         assert len(SUPPORTED_FORMATS) == 12
@@ -216,20 +225,21 @@ class TestIngestEndpoint:
                     files={"file": (f"test{ext}", io.BytesIO(file_content), mime)},
                 )
 
-            assert response.status_code == 202, (
-                f"Extension {ext} should be accepted but got {response.status_code}"
-            )
+            assert response.status_code == 202, f"Extension {ext} should be accepted but got {response.status_code}"
 
 
 class TestUnsupportedFormats:
     """Verify unsupported file types are rejected with 400 FILE_FORMAT_NOT_SUPPORTED."""
 
-    @pytest.mark.parametrize("filename,mime", [
-        ("archive.zip", "application/zip"),
-        ("spreadsheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-        ("binary.exe", "application/octet-stream"),
-        ("word.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-    ])
+    @pytest.mark.parametrize(
+        "filename,mime",
+        [
+            ("archive.zip", "application/zip"),
+            ("spreadsheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            ("binary.exe", "application/octet-stream"),
+            ("word.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ],
+    )
     def test_unsupported_type_rejected(self, client, filename, mime):
         """Unsupported file types (.zip, .xlsx, .exe, .docx) return 400."""
         response = client.post(
@@ -357,9 +367,7 @@ class TestEdgeCases:
         with patch.object(
             pipeline,
             "_spawn_worker",
-            side_effect=FileNotFoundError(
-                "[Errno 2] No such file or directory: '/nonexistent/worker'"
-            ),
+            side_effect=FileNotFoundError("[Errno 2] No such file or directory: '/nonexistent/worker'"),
         ):
             result = asyncio.run(
                 pipeline.ingest_file(
@@ -387,9 +395,7 @@ class TestEdgeCases:
         error_client = TestClient(app, raise_server_exceptions=False)
 
         mock_db.create_document = AsyncMock(
-            side_effect=sqlite3.IntegrityError(
-                "UNIQUE constraint failed: documents.collection_id, documents.file_hash"
-            )
+            side_effect=sqlite3.IntegrityError("UNIQUE constraint failed: documents.collection_id, documents.file_hash")
         )
 
         with _mock_ingest_deps():

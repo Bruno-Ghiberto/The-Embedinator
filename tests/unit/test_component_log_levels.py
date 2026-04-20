@@ -20,6 +20,7 @@ import structlog
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_filter_by_component(override_map: dict[str, int]):
     """Build a _filter_by_component closure identical to the production one."""
 
@@ -70,6 +71,7 @@ def _configure_test_structlog(override_map: dict[str, int]) -> list[dict]:
 # T034 — No overrides: all events pass through
 # ---------------------------------------------------------------------------
 
+
 class TestNoOverrides:
     """T034: When LOG_LEVEL_OVERRIDES is empty, all events pass through."""
 
@@ -107,6 +109,7 @@ class TestNoOverrides:
 # ---------------------------------------------------------------------------
 # T035 — Override set: level filtering works correctly
 # ---------------------------------------------------------------------------
+
 
 class TestOverrideFiltering:
     """T035: With overrides, events below the override level are dropped."""
@@ -215,6 +218,7 @@ class TestOverrideFiltering:
 # ---------------------------------------------------------------------------
 # T036 — Invalid level in LOG_LEVEL_OVERRIDES: ignored + warning logged
 # ---------------------------------------------------------------------------
+
 
 class TestInvalidLevelOverride:
     """T036: Invalid level strings are ignored and a startup warning is emitted."""

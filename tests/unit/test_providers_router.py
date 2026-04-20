@@ -39,11 +39,13 @@ def _make_app(
 
     # get_provider: "auto" means derive from providers list
     if get_provider_result == "auto":
+
         async def _get_provider(name: str) -> dict | None:
             for p in providers:
                 if p["name"] == name:
                     return p
             return None
+
         db.get_provider = _get_provider
     elif get_provider_result is None:
         db.get_provider = AsyncMock(return_value=None)
@@ -72,9 +74,11 @@ class TestListProviders:
 
     def test_has_key_true_when_encrypted_key_present(self):
         """Provider with api_key_encrypted shows has_key=True."""
-        app = _make_app(providers=[
-            {"name": "openai", "is_active": False, "api_key_encrypted": "enc123", "base_url": None},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "openai", "is_active": False, "api_key_encrypted": "enc123", "base_url": None},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         assert resp.status_code == 200
@@ -85,9 +89,11 @@ class TestListProviders:
 
     def test_has_key_false_when_no_encrypted_key(self):
         """Provider without api_key_encrypted shows has_key=False."""
-        app = _make_app(providers=[
-            {"name": "openai", "is_active": True, "api_key_encrypted": None, "base_url": None},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "openai", "is_active": True, "api_key_encrypted": None, "base_url": None},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         assert resp.status_code == 200
@@ -97,9 +103,11 @@ class TestListProviders:
 
     def test_has_key_false_when_empty_string(self):
         """Provider with empty string api_key_encrypted shows has_key=False."""
-        app = _make_app(providers=[
-            {"name": "openai", "is_active": True, "api_key_encrypted": "", "base_url": None},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "openai", "is_active": True, "api_key_encrypted": "", "base_url": None},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         providers = resp.json()["providers"]
@@ -108,9 +116,11 @@ class TestListProviders:
 
     def test_api_key_never_returned_in_list(self):
         """Response NEVER contains api_key_encrypted or api_key fields."""
-        app = _make_app(providers=[
-            {"name": "openai", "is_active": True, "api_key_encrypted": "secret_enc", "base_url": None},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "openai", "is_active": True, "api_key_encrypted": "secret_enc", "base_url": None},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         body_str = resp.text
@@ -134,9 +144,11 @@ class TestListProviders:
 
     def test_ollama_not_duplicated_if_in_db(self):
         """If Ollama is already in DB, it should not be duplicated."""
-        app = _make_app(providers=[
-            {"name": "ollama", "is_active": True, "api_key_encrypted": None, "base_url": "http://ollama:11434"},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "ollama", "is_active": True, "api_key_encrypted": None, "base_url": "http://ollama:11434"},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         providers = resp.json()["providers"]
@@ -145,11 +157,13 @@ class TestListProviders:
 
     def test_multiple_providers_listed(self):
         """Multiple providers returned correctly."""
-        app = _make_app(providers=[
-            {"name": "ollama", "is_active": True, "api_key_encrypted": None, "base_url": None},
-            {"name": "openai", "is_active": False, "api_key_encrypted": "enc_key", "base_url": None},
-            {"name": "anthropic", "is_active": False, "api_key_encrypted": None, "base_url": None},
-        ])
+        app = _make_app(
+            providers=[
+                {"name": "ollama", "is_active": True, "api_key_encrypted": None, "base_url": None},
+                {"name": "openai", "is_active": False, "api_key_encrypted": "enc_key", "base_url": None},
+                {"name": "anthropic", "is_active": False, "api_key_encrypted": None, "base_url": None},
+            ]
+        )
         client = TestClient(app)
         resp = client.get("/api/providers")
         providers = resp.json()["providers"]
@@ -180,9 +194,7 @@ class TestSaveProviderKey:
         # Verify KeyManager.encrypt was called
         app.state.key_manager.encrypt.assert_called_once_with("sk-test-123")
         # Verify db.update_provider was called with encrypted value
-        app.state.db.update_provider.assert_called_once_with(
-            "openai", api_key_encrypted="encrypted_token_abc"
-        )
+        app.state.db.update_provider.assert_called_once_with("openai", api_key_encrypted="encrypted_token_abc")
 
     def test_put_key_response_never_contains_key_value(self):
         """PUT response NEVER includes the actual key or encrypted value."""
@@ -247,9 +259,7 @@ class TestDeleteProviderKey:
         assert data["has_key"] is False
 
         # Verify db.update_provider was called with empty string to clear
-        app.state.db.update_provider.assert_called_once_with(
-            "openai", api_key_encrypted=""
-        )
+        app.state.db.update_provider.assert_called_once_with("openai", api_key_encrypted="")
 
     def test_delete_key_404_unknown_provider(self):
         """DELETE returns 404 for unknown provider."""
@@ -365,9 +375,7 @@ class TestProviderHealth:
         app = _make_health_app(providers=providers, key_manager=km)
 
         with patch("backend.providers.openrouter.OpenRouterLLMProvider") as MockOpenRouter:
-            MockOpenRouter.return_value.health_check = AsyncMock(
-                side_effect=Exception("network unreachable")
-            )
+            MockOpenRouter.return_value.health_check = AsyncMock(side_effect=Exception("network unreachable"))
             client = TestClient(app)
             resp = client.get("/api/providers/health")
 
@@ -498,5 +506,5 @@ class TestEnrichedLLMModels:
 
         models = resp.json()["models"]
         names = [m["name"] for m in models]
-        assert "openai/gpt-4o-mini" in names          # openrouter has key
+        assert "openai/gpt-4o-mini" in names  # openrouter has key
         assert "claude-sonnet-4-20250514" not in names  # anthropic has no key

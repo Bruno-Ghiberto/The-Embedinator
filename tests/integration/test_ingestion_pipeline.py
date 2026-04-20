@@ -15,7 +15,9 @@ import pytest
 
 from tests.integration.conftest import unique_name
 
-pytestmark = pytest.mark.xfail(reason="Ingestion pipeline integration tests — mock/service boundary issues, pre-existing")
+pytestmark = pytest.mark.xfail(
+    reason="Ingestion pipeline integration tests — mock/service boundary issues, pre-existing"
+)
 
 
 @pytest.fixture
@@ -91,9 +93,7 @@ class TestIngestionIntegration:
     """
 
     @pytest.mark.asyncio
-    async def test_upload_pdf_end_to_end(
-        self, sample_pdf, collection_id, mock_worker_ndjson
-    ):
+    async def test_upload_pdf_end_to_end(self, sample_pdf, collection_id, mock_worker_ndjson):
         """Upload a PDF, verify completed status, chunks in storage.
 
         Flow:
@@ -142,7 +142,8 @@ class TestIngestionIntegration:
         with (
             patch("backend.ingestion.pipeline.subprocess.Popen", return_value=mock_proc),
             patch.object(
-                pipeline.embedder, "embed_chunks",
+                pipeline.embedder,
+                "embed_chunks",
                 new_callable=AsyncMock,
                 return_value=fake_embeddings,
             ),
@@ -185,9 +186,7 @@ class TestIngestionIntegration:
         await db.close()
 
     @pytest.mark.asyncio
-    async def test_worker_failure_partial_output_processed(
-        self, sample_pdf, mock_worker_ndjson
-    ):
+    async def test_worker_failure_partial_output_processed(self, sample_pdf, mock_worker_ndjson):
         """Worker fails mid-stream, received chunks still processed (R4)."""
         from backend.ingestion.pipeline import IngestionPipeline
         from backend.storage.sqlite_db import SQLiteDB
@@ -197,9 +196,7 @@ class TestIngestionIntegration:
 
         collection = await db.create_collection(unique_name("test-partial"))
         coll_id = collection["id"]
-        doc = await db.create_document(
-            filename="partial.pdf", collection_id=coll_id, status="pending"
-        )
+        doc = await db.create_document(filename="partial.pdf", collection_id=coll_id, status="pending")
         job_id = await db.create_ingestion_job(doc["id"])
 
         mock_qdrant = AsyncMock()
@@ -220,7 +217,8 @@ class TestIngestionIntegration:
         with (
             patch("backend.ingestion.pipeline.subprocess.Popen", return_value=mock_proc),
             patch.object(
-                pipeline.embedder, "embed_chunks",
+                pipeline.embedder,
+                "embed_chunks",
                 new_callable=AsyncMock,
                 return_value=fake_embeddings,
             ),
@@ -309,9 +307,7 @@ class TestIncrementalDedup:
         await db.close()
 
     @pytest.mark.asyncio
-    async def test_changed_file_triggers_old_data_deletion(
-        self, tmp_path, mock_worker_ndjson
-    ):
+    async def test_changed_file_triggers_old_data_deletion(self, tmp_path, mock_worker_ndjson):
         """Modify file -> re-upload -> old points deleted, new chunks indexed."""
         from backend.ingestion.incremental import IncrementalChecker
         from backend.ingestion.pipeline import IngestionPipeline
@@ -355,9 +351,7 @@ class TestIncrementalDedup:
         checker = IncrementalChecker(db)
 
         # Check for change: same filename, different hash
-        is_changed, old_doc_id = await checker.check_change(
-            coll_id, "report.pdf", new_hash
-        )
+        is_changed, old_doc_id = await checker.check_change(coll_id, "report.pdf", new_hash)
         assert is_changed is True
         assert old_doc_id == old_doc["id"]
 
@@ -480,9 +474,7 @@ class TestFaultToleranceIntegration:
     """Integration tests for fault tolerance: Qdrant outage -> pause -> resume."""
 
     @pytest.mark.asyncio
-    async def test_qdrant_outage_pause_resume_completes(
-        self, sample_pdf, mock_worker_ndjson
-    ):
+    async def test_qdrant_outage_pause_resume_completes(self, sample_pdf, mock_worker_ndjson):
         """Mock Qdrant unreachable -> job pauses -> restore -> job completes.
 
         Flow:

@@ -170,15 +170,17 @@ class TestCollections:
         coll_id = str(uuid.uuid4())
 
         db.get_collection_by_name = AsyncMock(return_value=None)
-        db.get_collection = AsyncMock(return_value={
-            "id": coll_id,
-            "name": "my-docs",
-            "description": None,
-            "embedding_model": "nomic-embed-text",
-            "chunk_profile": "default",
-            "qdrant_collection_name": f"emb-{coll_id}",
-            "created_at": now,
-        })
+        db.get_collection = AsyncMock(
+            return_value={
+                "id": coll_id,
+                "name": "my-docs",
+                "description": None,
+                "embedding_model": "nomic-embed-text",
+                "chunk_profile": "default",
+                "qdrant_collection_name": f"emb-{coll_id}",
+                "created_at": now,
+            }
+        )
         app = _make_app(db=db)
 
         with TestClient(app) as client:
@@ -196,10 +198,12 @@ class TestCollections:
     def test_duplicate_collection_409(self):
         """POST /api/collections with duplicate name -> 409 COLLECTION_NAME_CONFLICT."""
         db = _mock_db()
-        db.get_collection_by_name = AsyncMock(return_value={
-            "id": str(uuid.uuid4()),
-            "name": "my-docs",
-        })
+        db.get_collection_by_name = AsyncMock(
+            return_value={
+                "id": str(uuid.uuid4()),
+                "name": "my-docs",
+            }
+        )
         app = _make_app(db=db)
 
         with TestClient(app) as client:
@@ -228,11 +232,13 @@ class TestCollections:
         """DELETE /api/collections/{id} -> 204 with cascade."""
         db = _mock_db()
         coll_id = str(uuid.uuid4())
-        db.get_collection = AsyncMock(return_value={
-            "id": coll_id,
-            "name": "to-delete",
-            "qdrant_collection_name": f"emb-{coll_id}",
-        })
+        db.get_collection = AsyncMock(
+            return_value={
+                "id": coll_id,
+                "name": "to-delete",
+                "qdrant_collection_name": f"emb-{coll_id}",
+            }
+        )
         db.list_documents = AsyncMock(return_value=[])
         qdrant_storage = AsyncMock()
         app = _make_app(db=db, qdrant_storage=qdrant_storage)
@@ -248,26 +254,28 @@ class TestCollections:
         """GET /api/collections -> 200 with collections list."""
         db = _mock_db()
         now = "2026-03-15T00:00:00+00:00"
-        db.list_collections = AsyncMock(return_value=[
-            {
-                "id": "c1",
-                "name": "coll-a",
-                "description": None,
-                "embedding_model": "nomic-embed-text",
-                "chunk_profile": "default",
-                "qdrant_collection_name": "emb-c1",
-                "created_at": now,
-            },
-            {
-                "id": "c2",
-                "name": "coll-b",
-                "description": None,
-                "embedding_model": "nomic-embed-text",
-                "chunk_profile": "default",
-                "qdrant_collection_name": "emb-c2",
-                "created_at": now,
-            },
-        ])
+        db.list_collections = AsyncMock(
+            return_value=[
+                {
+                    "id": "c1",
+                    "name": "coll-a",
+                    "description": None,
+                    "embedding_model": "nomic-embed-text",
+                    "chunk_profile": "default",
+                    "qdrant_collection_name": "emb-c1",
+                    "created_at": now,
+                },
+                {
+                    "id": "c2",
+                    "name": "coll-b",
+                    "description": None,
+                    "embedding_model": "nomic-embed-text",
+                    "chunk_profile": "default",
+                    "qdrant_collection_name": "emb-c2",
+                    "created_at": now,
+                },
+            ]
+        )
         db.list_documents = AsyncMock(return_value=[])
         app = _make_app(db=db)
 
@@ -317,12 +325,14 @@ class TestDocuments:
         """DELETE /api/documents/{id} -> 204."""
         db = _mock_db()
         doc_id = str(uuid.uuid4())
-        db.get_document = AsyncMock(return_value={
-            "id": doc_id,
-            "collection_id": "c1",
-            "filename": "test.txt",
-            "status": "completed",
-        })
+        db.get_document = AsyncMock(
+            return_value={
+                "id": doc_id,
+                "collection_id": "c1",
+                "filename": "test.txt",
+                "status": "completed",
+            }
+        )
         app = _make_app(db=db)
 
         with TestClient(app) as client:
@@ -400,9 +410,7 @@ class TestIngestion:
         app = _make_app(db=db)
 
         with TestClient(app) as client:
-            resp = client.get(
-                f"/api/collections/{uuid.uuid4()}/ingest/{uuid.uuid4()}"
-            )
+            resp = client.get(f"/api/collections/{uuid.uuid4()}/ingest/{uuid.uuid4()}")
 
         assert resp.status_code == 404
         body = resp.json()
@@ -485,15 +493,17 @@ class TestProviders:
     def test_list_providers_has_key_bool_no_api_key(self):
         """GET /api/providers -> 200, has_key is bool, no api_key field (FR-018, SC-005)."""
         db = _mock_db()
-        db.list_providers = AsyncMock(return_value=[
-            {
-                "name": "openai",
-                "api_key_encrypted": "gAAAAABf...",
-                "base_url": None,
-                "is_active": False,
-                "created_at": "2026-01-01",
-            },
-        ])
+        db.list_providers = AsyncMock(
+            return_value=[
+                {
+                    "name": "openai",
+                    "api_key_encrypted": "gAAAAABf...",
+                    "base_url": None,
+                    "is_active": False,
+                    "created_at": "2026-01-01",
+                },
+            ]
+        )
         app = _make_app(db=db)
 
         with TestClient(app) as client:
@@ -509,13 +519,15 @@ class TestProviders:
     def test_put_provider_key_200(self):
         """PUT /api/providers/{name}/key -> 200 with {name, has_key: true}."""
         db = _mock_db()
-        db.get_provider = AsyncMock(return_value={
-            "name": "openai",
-            "api_key_encrypted": None,
-            "base_url": None,
-            "is_active": False,
-            "created_at": "2026-01-01",
-        })
+        db.get_provider = AsyncMock(
+            return_value={
+                "name": "openai",
+                "api_key_encrypted": None,
+                "base_url": None,
+                "is_active": False,
+                "created_at": "2026-01-01",
+            }
+        )
         key_manager = MagicMock()
         key_manager.encrypt.return_value = "encrypted-value"
         app = _make_app(db=db, key_manager=key_manager)
@@ -537,13 +549,15 @@ class TestProviders:
     def test_delete_provider_key_200(self):
         """DELETE /api/providers/{name}/key -> 200 with {name, has_key: false}."""
         db = _mock_db()
-        db.get_provider = AsyncMock(return_value={
-            "name": "openai",
-            "api_key_encrypted": "encrypted-val",
-            "base_url": None,
-            "is_active": False,
-            "created_at": "2026-01-01",
-        })
+        db.get_provider = AsyncMock(
+            return_value={
+                "name": "openai",
+                "api_key_encrypted": "encrypted-val",
+                "base_url": None,
+                "is_active": False,
+                "created_at": "2026-01-01",
+            }
+        )
         app = _make_app(db=db)
 
         with TestClient(app) as client:
@@ -557,22 +571,26 @@ class TestProviders:
     def test_provider_key_never_in_any_response(self):
         """Across ALL provider endpoints, api_key_encrypted and api_key never appear."""
         db = _mock_db()
-        db.list_providers = AsyncMock(return_value=[
-            {
+        db.list_providers = AsyncMock(
+            return_value=[
+                {
+                    "name": "openai",
+                    "api_key_encrypted": "gAAAAABf...",
+                    "base_url": None,
+                    "is_active": False,
+                    "created_at": "2026-01-01",
+                },
+            ]
+        )
+        db.get_provider = AsyncMock(
+            return_value={
                 "name": "openai",
                 "api_key_encrypted": "gAAAAABf...",
                 "base_url": None,
                 "is_active": False,
                 "created_at": "2026-01-01",
-            },
-        ])
-        db.get_provider = AsyncMock(return_value={
-            "name": "openai",
-            "api_key_encrypted": "gAAAAABf...",
-            "base_url": None,
-            "is_active": False,
-            "created_at": "2026-01-01",
-        })
+            }
+        )
         key_manager = MagicMock()
         key_manager.encrypt.return_value = "new-encrypted"
         app = _make_app(db=db, key_manager=key_manager)
@@ -704,12 +722,14 @@ class TestTraces:
         db = _mock_db()
         db.list_collections = AsyncMock(return_value=[])
         # Mock the aggregate query for stats
-        stats_row = _MockRow({
-            "total_queries": 0,
-            "avg_confidence": 0.0,
-            "avg_latency_ms": 0.0,
-            "meta_count": 0,
-        })
+        stats_row = _MockRow(
+            {
+                "total_queries": 0,
+                "avg_confidence": 0.0,
+                "avg_latency_ms": 0.0,
+                "meta_count": 0,
+            }
+        )
         stats_cursor = AsyncMock()
         stats_cursor.fetchone = AsyncMock(return_value=stats_row)
         db.db.execute = AsyncMock(return_value=stats_cursor)
@@ -829,6 +849,4 @@ class TestErrorFormat:
                 resp = client.request(method, path)
                 body = resp.json()
                 assert "detail" in body, f"No detail in {method} {path}"
-                assert "trace_id" in body["detail"], (
-                    f"No trace_id in {method} {path} error"
-                )
+                assert "trace_id" in body["detail"], f"No trace_id in {method} {path} error"

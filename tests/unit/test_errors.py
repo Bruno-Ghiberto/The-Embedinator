@@ -3,6 +3,7 @@
 NOTE: ProviderRateLimitError lives in backend.providers.base, NOT here.
 Do not import it from backend.errors.
 """
+
 import importlib
 
 import pytest
@@ -43,9 +44,7 @@ def test_embedinator_error_is_exception():
 def test_all_subclasses_inherit_from_embedinator_error():
     """All 10 subclasses must inherit from EmbeddinatorError."""
     for cls in ALL_SUBCLASSES:
-        assert issubclass(cls, EmbeddinatorError), (
-            f"{cls.__name__} does not inherit from EmbeddinatorError"
-        )
+        assert issubclass(cls, EmbeddinatorError), f"{cls.__name__} does not inherit from EmbeddinatorError"
 
 
 def test_each_subclass_caught_as_base():
@@ -59,9 +58,7 @@ def test_each_exception_has_string_representation():
     """Constructing any class with a message string must embed it in str(exc)."""
     for cls in ALL_SUBCLASSES + [EmbeddinatorError]:
         exc = cls("meaningful error message")
-        assert "meaningful error message" in str(exc), (
-            f"{cls.__name__} did not include message in str()"
-        )
+        assert "meaningful error message" in str(exc), f"{cls.__name__} did not include message in str()"
 
 
 def test_circuit_open_error_raised_without_arguments():
@@ -93,6 +90,4 @@ def test_all_classes_importable_from_backend_errors():
 def test_subclass_is_not_base_class():
     """Each subclass must be distinct from EmbeddinatorError (not the same object)."""
     for cls in ALL_SUBCLASSES:
-        assert cls is not EmbeddinatorError, (
-            f"{cls.__name__} appears to be the same object as EmbeddinatorError"
-        )
+        assert cls is not EmbeddinatorError, f"{cls.__name__} appears to be the same object as EmbeddinatorError"

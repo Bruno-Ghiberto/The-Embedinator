@@ -1,4 +1,5 @@
 """Unit tests for backend.storage.indexing.index_chunks."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 

@@ -317,13 +317,13 @@ Orchestrator:
 
 A1 (Backend):
   Read bug description → Read affected file(s) → Fix → Rebuild container
-  
+
 A2 (Frontend):
   Read bug description → Read affected file(s) → Fix → Rebuild container
 
 A3 (Navigator):
-  Navigate to chat page → Send test query → Wait for response → 
-  Verify: tokens stream? citations display? confidence > 0? 
+  Navigate to chat page → Send test query → Wait for response →
+  Verify: tokens stream? citations display? confidence > 0?
   groundedness shows? → Screenshot → Report PASS/FAIL with evidence
 ```
 
@@ -357,7 +357,7 @@ A3 (Navigator):
 # Spec-25: Master Debug (Agent Teams)
 
 ## Goal
-Make The Embedinator a functional Agentic RAG system. Fix the 7 P1-HIGH 
+Make The Embedinator a functional Agentic RAG system. Fix the 7 P1-HIGH
 bugs blocking core functionality. Verify with automated browser testing.
 
 ## User Stories

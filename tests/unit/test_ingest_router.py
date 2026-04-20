@@ -88,9 +88,7 @@ class TestAllowedExtensions:
     @patch("backend.api.ingest.IncrementalChecker")
     @patch("backend.api.ingest.IngestionPipeline")
     @patch("backend.api.ingest.settings")
-    def test_allowed_extension_202(
-        self, mock_settings, mock_pipeline_cls, mock_checker_cls, ext, filename, tmp_path
-    ):
+    def test_allowed_extension_202(self, mock_settings, mock_pipeline_cls, mock_checker_cls, ext, filename, tmp_path):
         mock_settings.upload_dir = str(tmp_path)
         mock_settings.max_upload_size_mb = 100
 
@@ -363,9 +361,7 @@ class TestBackgroundTask:
     @patch("backend.api.ingest.IncrementalChecker")
     @patch("backend.api.ingest.IngestionPipeline")
     @patch("backend.api.ingest.settings")
-    def test_asyncio_create_task_called(
-        self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path
-    ):
+    def test_asyncio_create_task_called(self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path):
         """Verify asyncio.create_task is used (not await) for background ingestion."""
         mock_settings.upload_dir = str(tmp_path)
         mock_settings.max_upload_size_mb = 100
@@ -442,9 +438,7 @@ class TestResponseFormat:
     @patch("backend.api.ingest.IncrementalChecker")
     @patch("backend.api.ingest.IngestionPipeline")
     @patch("backend.api.ingest.settings")
-    def test_202_response_shape(
-        self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path
-    ):
+    def test_202_response_shape(self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path):
         """202 response body contains required IngestionJobResponse fields."""
         mock_settings.upload_dir = str(tmp_path)
         mock_settings.max_upload_size_mb = 100
@@ -492,9 +486,7 @@ class TestResponseFormat:
     @patch("backend.api.ingest.IncrementalChecker")
     @patch("backend.api.ingest.IngestionPipeline")
     @patch("backend.api.ingest.settings")
-    def test_202_response_includes_filename(
-        self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path
-    ):
+    def test_202_response_includes_filename(self, mock_settings, mock_pipeline_cls, mock_checker_cls, tmp_path):
         mock_settings.upload_dir = str(tmp_path)
         mock_settings.max_upload_size_mb = 100
 

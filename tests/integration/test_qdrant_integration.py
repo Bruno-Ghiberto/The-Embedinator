@@ -102,9 +102,7 @@ async def test_search_hybrid_returns_results_in_descending_order():
         )
         assert len(results) > 0
         scores = [r.score for r in results]
-        assert scores == sorted(scores, reverse=True), (
-            "Results should be sorted by descending score"
-        )
+        assert scores == sorted(scores, reverse=True), "Results should be sorted by descending score"
     finally:
         await storage.delete_collection(name)
 

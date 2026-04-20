@@ -7,7 +7,12 @@ captures full response for manual scoring.
 Usage:
     python3 run_combo_test.py --combo 1 --model qwen2.5:7b
 """
-import argparse, json, subprocess, sys, time
+
+import argparse
+import json
+import subprocess
+import sys
+import time
 from datetime import datetime
 
 BACKEND = "http://localhost:8000"
@@ -58,7 +63,9 @@ def get_vram_mib():
     try:
         result = subprocess.run(
             ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return int(result.stdout.strip())
     except Exception:
@@ -67,10 +74,12 @@ def get_vram_mib():
 
 def run_query(query_text: str, combo_id: int) -> dict:
     """Stream a query and return timing + full response."""
-    payload = json.dumps({
-        "message": query_text,
-        "collection_ids": [COLLECTION_ID],
-    })
+    payload = json.dumps(
+        {
+            "message": query_text,
+            "collection_ids": [COLLECTION_ID],
+        }
+    )
 
     t_start = time.perf_counter()
     t_first_chunk = None
@@ -82,10 +91,16 @@ def run_query(query_text: str, combo_id: int) -> dict:
     # Use requests-like streaming via subprocess curl
     proc = subprocess.Popen(
         [
-            "curl", "-sf", "-N", "-X", "POST",
+            "curl",
+            "-sf",
+            "-N",
+            "-X",
+            "POST",
             f"{BACKEND}/api/chat",
-            "-H", "Content-Type: application/json",
-            "-d", payload,
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            payload,
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -156,10 +171,10 @@ def main():
     parser.add_argument("--collection", default=COLLECTION_ID, help="Collection UUID to query")
     args = parser.parse_args()
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"COMBO {args.combo}: {args.model} + {args.embedding}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     # Override collection if specified
     COLLECTION_ID = args.collection
@@ -175,26 +190,30 @@ def main():
         result = run_query(q["text"], args.combo)
         results.append({"query": q, "result": result})
 
-        print(f"TTFT: {result['ttft_ms']}ms | Total: {result['total_ms']}ms | "
-              f"Peak VRAM: {result['peak_vram_mib']}MiB | Chunks: {result['chunk_count']} "
-              f"({result['tokens_per_sec']} tok/s) | Citations: {result['citation_count']} | "
-              f"Confidence: {result['confidence']}")
+        print(
+            f"TTFT: {result['ttft_ms']}ms | Total: {result['total_ms']}ms | "
+            f"Peak VRAM: {result['peak_vram_mib']}MiB | Chunks: {result['chunk_count']} "
+            f"({result['tokens_per_sec']} tok/s) | Citations: {result['citation_count']} | "
+            f"Confidence: {result['confidence']}"
+        )
         print(f"Response (first 300 chars):\n{result['response_preview'][:300]}")
-        if result['citations']:
+        if result["citations"]:
             print(f"Sources: {', '.join(result['citations'])}")
         print()
 
         time.sleep(2)  # Brief pause between queries
 
     # Summary table
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"COMBO {args.combo} SUMMARY — {args.model} + {args.embedding}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"{'Query':<6} {'TTFT(ms)':<10} {'Total(ms)':<11} {'PeakVRAM':<10} {'Chunks':<8} {'Citations'}")
     for r in results:
         res = r["result"]
-        print(f"{r['query']['id']:<6} {res['ttft_ms']:<10} {res['total_ms']:<11} "
-              f"{res['peak_vram_mib']:<10} {res['chunk_count']:<8} {res['citation_count']}")
+        print(
+            f"{r['query']['id']:<6} {res['ttft_ms']:<10} {res['total_ms']:<11} "
+            f"{res['peak_vram_mib']:<10} {res['chunk_count']:<8} {res['citation_count']}"
+        )
 
     avg_ttft = int(sum(r["result"]["ttft_ms"] for r in results) / len(results))
     avg_total = int(sum(r["result"]["total_ms"] for r in results) / len(results))
