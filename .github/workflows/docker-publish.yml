@@ -114,6 +114,17 @@ jobs:
       - name: Sign backend image by digest
         run: cosign sign --yes ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
 
+      # ----- FR-010: SBOM generate + attest (SPDX JSON) -----
+      - name: Generate backend SBOM (SPDX JSON)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+          format: spdx-json
+          output-file: backend-sbom.spdx.json
+
+      - name: Attest backend SBOM
+        run: cosign attest --yes --predicate backend-sbom.spdx.json --type spdxjson ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+
   build-frontend:
     needs: ci
     if: needs.ci.outputs.all_passed == 'true'
@@ -176,3 +187,14 @@ jobs:
 
       - name: Sign frontend image by digest
         run: cosign sign --yes ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+
+      # ----- FR-010: SBOM generate + attest (SPDX JSON) -----
+      - name: Generate frontend SBOM (SPDX JSON)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+          format: spdx-json
+          output-file: frontend-sbom.spdx.json
+
+      - name: Attest frontend SBOM
+        run: cosign attest --yes --predicate frontend-sbom.spdx.json --type spdxjson ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
