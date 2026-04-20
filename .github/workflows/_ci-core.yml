@@ -88,6 +88,12 @@ jobs:
           print(int(float(root.attrib['line-rate']) * 100))
           ")
           echo "backend_cov_pct=$PCT" >> "$GITHUB_OUTPUT"
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: coverage.xml
+          flags: backend
+          fail_ci_if_error: false
 
   backend-format-check:
     name: backend-format-check
@@ -239,6 +245,12 @@ jobs:
           npm run test:coverage
           PCT=$(awk -F: '/^LH/{lh+=$2} /^LF/{lf+=$2} END{if(lf>0) print int(lh/lf*100); else print 0}' coverage/lcov.info)
           echo "frontend_cov_pct=${PCT:-0}" >> "$GITHUB_OUTPUT"
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
 
   detect-frontend-changes:
     name: detect-frontend-changes
@@ -339,9 +351,15 @@ jobs:
   pre-commit-parity:
     name: pre-commit-parity
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - run: echo "A7 fills this"  # pre-commit run --all-files
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14.4"
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+        with:
+          extra_args: --all-files
 
   # ---------------------------------------------------------------------------
   # Aggregator — collects results from every required job and surfaces
