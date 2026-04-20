@@ -273,6 +273,10 @@ jobs:
     timeout-minutes: 20
     needs: [detect-frontend-changes]
     if: needs.detect-frontend-changes.outputs.frontend == 'true' || github.event_name == 'push'
+    # Option-2 visibility-only: full-stack compose up fails on CI runners
+    # because Ollama requires NVIDIA GPU. True E2E is deferred to spec-28
+    # behind a docker-compose.ci.yml override. Tracked in issue #4.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Create .env for compose (CI uses defaults; no secrets needed for E2E)
