@@ -69,9 +69,7 @@ def _make_mock_db(collection_id: str, doc_id: str) -> AsyncMock:
             }
         ]
     )
-    db.list_collections = AsyncMock(
-        return_value=[{"id": collection_id, "name": "e2e-ingest-collection"}]
-    )
+    db.list_collections = AsyncMock(return_value=[{"id": collection_id, "name": "e2e-ingest-collection"}])
 
     return db
 
@@ -157,14 +155,10 @@ class TestIngestLifecycle:
                     job_id = data["job_id"]
 
                     # 2. Poll job status (mock returns "completed" immediately)
-                    resp = await client.get(
-                        f"/api/collections/{collection_id}/ingest/{job_id}"
-                    )
+                    resp = await client.get(f"/api/collections/{collection_id}/ingest/{job_id}")
                     assert resp.status_code == 200, f"Job poll failed: {resp.text}"
                     job_data = resp.json()
-                    assert job_data["status"] == "completed", (
-                        f"Expected 'completed', got '{job_data['status']}'"
-                    )
+                    assert job_data["status"] == "completed", f"Expected 'completed', got '{job_data['status']}'"
                     assert job_data["chunks_processed"] == 3
 
                     # 3. Verify document appears in /api/documents

@@ -2,6 +2,7 @@
 
 Tests graph compilation, end-to-end flows, and integration with ResearchGraph.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,12 +14,25 @@ from backend.agent.meta_reasoning_nodes import (
 from backend.agent.schemas import RetrievedChunk
 
 
-def _chunk(chunk_id="c1", text="test text", rerank_score=0.8, dense_score=0.5,
-           collection="col1", parent_id="p1", source_file="test.md"):
+def _chunk(
+    chunk_id="c1",
+    text="test text",
+    rerank_score=0.8,
+    dense_score=0.5,
+    collection="col1",
+    parent_id="p1",
+    source_file="test.md",
+):
     return RetrievedChunk(
-        chunk_id=chunk_id, text=text, source_file=source_file,
-        breadcrumb="ch1", parent_id=parent_id, collection=collection,
-        dense_score=dense_score, sparse_score=0.3, rerank_score=rerank_score,
+        chunk_id=chunk_id,
+        text=text,
+        source_file=source_file,
+        breadcrumb="ch1",
+        parent_id=parent_id,
+        collection=collection,
+        dense_score=dense_score,
+        sparse_score=0.3,
+        rerank_score=rerank_score,
     )
 
 
@@ -63,6 +77,7 @@ def _make_config(llm=None, reranker=None, settings_obj=None):
 # Graph compilation
 # ====================
 
+
 class TestGraphCompilation:
     """T037: Verify build_meta_reasoning_graph() compiles correctly."""
 
@@ -85,6 +100,7 @@ class TestGraphCompilation:
 # ====================
 # Recovery flow
 # ====================
+
 
 class TestRecoveryFlow:
     """T038: End-to-end recovery flow with WIDEN_SEARCH."""
@@ -121,6 +137,7 @@ class TestRecoveryFlow:
 # ====================
 # Uncertainty flow
 # ====================
+
 
 class TestUncertaintyFlow:
     """T039: End-to-end uncertainty when max attempts exceeded."""
@@ -165,6 +182,7 @@ class TestUncertaintyFlow:
 # Strategy dedup
 # ====================
 
+
 class TestStrategyDedup:
     """T040: Strategy deduplication across attempts."""
 
@@ -204,6 +222,7 @@ class TestStrategyDedup:
 # max_attempts=0 bypass
 # ====================
 
+
 class TestMaxAttemptsZeroBypass:
     """T041: FR-011 max_attempts=0 bypasses meta-reasoning."""
 
@@ -232,6 +251,7 @@ class TestMaxAttemptsZeroBypass:
 # ====================
 # Infrastructure error during retry
 # ====================
+
 
 class TestInfrastructureError:
     """T041a: FR-017 infrastructure error during retry."""

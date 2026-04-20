@@ -92,10 +92,12 @@ class TestGetSettings:
 
     def test_db_overrides_applied(self):
         """DB settings override config defaults."""
-        app, _ = _make_app(db_settings={
-            "confidence_threshold": "80",
-            "groundedness_check_enabled": "false",
-        })
+        app, _ = _make_app(
+            db_settings={
+                "confidence_threshold": "80",
+                "groundedness_check_enabled": "false",
+            }
+        )
         client = TestClient(app)
         resp = client.get("/api/settings")
         data = resp.json()
@@ -115,9 +117,11 @@ class TestGetSettings:
 
     def test_invalid_db_value_falls_back_to_default(self):
         """If DB has unparseable value, fall back to config default."""
-        app, _ = _make_app(db_settings={
-            "confidence_threshold": "not_a_number",
-        })
+        app, _ = _make_app(
+            db_settings={
+                "confidence_threshold": "not_a_number",
+            }
+        )
         client = TestClient(app)
         resp = client.get("/api/settings")
         data = resp.json()
@@ -135,9 +139,12 @@ class TestUpdateSettings:
         app, _ = _make_app()
         client = TestClient(app)
 
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": 75,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": 75,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["confidence_threshold"] == 75
@@ -149,11 +156,14 @@ class TestUpdateSettings:
         app, _ = _make_app()
         client = TestClient(app)
 
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": 90,
-            "groundedness_check_enabled": False,
-            "child_chunk_size": 250,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": 90,
+                "groundedness_check_enabled": False,
+                "child_chunk_size": 250,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["confidence_threshold"] == 90
@@ -164,27 +174,36 @@ class TestUpdateSettings:
         """confidence_threshold=150 exceeds max, returns 400."""
         app, _ = _make_app()
         client = TestClient(app)
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": 150,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": 150,
+            },
+        )
         assert resp.status_code == 422  # Pydantic validation catches ge=0, le=100
 
     def test_confidence_threshold_negative_returns_400(self):
         """Negative confidence_threshold returns validation error."""
         app, _ = _make_app()
         client = TestClient(app)
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": -1,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": -1,
+            },
+        )
         assert resp.status_code == 422  # Pydantic validation
 
     def test_confidence_threshold_0_valid(self):
         """confidence_threshold=0 is valid boundary."""
         app, _ = _make_app()
         client = TestClient(app)
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": 0,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": 0,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["confidence_threshold"] == 0
 
@@ -192,9 +211,12 @@ class TestUpdateSettings:
         """confidence_threshold=100 is valid boundary."""
         app, _ = _make_app()
         client = TestClient(app)
-        resp = client.put("/api/settings", json={
-            "confidence_threshold": 100,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "confidence_threshold": 100,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["confidence_threshold"] == 100
 
@@ -211,9 +233,12 @@ class TestUpdateSettings:
         """PUT returns all 7 fields, not just updated ones."""
         app, _ = _make_app()
         client = TestClient(app)
-        resp = client.put("/api/settings", json={
-            "parent_chunk_size": 4000,
-        })
+        resp = client.put(
+            "/api/settings",
+            json={
+                "parent_chunk_size": 4000,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 7

@@ -102,14 +102,13 @@ async def test_circuit_resets_after_cooldown_expires():
     # _check_circuit() should now reset the circuit (half-open probe).
     storage._check_circuit()  # Must NOT raise
 
-    assert storage._circuit_open is False, (
-        "Circuit should have reset to closed after cooldown elapsed"
-    )
+    assert storage._circuit_open is False, "Circuit should have reset to closed after cooldown elapsed"
 
 
 # ---------------------------------------------------------------------------
 # Section 2 — Inference circuit breaker (spec-26 FR-006 BUG-018)
 # ---------------------------------------------------------------------------
+
 
 class TestInferenceCircuitBreakerBug018:
     """FR-006 BUG-018: OutputParserException must NOT increment the inference
@@ -123,6 +122,7 @@ class TestInferenceCircuitBreakerBug018:
     def _reset_inference_cb(self) -> None:
         """Reset the module-level inference circuit breaker state."""
         import backend.agent.nodes as nodes_mod
+
         nodes_mod._inf_circuit_open = False
         nodes_mod._inf_failure_count = 0
         nodes_mod._inf_last_failure_time = None
@@ -176,8 +176,7 @@ class TestInferenceCircuitBreakerBug018:
             f"{len(failure_record_calls)} time(s) for OutputParserException"
         )
         assert nodes_mod._inf_failure_count == initial_count, (
-            f"BUG-018: failure count changed from {initial_count} to "
-            f"{nodes_mod._inf_failure_count} on parse error"
+            f"BUG-018: failure count changed from {initial_count} to {nodes_mod._inf_failure_count} on parse error"
         )
 
         self._reset_inference_cb()
@@ -223,9 +222,7 @@ class TestInferenceCircuitBreakerBug018:
         except ConnectionError:
             nodes_mod._record_inference_failure()
 
-        assert nodes_mod._inf_failure_count == 1, (
-            "ConnectionError must increment failure counter"
-        )
+        assert nodes_mod._inf_failure_count == 1, "ConnectionError must increment failure counter"
 
         self._reset_inference_cb()
 

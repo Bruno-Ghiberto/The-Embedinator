@@ -321,6 +321,16 @@ jobs:
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
+      - name: Create .env for compose (CI uses defaults; no secrets needed for smoke)
+        run: |
+          # docker-compose.yml declares `env_file: .env` on the backend service.
+          # .env is gitignored and does not exist on CI runners — without it,
+          # `docker compose up` errors immediately with "env file ... not found".
+          # Smoke verifies container boot + liveness only, so defaults from
+          # .env.example (or an empty file) are sufficient.
+          cp .env.example .env 2>/dev/null || touch .env
+          ls -la .env
+
       - name: Build stack
         run: docker compose build
 

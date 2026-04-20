@@ -3,6 +3,7 @@
 normalize_scores is a MODULE-LEVEL FUNCTION — do NOT instantiate any class.
 It normalizes chunk.dense_score (NOT chunk.score — that field does not exist).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -14,6 +15,7 @@ from backend.retrieval.score_normalizer import normalize_scores
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_chunk(
     chunk_id: str,
@@ -38,6 +40,7 @@ def _make_chunk(
 # T013.1 — Empty input
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeScoresEmpty:
     def test_empty_list_returns_empty_list(self):
         """normalize_scores([]) must return []."""
@@ -54,6 +57,7 @@ class TestNormalizeScoresEmpty:
 # ---------------------------------------------------------------------------
 # T013.2 — Single item
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeScoresSingleItem:
     def test_single_item_returned(self):
@@ -73,6 +77,7 @@ class TestNormalizeScoresSingleItem:
 # ---------------------------------------------------------------------------
 # T013.3 — All-equal scores (no division by zero)
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeScoresEqualScores:
     def test_all_equal_scores_no_crash(self):
@@ -102,6 +107,7 @@ class TestNormalizeScoresEqualScores:
 # ---------------------------------------------------------------------------
 # T013.4 — Min maps to 0.0, max maps to 1.0
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeScoresMinMax:
     def test_min_score_maps_to_zero(self):
@@ -139,10 +145,7 @@ class TestNormalizeScoresMinMax:
 
     def test_all_scores_in_zero_to_one_range(self):
         """All normalized scores must be in [0.0, 1.0]."""
-        chunks = [
-            _make_chunk(f"c-{i}", dense_score=0.1 * i)
-            for i in range(1, 6)
-        ]
+        chunks = [_make_chunk(f"c-{i}", dense_score=0.1 * i) for i in range(1, 6)]
         result = normalize_scores(chunks)
         for chunk in result:
             assert 0.0 <= chunk.dense_score <= 1.0
@@ -151,6 +154,7 @@ class TestNormalizeScoresMinMax:
 # ---------------------------------------------------------------------------
 # T013.5 — Order preserved
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeScoresOrder:
     def test_chunk_order_preserved(self):
@@ -171,6 +175,7 @@ class TestNormalizeScoresOrder:
 # ---------------------------------------------------------------------------
 # T013.6 — Multiple collections normalized independently
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeScoresMultipleCollections:
     def test_each_collection_normalized_independently(self):

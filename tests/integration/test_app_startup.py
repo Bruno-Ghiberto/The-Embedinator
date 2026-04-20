@@ -15,10 +15,11 @@ def mock_services():
     mock_checkpointer = AsyncMock()
     mock_checkpointer.setup = AsyncMock()
 
-    with patch("backend.main.QdrantClientWrapper") as mock_qdrant, \
-         patch("backend.main.ProviderRegistry") as mock_registry, \
-         patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls:
-
+    with (
+        patch("backend.main.QdrantClientWrapper") as mock_qdrant,
+        patch("backend.main.ProviderRegistry") as mock_registry,
+        patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls,
+    ):
         mock_qdrant_instance = AsyncMock()
         mock_qdrant_instance.connect = AsyncMock()
         mock_qdrant_instance.close = AsyncMock()
@@ -39,6 +40,7 @@ def mock_services():
 def test_app_creates_successfully(mock_services):
     """Verify the app factory creates a FastAPI app with all routers."""
     from backend.main import create_app
+
     app = create_app()
     assert app.title == "The Embedinator"
 
@@ -56,6 +58,7 @@ def test_app_startup_initializes_services(mock_services, tmp_path, monkeypatch):
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "test.db"))
 
     from backend.main import create_app
+
     app = create_app()
 
     with TestClient(app) as client:

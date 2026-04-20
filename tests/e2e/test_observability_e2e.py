@@ -87,9 +87,7 @@ class TestObservabilityE2E:
             assert resp.status_code == 200, f"Unexpected status: {resp.status_code} — {resp.text}"
             data = resp.json()
             assert "traces" in data, f"Response missing 'traces' key: {data}"
-            assert len(data["traces"]) >= 1, (
-                f"Expected at least 1 trace, got {len(data['traces'])}"
-            )
+            assert len(data["traces"]) >= 1, f"Expected at least 1 trace, got {len(data['traces'])}"
         finally:
             pass
 
@@ -113,14 +111,10 @@ class TestObservabilityE2E:
             assert resp.status_code == 200, f"Metrics failed: {resp.status_code} — {resp.text}"
             data = resp.json()
             # Verify circuit breaker state is present
-            assert "circuit_breakers" in data, (
-                f"Response missing 'circuit_breakers' key. Keys: {list(data.keys())}"
-            )
+            assert "circuit_breakers" in data, f"Response missing 'circuit_breakers' key. Keys: {list(data.keys())}"
             assert isinstance(data["circuit_breakers"], dict)
             # Verify time-bucketed latency data is present
-            assert "buckets" in data, (
-                f"Response missing 'buckets' key. Keys: {list(data.keys())}"
-            )
+            assert "buckets" in data, f"Response missing 'buckets' key. Keys: {list(data.keys())}"
             assert isinstance(data["buckets"], list)
         finally:
             pass
@@ -134,12 +128,8 @@ class TestObservabilityE2E:
             cbs = data.get("circuit_breakers", {})
             assert cbs, "No circuit breaker data returned"
             for cb_name, cb_data in cbs.items():
-                assert "state" in cb_data, (
-                    f"Circuit breaker '{cb_name}' missing 'state': {cb_data}"
-                )
-                assert "failure_count" in cb_data, (
-                    f"Circuit breaker '{cb_name}' missing 'failure_count': {cb_data}"
-                )
+                assert "state" in cb_data, f"Circuit breaker '{cb_name}' missing 'state': {cb_data}"
+                assert "failure_count" in cb_data, f"Circuit breaker '{cb_name}' missing 'failure_count': {cb_data}"
         finally:
             pass
 
@@ -153,11 +143,7 @@ class TestObservabilityE2E:
             assert buckets, "No metric buckets returned"
             # Check the first bucket has latency fields
             first_bucket = buckets[0]
-            assert "avg_latency_ms" in first_bucket, (
-                f"Bucket missing 'avg_latency_ms': {first_bucket}"
-            )
-            assert "p95_latency_ms" in first_bucket, (
-                f"Bucket missing 'p95_latency_ms': {first_bucket}"
-            )
+            assert "avg_latency_ms" in first_bucket, f"Bucket missing 'avg_latency_ms': {first_bucket}"
+            assert "p95_latency_ms" in first_bucket, f"Bucket missing 'p95_latency_ms': {first_bucket}"
         finally:
             pass

@@ -107,9 +107,7 @@ async def test_10_concurrent_streams_all_complete():
 
     for i, resp in enumerate(responses):
         # No 500 errors
-        assert resp.status_code == 200, (
-            f"Stream {i} returned {resp.status_code}"
-        )
+        assert resp.status_code == 200, f"Stream {i} returned {resp.status_code}"
 
         # Parse NDJSON
         events = _parse_ndjson(resp.text)
@@ -117,20 +115,14 @@ async def test_10_concurrent_streams_all_complete():
 
         # No internal errors
         for event in events:
-            assert event.get("code") != "INTERNAL_ERROR", (
-                f"Stream {i} had internal error: {event}"
-            )
+            assert event.get("code") != "INTERNAL_ERROR", f"Stream {i} had internal error: {event}"
 
         # Last event is "done"
         last_event = events[-1]
-        assert last_event["type"] == "done", (
-            f"Stream {i} last event was '{last_event['type']}', expected 'done'"
-        )
+        assert last_event["type"] == "done", f"Stream {i} last event was '{last_event['type']}', expected 'done'"
 
         # First event is "session"
-        assert events[0]["type"] == "session", (
-            f"Stream {i} first event was '{events[0]['type']}', expected 'session'"
-        )
+        assert events[0]["type"] == "session", f"Stream {i} first event was '{events[0]['type']}', expected 'session'"
 
         # Has chunk events (content was streamed)
         chunk_events = [e for e in events if e["type"] == "chunk"]
@@ -166,9 +158,7 @@ async def test_concurrent_streams_no_event_loss():
         event_counts.append(len(events))
 
     # All streams should have the same number of events (same mock graph)
-    assert len(set(event_counts)) == 1, (
-        f"Event counts vary across streams: {event_counts}"
-    )
+    assert len(set(event_counts)) == 1, f"Event counts vary across streams: {event_counts}"
 
 
 @pytest.mark.asyncio
@@ -201,12 +191,8 @@ async def test_concurrent_streams_valid_json():
                 continue
             try:
                 parsed = json.loads(line)
-                assert isinstance(parsed, dict), (
-                    f"Stream {i} line {j} parsed to non-dict: {type(parsed)}"
-                )
-                assert "type" in parsed, (
-                    f"Stream {i} line {j} missing 'type' field"
-                )
+                assert isinstance(parsed, dict), f"Stream {i} line {j} parsed to non-dict: {type(parsed)}"
+                assert "type" in parsed, f"Stream {i} line {j} missing 'type' field"
             except json.JSONDecodeError as e:
                 pytest.fail(f"Stream {i} line {j} invalid JSON: {line!r} ({e})")
 

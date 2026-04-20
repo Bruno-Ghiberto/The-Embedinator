@@ -17,6 +17,7 @@ from backend.providers.key_manager import KeyManager
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def fernet_key() -> str:
     return Fernet.generate_key().decode()
@@ -31,6 +32,7 @@ def key_manager(monkeypatch, fernet_key) -> KeyManager:
 # ---------------------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------------------
+
 
 class TestInit:
     def test_init_with_env_var(self, monkeypatch, fernet_key):
@@ -52,6 +54,7 @@ class TestInit:
 # ---------------------------------------------------------------------------
 # Encryption
 # ---------------------------------------------------------------------------
+
 
 class TestEncrypt:
     def test_encrypt_plaintext(self, key_manager):
@@ -92,6 +95,7 @@ class TestEncrypt:
 # ---------------------------------------------------------------------------
 # Decryption
 # ---------------------------------------------------------------------------
+
 
 class TestDecrypt:
     def test_decrypt_round_trip(self, key_manager):
@@ -149,6 +153,7 @@ class TestDecrypt:
 # Key validation
 # ---------------------------------------------------------------------------
 
+
 class TestIsValidKey:
     def test_is_valid_key_true(self, key_manager):
         ciphertext = key_manager.encrypt("sk-valid-key")
@@ -189,6 +194,7 @@ class TestIsValidKey:
 # ---------------------------------------------------------------------------
 # Security properties
 # ---------------------------------------------------------------------------
+
 
 class TestSecurity:
     def test_plaintext_not_logged(self, key_manager):

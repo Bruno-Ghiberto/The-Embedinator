@@ -7,6 +7,7 @@ Tests verify:
 4. A failed stage entry includes the failed flag.
 5. Absent key means conditional stage did not execute.
 """
+
 from __future__ import annotations
 
 

@@ -1,4 +1,5 @@
 """Unit tests for ResearchGraph edge functions."""
+
 import pytest
 
 from backend.agent.research_edges import route_after_compress_check, should_continue_loop
@@ -80,9 +81,8 @@ class TestShouldContinueLoop:
         """Boundary: iteration_count == max_iterations - 1 -> continue"""
         # spec-26: FR-005 iter2 — max_iterations capped 10→3 (commit fa3bbc8); boundary adjusts
         from backend.config import settings
-        state = _make_state(
-            confidence_score=0.3, iteration_count=settings.max_iterations - 1
-        )
+
+        state = _make_state(confidence_score=0.3, iteration_count=settings.max_iterations - 1)
         assert should_continue_loop(state) == "continue"
 
     def test_tool_calls_at_limit_minus_one(self):

@@ -4,6 +4,7 @@ All tests use mocked aiosqlite connections -- no real DB required.
 Verifies column aliases (id AS parent_id, collection_id AS collection),
 get_all_by_collection(), error propagation, and edge cases.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -26,9 +27,7 @@ class _Row(dict):
 def _make_mock_db(rows: list[dict] | None = None) -> MagicMock:
     """Return a mock SQLiteDB whose execute() yields the given rows."""
     mock_cursor = AsyncMock()
-    mock_cursor.fetchall = AsyncMock(
-        return_value=[_Row(r) for r in (rows or [])]
-    )
+    mock_cursor.fetchall = AsyncMock(return_value=[_Row(r) for r in (rows or [])])
     mock_db = MagicMock()
     mock_db.db.execute = AsyncMock(return_value=mock_cursor)
     return mock_db

@@ -1,4 +1,5 @@
 """Unit tests for GET /api/metrics endpoint (FR-005–FR-008, spec-15 US2)."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -111,8 +112,13 @@ class TestMetricsBasicResponse:
         assert len(data["buckets"]) > 0
         bucket = data["buckets"][0]
         for field in (
-            "timestamp", "query_count", "avg_latency_ms", "p95_latency_ms",
-            "avg_confidence", "meta_reasoning_count", "error_count",
+            "timestamp",
+            "query_count",
+            "avg_latency_ms",
+            "p95_latency_ms",
+            "avg_confidence",
+            "meta_reasoning_count",
+            "error_count",
         ):
             assert field in bucket, f"Missing field: {field}"
 

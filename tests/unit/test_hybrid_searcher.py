@@ -1,4 +1,5 @@
 """Unit tests for HybridSearcher and ScoreNormalizer (spec-03)."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,9 +9,15 @@ from backend.retrieval.score_normalizer import normalize_scores
 
 def _chunk(chunk_id="c1", dense_score=0.8, collection="col1"):
     return RetrievedChunk(
-        chunk_id=chunk_id, text="test", source_file="test.md",
-        breadcrumb="ch1", parent_id="p1", collection=collection,
-        dense_score=dense_score, sparse_score=0.3, rerank_score=None,
+        chunk_id=chunk_id,
+        text="test",
+        source_file="test.md",
+        breadcrumb="ch1",
+        parent_id="p1",
+        collection=collection,
+        dense_score=dense_score,
+        sparse_score=0.3,
+        rerank_score=None,
     )
 
 
@@ -118,9 +125,9 @@ class TestScoreNormalizer:
         result = normalize_scores(chunks)
 
         # Min 0.2, max 0.8, range 0.6
-        assert result[0].dense_score == pytest.approx(0.0)   # (0.2 - 0.2) / 0.6
-        assert result[1].dense_score == pytest.approx(1.0)   # (0.8 - 0.2) / 0.6
-        assert result[2].dense_score == pytest.approx(0.5)   # (0.5 - 0.2) / 0.6
+        assert result[0].dense_score == pytest.approx(0.0)  # (0.2 - 0.2) / 0.6
+        assert result[1].dense_score == pytest.approx(1.0)  # (0.8 - 0.2) / 0.6
+        assert result[2].dense_score == pytest.approx(0.5)  # (0.5 - 0.2) / 0.6
 
     def test_multi_collection_independent(self):
         chunks = [

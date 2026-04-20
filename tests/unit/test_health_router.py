@@ -43,9 +43,7 @@ def _mock_httpx_success():
 def _mock_httpx_failure(error=None):
     """Mock httpx.AsyncClient raising connection error for Ollama."""
     mock_client = AsyncMock()
-    mock_client.get = AsyncMock(
-        side_effect=error or httpx.ConnectError("Connection refused")
-    )
+    mock_client.get = AsyncMock(side_effect=error or httpx.ConnectError("Connection refused"))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
     return mock_client

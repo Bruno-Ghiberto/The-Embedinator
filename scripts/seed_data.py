@@ -68,9 +68,7 @@ async def _create_collection(client: httpx.AsyncClient) -> dict:
         timeout=10.0,
     )
     if resp.status_code not in (200, 201):
-        raise RuntimeError(
-            f"Failed to create collection: {resp.status_code} {resp.text}"
-        )
+        raise RuntimeError(f"Failed to create collection: {resp.status_code} {resp.text}")
     return resp.json()
 
 
@@ -107,9 +105,7 @@ async def _upload_document(client: httpx.AsyncClient, collection_id: str) -> str
         if error.get("code") == "DUPLICATE_DOCUMENT":
             return "__duplicate__"
     if resp.status_code not in (200, 202):
-        raise RuntimeError(
-            f"Failed to upload document: {resp.status_code} {resp.text}"
-        )
+        raise RuntimeError(f"Failed to upload document: {resp.status_code} {resp.text}")
     return resp.json()["job_id"]
 
 
@@ -132,13 +128,9 @@ async def _poll_ingestion(
         if status == "completed":
             return job
         if status == "failed":
-            raise RuntimeError(
-                f"Ingestion failed: {job.get('error_message', 'unknown error')}"
-            )
+            raise RuntimeError(f"Ingestion failed: {job.get('error_message', 'unknown error')}")
         await asyncio.sleep(5)
-    raise RuntimeError(
-        f"Ingestion timed out after {timeout_seconds}s (last status: {status})"
-    )
+    raise RuntimeError(f"Ingestion timed out after {timeout_seconds}s (last status: {status})")
 
 
 async def _get_document_chunk_count(client: httpx.AsyncClient, collection_id: str) -> int:
@@ -171,15 +163,13 @@ async def seed(base_url: str, timeout: int) -> int:
         if existing_coll:
             collection_id = existing_coll["id"]
             print(f"Collection: {COLLECTION_DISPLAY} (id: {collection_id})")
-            print(f"  Status: exists (skipped)")
-            coll_created = False
+            print("  Status: exists (skipped)")
         else:
             try:
                 new_coll = await _create_collection(client)
                 collection_id = new_coll["id"]
                 print(f"Collection: {COLLECTION_DISPLAY} (id: {collection_id})")
-                print(f"  Status: created (new)")
-                coll_created = True
+                print("  Status: created (new)")
             except RuntimeError as exc:
                 print(f"ERROR creating collection: {exc}")
                 _footer("Seeding failed.")
@@ -204,7 +194,7 @@ async def seed(base_url: str, timeout: int) -> int:
 
         if job_id == "__duplicate__":
             print(f"Document: {DOCUMENT_FILENAME}")
-            print(f"  Status: duplicate detected by backend (skipped)")
+            print("  Status: duplicate detected by backend (skipped)")
             _footer("Already seeded. Nothing to do.")
             return 0
 
@@ -234,9 +224,7 @@ async def seed(base_url: str, timeout: int) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Idempotent data seeding script for The Embedinator"
-    )
+    parser = argparse.ArgumentParser(description="Idempotent data seeding script for The Embedinator")
     parser.add_argument(
         "--base-url",
         default="http://localhost:8000",

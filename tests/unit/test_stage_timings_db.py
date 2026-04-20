@@ -1,4 +1,5 @@
 """Unit tests for stage_timings_json storage round-trip (FR-005)."""
+
 from __future__ import annotations
 
 import inspect

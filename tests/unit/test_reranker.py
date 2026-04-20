@@ -3,6 +3,7 @@
 Strategy: mock sentence_transformers.CrossEncoder to avoid loading real
 model weights (SC-003 — unit suite must complete in < 30 seconds).
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,7 @@ from backend.retrieval.reranker import Reranker
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_settings(**overrides) -> Settings:
     """Build a minimal Settings object."""
@@ -37,6 +39,7 @@ def _make_reranker(mock_cross_encoder_cls) -> Reranker:
 # ---------------------------------------------------------------------------
 # T012.1 — Instantiation
 # ---------------------------------------------------------------------------
+
 
 class TestRerankerInstantiation:
     def test_instantiates_without_error(self):
@@ -65,6 +68,7 @@ class TestRerankerInstantiation:
 # ---------------------------------------------------------------------------
 # T012.2 — rerank() calls underlying model
 # ---------------------------------------------------------------------------
+
 
 class TestRerankerCallsModel:
     def test_rerank_calls_model_rank(self, sample_chunks):
@@ -105,6 +109,7 @@ class TestRerankerCallsModel:
 # T012.3 — Results sorted descending
 # ---------------------------------------------------------------------------
 
+
 class TestRerankerOrdering:
     def test_results_ordered_descending_by_rerank_score(self, sample_chunks):
         """rerank() must return chunks ordered by score descending."""
@@ -122,9 +127,7 @@ class TestRerankerOrdering:
         result = reranker.rerank("query", sample_chunks, top_k=3)
 
         scores = [c.rerank_score for c in result]
-        assert scores == sorted(scores, reverse=True), (
-            f"Expected descending scores, got {scores}"
-        )
+        assert scores == sorted(scores, reverse=True), f"Expected descending scores, got {scores}"
 
     def test_rerank_score_populated_on_returned_chunks(self, sample_chunks):
         """Every chunk in the result must have a float rerank_score."""
@@ -146,6 +149,7 @@ class TestRerankerOrdering:
 # ---------------------------------------------------------------------------
 # T012.4 — top_k truncation
 # ---------------------------------------------------------------------------
+
 
 class TestRerankerTopK:
     def test_top_k_limits_result_count(self, sample_chunks):
@@ -184,6 +188,7 @@ class TestRerankerTopK:
 # T012.5 — RerankerError on model failure
 # ---------------------------------------------------------------------------
 
+
 class TestRerankerError:
     def test_reranker_error_raised_when_model_raises(self, sample_chunks):
         """RerankerError must be raised when model.rank() raises any exception."""
@@ -199,6 +204,7 @@ class TestRerankerError:
     def test_reranker_error_is_embedinator_error(self):
         """RerankerError must be importable from backend.errors."""
         from backend.errors import EmbeddinatorError
+
         assert issubclass(RerankerError, EmbeddinatorError)
 
     def test_original_exception_chained(self, sample_chunks):

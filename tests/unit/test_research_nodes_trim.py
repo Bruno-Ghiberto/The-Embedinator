@@ -4,6 +4,7 @@ spec-26: FR-007 — Proper Token Counting in Message Trimming (BUG-019).
 Tests validate that count_message_tokens returns accurate token counts and that
 trim_messages(token_counter=...) correctly trims a 10 000-token conversation.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -26,12 +27,14 @@ class _StubModelWithCountTokens:
 
 class _StubModelWithoutCountTokens:
     """Stub that does NOT expose count_tokens — triggers tiktoken fallback path."""
+
     pass
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_messages_approx_n_tokens(target_tokens: int, enc) -> list:
     """Build a list of HumanMessages whose total token count approximates target_tokens."""
@@ -47,6 +50,7 @@ def _build_messages_approx_n_tokens(target_tokens: int, enc) -> list:
 # ---------------------------------------------------------------------------
 # Tests: count_message_tokens
 # ---------------------------------------------------------------------------
+
 
 def test_count_message_tokens_uses_model_count_tokens():
     """When model.count_tokens() is available it should be used (provider-aware path)."""
@@ -94,6 +98,7 @@ def test_count_message_tokens_approximates_true_tokens():
 # ---------------------------------------------------------------------------
 # Tests: trim_messages integration
 # ---------------------------------------------------------------------------
+
 
 def test_trim_messages_respects_max_tokens():
     """trim_messages with count_message_tokens must produce a list whose total is ≤ max_tokens."""

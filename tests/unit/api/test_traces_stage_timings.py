@@ -1,4 +1,5 @@
 """Unit tests for GET /api/traces/{id} stage_timings extension (FR-008)."""
+
 from __future__ import annotations
 
 import json

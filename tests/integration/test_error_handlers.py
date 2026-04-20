@@ -5,6 +5,7 @@ Uses a minimal FastAPI app with the same 4 handlers registered and
 trigger routes for each exception type. Tests verify HTTP status codes
 and response body shape WITHOUT needing the full app startup.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -231,6 +232,5 @@ class TestGlobalEmbeddinatorErrorHandler:
             resp = client.get(route)
             message = resp.json()["error"]["message"]
             assert class_name not in message, (
-                f"Raw exception class name '{class_name}' found in message "
-                f"for {route}: {message!r}"
+                f"Raw exception class name '{class_name}' found in message for {route}: {message!r}"
             )

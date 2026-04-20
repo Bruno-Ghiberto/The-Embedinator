@@ -1,4 +1,5 @@
 """Unit tests for MetaReasoningGraph node functions."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -17,12 +18,25 @@ from backend.agent.meta_reasoning_nodes import (
 from backend.agent.schemas import RetrievedChunk
 
 
-def _chunk(chunk_id="c1", text="test text", rerank_score=0.8, dense_score=0.5,
-           collection="col1", parent_id="p1", source_file="test.md"):
+def _chunk(
+    chunk_id="c1",
+    text="test text",
+    rerank_score=0.8,
+    dense_score=0.5,
+    collection="col1",
+    parent_id="p1",
+    source_file="test.md",
+):
     return RetrievedChunk(
-        chunk_id=chunk_id, text=text, source_file=source_file,
-        breadcrumb="ch1", parent_id=parent_id, collection=collection,
-        dense_score=dense_score, sparse_score=0.3, rerank_score=rerank_score,
+        chunk_id=chunk_id,
+        text=text,
+        source_file=source_file,
+        breadcrumb="ch1",
+        parent_id=parent_id,
+        collection=collection,
+        dense_score=dense_score,
+        sparse_score=0.3,
+        rerank_score=rerank_score,
     )
 
 
@@ -60,6 +74,7 @@ def _make_config(llm=None, reranker=None, settings_obj=None, callbacks=None):
 # ====================
 # evaluate_retrieval_quality
 # ====================
+
 
 class TestEvaluateRetrievalQuality:
     """Tests for evaluate_retrieval_quality node (FR-002, FR-003)."""
@@ -142,6 +157,7 @@ class TestEvaluateRetrievalQuality:
 # generate_alternative_queries
 # ====================
 
+
 class TestGenerateAlternativeQueries:
     """Tests for generate_alternative_queries node (FR-001)."""
 
@@ -211,6 +227,7 @@ class TestGenerateAlternativeQueries:
 # ====================
 # decide_strategy
 # ====================
+
 
 class TestDecideStrategy:
     """Tests for decide_strategy node (FR-004, FR-006, FR-015)."""
@@ -400,6 +417,7 @@ class TestDecideStrategy:
 # report_uncertainty
 # ====================
 
+
 class TestReportUncertainty:
     """Tests for report_uncertainty node (FR-007, FR-008)."""
 
@@ -476,6 +494,7 @@ class TestReportUncertainty:
 # ====================
 # Strategy helpers
 # ====================
+
 
 class TestBuildModifiedState:
     def test_widen_search(self):

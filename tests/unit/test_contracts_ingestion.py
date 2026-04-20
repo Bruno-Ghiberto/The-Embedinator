@@ -51,19 +51,14 @@ class TestIngestionPipelineConstructor:
         annotation = qdrant_param.annotation
         if annotation is not inspect.Parameter.empty:
             # Get the class name from annotation (handles class or string annotation)
-            ann_name = (
-                annotation.__name__
-                if hasattr(annotation, "__name__")
-                else str(annotation)
-            )
+            ann_name = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
             assert "QdrantClientWrapper" in ann_name
             assert "QdrantStorage" not in ann_name
 
     def test_check_duplicate_does_not_exist_on_ingestion_pipeline(self):
         """check_duplicate does NOT exist on IngestionPipeline (Pattern 7)."""
         assert not hasattr(IngestionPipeline, "check_duplicate"), (
-            "check_duplicate must NOT be on IngestionPipeline — "
-            "it belongs on IncrementalChecker"
+            "check_duplicate must NOT be on IngestionPipeline — it belongs on IncrementalChecker"
         )
 
 
@@ -208,6 +203,4 @@ class TestUpsertBuffer:
     def test_pending_count_is_property(self):
         """pending_count is a @property on UpsertBuffer."""
         # Check it's a property descriptor on the class
-        assert isinstance(
-            inspect.getattr_static(UpsertBuffer, "pending_count"), property
-        )
+        assert isinstance(inspect.getattr_static(UpsertBuffer, "pending_count"), property)

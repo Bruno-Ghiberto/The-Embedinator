@@ -23,7 +23,7 @@ except ImportError:
 @dataclass
 class SmokeCheck:
     name: str
-    result: str = "PENDING"   # PASS | FAIL | SKIP
+    result: str = "PENDING"  # PASS | FAIL | SKIP
     elapsed_seconds: float = 0.0
     error_message: str = ""
 
@@ -40,7 +40,6 @@ async def run_smoke_tests(
     test_job_id: str = ""
 
     async with httpx.AsyncClient(timeout=timeout) as client:
-
         # --- Check 1: Backend health ---
         check = SmokeCheck("Backend health")
         t0 = time.monotonic()
@@ -379,7 +378,6 @@ def print_results(checks: list[SmokeCheck]) -> int:
 
     print("\n============================")
     if failed:
-        non_skip = sum(1 for c in checks if c.result != "SKIP")
         print(f"Results: {passed}/{total} passed, {len(failed)} failed")
         print(f"Failed: {', '.join(str(n) for n in failed)}")
         return 1

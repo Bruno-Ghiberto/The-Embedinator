@@ -181,7 +181,8 @@ class TestIngestionPipeline:
         assert result.status == "completed"
         # Verify chunk_count passed to update_document_status
         completed_calls = [
-            call for call in mock_db.update_document_status.call_args_list
+            call
+            for call in mock_db.update_document_status.call_args_list
             if len(call.args) > 1 and call.args[1] == "completed"
         ]
         assert len(completed_calls) == 1
@@ -377,7 +378,9 @@ class TestIngestionPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_exception_sets_failed(self, pipeline, mock_db, mock_qdrant):
         """Unexpected exception during pipeline -> job and document set to failed."""
-        with patch("backend.ingestion.pipeline.subprocess.Popen", side_effect=FileNotFoundError("Worker binary not found")):
+        with patch(
+            "backend.ingestion.pipeline.subprocess.Popen", side_effect=FileNotFoundError("Worker binary not found")
+        ):
             result = await pipeline.ingest_file(
                 file_path="/tmp/test.pdf",
                 filename="test.pdf",
@@ -391,13 +394,13 @@ class TestIngestionPipeline:
         assert "Worker binary not found" in result.error
         # Verify job marked as failed
         failed_calls = [
-            call for call in mock_db.update_ingestion_job.call_args_list
-            if call.kwargs.get("status") == "failed"
+            call for call in mock_db.update_ingestion_job.call_args_list if call.kwargs.get("status") == "failed"
         ]
         assert len(failed_calls) >= 1
         # Verify document marked as failed
         doc_failed = [
-            call for call in mock_db.update_document_status.call_args_list
+            call
+            for call in mock_db.update_document_status.call_args_list
             if len(call.args) > 1 and call.args[1] == "failed"
         ]
         assert len(doc_failed) >= 1
@@ -539,9 +542,7 @@ class TestFaultTolerance:
         ]
 
     @pytest.mark.asyncio
-    async def test_validation_skip_increments_chunks_skipped(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_validation_skip_increments_chunks_skipped(self, pipeline, mock_db, mock_qdrant):
         """When embed_chunks returns None for some vectors, chunks_skipped is incremented."""
         raw_chunks = _sample_raw_chunks(2)
         mock_proc = _mock_popen(raw_chunks, returncode=0)
@@ -579,9 +580,7 @@ class TestFaultTolerance:
         assert result.chunks_processed == 2
 
     @pytest.mark.asyncio
-    async def test_qdrant_outage_buffers_and_pauses(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_qdrant_outage_buffers_and_pauses(self, pipeline, mock_db, mock_qdrant):
         """Qdrant upsert failure buffers points; when buffer is full, job pauses."""
         raw_chunks = _sample_raw_chunks(2)
         mock_proc = _mock_popen(raw_chunks, returncode=0)
@@ -626,9 +625,7 @@ class TestFaultTolerance:
         assert result.chunks_processed > 0
 
     @pytest.mark.asyncio
-    async def test_buffer_full_triggers_pause_status(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_buffer_full_triggers_pause_status(self, pipeline, mock_db, mock_qdrant):
         """When UpsertBuffer is full, job status transitions to 'paused'."""
         # Create enough points to fill the buffer (MAX_CAPACITY=1000)
         from backend.ingestion.chunker import ParentChunkData
@@ -637,10 +634,7 @@ class TestFaultTolerance:
         mock_proc = _mock_popen(raw_chunks, returncode=0)
 
         # Create many children to generate >1000 points
-        many_children = [
-            {"text": f"Child {i}", "point_id": f"pt-{i:04d}", "chunk_index": i}
-            for i in range(1050)
-        ]
+        many_children = [{"text": f"Child {i}", "point_id": f"pt-{i:04d}", "chunk_index": i} for i in range(1050)]
         mock_parents = [
             ParentChunkData(
                 chunk_id="parent-001",
@@ -687,17 +681,13 @@ class TestFaultTolerance:
 
         # Verify 'paused' status was set at some point
         job_statuses = [
-            call.kwargs.get("status")
-            for call in mock_db.update_ingestion_job.call_args_list
-            if "status" in call.kwargs
+            call.kwargs.get("status") for call in mock_db.update_ingestion_job.call_args_list if "status" in call.kwargs
         ]
         assert "paused" in job_statuses
         assert result.status == "completed"
 
     @pytest.mark.asyncio
-    async def test_ollama_outage_pauses_and_retries(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_ollama_outage_pauses_and_retries(self, pipeline, mock_db, mock_qdrant):
         """CircuitOpenError from embed_chunks pauses job, then resumes on retry."""
         from backend.errors import CircuitOpenError
 
@@ -736,18 +726,14 @@ class TestFaultTolerance:
 
         # Verify paused status was set
         job_statuses = [
-            call.kwargs.get("status")
-            for call in mock_db.update_ingestion_job.call_args_list
-            if "status" in call.kwargs
+            call.kwargs.get("status") for call in mock_db.update_ingestion_job.call_args_list if "status" in call.kwargs
         ]
         assert "paused" in job_statuses
         assert result.status == "completed"
         assert result.chunks_processed > 0
 
     @pytest.mark.asyncio
-    async def test_ollama_httpx_connect_error_pauses(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_ollama_httpx_connect_error_pauses(self, pipeline, mock_db, mock_qdrant):
         """httpx.ConnectError from embed_chunks also triggers pause."""
         import httpx
 
@@ -785,17 +771,13 @@ class TestFaultTolerance:
             )
 
         job_statuses = [
-            call.kwargs.get("status")
-            for call in mock_db.update_ingestion_job.call_args_list
-            if "status" in call.kwargs
+            call.kwargs.get("status") for call in mock_db.update_ingestion_job.call_args_list if "status" in call.kwargs
         ]
         assert "paused" in job_statuses
         assert result.status == "completed"
 
     @pytest.mark.asyncio
-    async def test_worker_crash_processes_received_chunks(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_worker_crash_processes_received_chunks(self, pipeline, mock_db, mock_qdrant):
         """Worker exits non-zero but produced chunks -> process them, then set failed."""
         raw_chunks = _sample_raw_chunks(2)
         mock_proc = _mock_popen(raw_chunks, returncode=2, stderr="Crash on page 5")
@@ -829,11 +811,7 @@ class TestFaultTolerance:
         assert "Crash on page 5" in result.error
 
         # Verify document status set to failed
-        doc_statuses = [
-            call.args[1]
-            for call in mock_db.update_document_status.call_args_list
-            if len(call.args) > 1
-        ]
+        doc_statuses = [call.args[1] for call in mock_db.update_document_status.call_args_list if len(call.args) > 1]
         assert "failed" in doc_statuses
 
         # Verify parent chunks were still stored
@@ -841,17 +819,13 @@ class TestFaultTolerance:
 
         # Verify chunks_processed was recorded in job update
         failed_job_calls = [
-            call
-            for call in mock_db.update_ingestion_job.call_args_list
-            if call.kwargs.get("status") == "failed"
+            call for call in mock_db.update_ingestion_job.call_args_list if call.kwargs.get("status") == "failed"
         ]
         assert len(failed_job_calls) >= 1
         assert failed_job_calls[0].kwargs.get("chunks_processed", 0) > 0
 
     @pytest.mark.asyncio
-    async def test_worker_crash_no_output_sets_failed(
-        self, pipeline, mock_db, mock_qdrant
-    ):
+    async def test_worker_crash_no_output_sets_failed(self, pipeline, mock_db, mock_qdrant):
         """Worker crashes with no output -> failed status, no chunks processed."""
         mock_proc = _mock_popen([], returncode=1, stderr="File not found")
 

@@ -13,6 +13,7 @@ Spec-14 targets (SC-006, SC-007):
 All Spec-14 tests use a mocked app (no live LLM/Qdrant). A mock graph that emits
 stage_timings is injected to exercise the full DB roundtrip without inference deps.
 """
+
 from __future__ import annotations
 
 import json
@@ -79,9 +80,7 @@ async def seeded_db(tmp_path):
             chunk_profile="default",
             qdrant_collection_name=unique_collection_name(),
         )
-        await database.create_document(
-            id=doc_id, collection_id=coll_id, filename="perf.pdf", file_hash="perf_hash"
-        )
+        await database.create_document(id=doc_id, collection_id=coll_id, filename="perf.pdf", file_hash="perf_hash")
 
         parent_ids = []
         for i in range(100):
@@ -120,9 +119,7 @@ async def test_parent_retrieval_latency_target(seeded_db):
     elapsed_ms = (time.monotonic() - start) * 1000
 
     assert len(chunks) == 100
-    assert elapsed_ms < 10, (
-        f"get_parent_chunks_batch(100) took {elapsed_ms:.2f}ms — target is <10ms"
-    )
+    assert elapsed_ms < 10, f"get_parent_chunks_batch(100) took {elapsed_ms:.2f}ms — target is <10ms"
 
 
 @pytest.mark.asyncio
@@ -138,9 +135,7 @@ async def test_search_latency_target():
     await qdrant.create_collection(coll_name, vector_size=768)
     try:
         # Seed 200 points to make the search non-trivial
-        points = [
-            _make_point(i, str(uuid.uuid4()), coll_name) for i in range(200)
-        ]
+        points = [_make_point(i, str(uuid.uuid4()), coll_name) for i in range(200)]
         await qdrant.batch_upsert(coll_name, points)
 
         query_vector = [float(i % 10) / 10.0 for i in range(768)]
@@ -164,9 +159,7 @@ async def test_search_latency_target():
         elapsed_ms = (time.monotonic() - start) * 1000
 
         assert len(results) > 0
-        assert elapsed_ms < 100, (
-            f"Hybrid search took {elapsed_ms:.2f}ms — target is <100ms"
-        )
+        assert elapsed_ms < 100, f"Hybrid search took {elapsed_ms:.2f}ms — target is <100ms"
     finally:
         try:
             await qdrant.delete_collection(coll_name)
@@ -240,16 +233,18 @@ def timed_app(tmp_path):
     mock_hybrid_searcher = AsyncMock()
 
     try:
-        with patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant), \
-             patch("backend.main.ProviderRegistry", return_value=mock_registry), \
-             patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls, \
-             patch("backend.storage.qdrant_client.QdrantStorage", return_value=mock_qdrant_storage), \
-             patch("backend.retrieval.reranker.Reranker", return_value=mock_reranker), \
-             patch("backend.retrieval.searcher.HybridSearcher", return_value=mock_hybrid_searcher):
-
+        with (
+            patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant),
+            patch("backend.main.ProviderRegistry", return_value=mock_registry),
+            patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls,
+            patch("backend.storage.qdrant_client.QdrantStorage", return_value=mock_qdrant_storage),
+            patch("backend.retrieval.reranker.Reranker", return_value=mock_reranker),
+            patch("backend.retrieval.searcher.HybridSearcher", return_value=mock_hybrid_searcher),
+        ):
             mock_saver_cls.from_conn_string.return_value = mock_checkpointer
 
             from backend.main import create_app
+
             app = create_app()
 
             timed_graph = StateGraph(ConversationState)
@@ -304,19 +299,13 @@ def test_stage_timings_present(timed_app):
     assert trace_id, f"done event missing trace_id: {done_events[-1]}"
 
     trace_resp = timed_app.get(f"/api/traces/{trace_id}")
-    assert trace_resp.status_code == 200, (
-        f"GET /api/traces/{trace_id} returned {trace_resp.status_code}"
-    )
+    assert trace_resp.status_code == 200, f"GET /api/traces/{trace_id} returned {trace_resp.status_code}"
     trace = trace_resp.json()
 
     # SC-007 assertion: stage_timings has >= 5 always-present stages
-    assert "stage_timings" in trace, (
-        f"trace response missing 'stage_timings'. Keys: {list(trace.keys())}"
-    )
+    assert "stage_timings" in trace, f"trace response missing 'stage_timings'. Keys: {list(trace.keys())}"
     timings = trace["stage_timings"]
-    required_stages = {
-        "intent_classification", "embedding", "retrieval", "ranking", "answer_generation"
-    }
+    required_stages = {"intent_classification", "embedding", "retrieval", "ranking", "answer_generation"}
     present = set(timings.keys())
     assert required_stages.issubset(present), (
         f"Missing required stages: {required_stages - present}. Present: {present}"
@@ -365,9 +354,7 @@ def test_stage_timings_sum_consistent_with_total(timed_app):
     # stage_timings may be synthetic values not derived from wall-clock timing.
     if latency_ms >= 100:
         total_stage_ms = sum(
-            entry["duration_ms"]
-            for entry in timings.values()
-            if isinstance(entry.get("duration_ms"), (int, float))
+            entry["duration_ms"] for entry in timings.values() if isinstance(entry.get("duration_ms"), (int, float))
         )
         # Allow up to 150% to account for routing/overhead not attributed to a stage
         assert total_stage_ms <= latency_ms * 1.5, (
@@ -427,13 +414,9 @@ async def test_legacy_trace_readable(tmp_path):
         ) as client:
             resp = await client.get(f"/api/traces/{trace_id}")
 
-        assert resp.status_code == 200, (
-            f"GET /api/traces/{trace_id} returned {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 200, f"GET /api/traces/{trace_id} returned {resp.status_code}: {resp.text}"
         data = resp.json()
-        assert "stage_timings" in data, (
-            f"Response missing 'stage_timings' key. Keys present: {list(data.keys())}"
-        )
+        assert "stage_timings" in data, f"Response missing 'stage_timings' key. Keys present: {list(data.keys())}"
         assert data["stage_timings"] == {}, (
             f"Expected stage_timings: {{}} for legacy trace, got: {data['stage_timings']!r}"
         )
@@ -470,10 +453,7 @@ def test_concurrent_queries_no_errors(timed_app):
             errors[index] = exc
 
     session_ids = [str(uuid.uuid4()) for _ in range(3)]
-    threads = [
-        threading.Thread(target=run_query, args=(i, sid))
-        for i, sid in enumerate(session_ids)
-    ]
+    threads = [threading.Thread(target=run_query, args=(i, sid)) for i, sid in enumerate(session_ids)]
     for t in threads:
         t.start()
     for t in threads:

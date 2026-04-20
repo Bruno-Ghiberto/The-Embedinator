@@ -9,6 +9,7 @@ Design:
 - KeyManager tests use a real Fernet key generated in the fixture.
 - Each test exercises exactly one FR or SC.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -406,9 +407,17 @@ class TestFR011QdrantPayload:
 
     def test_fr_011_all_11_fields_required(self):
         required = [
-            "text", "parent_id", "breadcrumb", "source_file", "page",
-            "chunk_index", "doc_type", "chunk_hash", "embedding_model",
-            "collection_name", "ingested_at",
+            "text",
+            "parent_id",
+            "breadcrumb",
+            "source_file",
+            "page",
+            "chunk_index",
+            "doc_type",
+            "chunk_hash",
+            "embedding_model",
+            "collection_name",
+            "ingested_at",
         ]
         assert set(required) == set(QdrantStorage.REQUIRED_PAYLOAD_FIELDS)
 
@@ -459,7 +468,9 @@ class TestFR014ParentRetrieval:
         ids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, f"chunk-{i}")) for i in range(5)]
         for pid in ids:
             await db.create_parent_chunk(
-                id=pid, collection_id=coll_id, document_id=doc_id,
+                id=pid,
+                collection_id=coll_id,
+                document_id=doc_id,
                 text=f"Parent text for {pid}",
             )
         results = await db.get_parent_chunks_batch(ids)
@@ -507,14 +518,10 @@ class TestFR016IdempotentResume:
         parent_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, content))
 
         # First insert succeeds
-        await db.create_parent_chunk(
-            id=parent_id, collection_id=coll_id, document_id=doc_id, text=content
-        )
+        await db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text=content)
         # Second insert of same UUID5 ID raises (duplicate primary key)
         with pytest.raises(Exception):
-            await db.create_parent_chunk(
-                id=parent_id, collection_id=coll_id, document_id=doc_id, text=content
-            )
+            await db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text=content)
         # Original row still intact
         row = await db.get_parent_chunk(parent_id)
         assert row["id"] == parent_id
@@ -542,14 +549,17 @@ class TestSC001AllTablesCreated:
 
     @pytest.mark.asyncio
     async def test_sc_001_all_tables_created(self, db: SQLiteDB):
-        cursor = await db.db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = await db.db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         rows = await cursor.fetchall()
         tables = {row[0] for row in rows}
         expected = {
-            "collections", "documents", "ingestion_jobs",
-            "parent_chunks", "query_traces", "settings", "providers",
+            "collections",
+            "documents",
+            "ingestion_jobs",
+            "parent_chunks",
+            "query_traces",
+            "settings",
+            "providers",
         }
         assert expected.issubset(tables), f"Missing tables: {expected - tables}"
 
@@ -558,8 +568,15 @@ class TestSC001AllTablesCreated:
         cursor = await db.db.execute("PRAGMA table_info(collections)")
         rows = await cursor.fetchall()
         cols = {row[1] for row in rows}
-        required = {"id", "name", "description", "embedding_model", "chunk_profile",
-                    "qdrant_collection_name", "created_at"}
+        required = {
+            "id",
+            "name",
+            "description",
+            "embedding_model",
+            "chunk_profile",
+            "qdrant_collection_name",
+            "created_at",
+        }
         assert required.issubset(cols), f"Missing columns: {required - cols}"
 
     @pytest.mark.asyncio
@@ -568,10 +585,20 @@ class TestSC001AllTablesCreated:
         rows = await cursor.fetchall()
         cols = {row[1] for row in rows}
         required = {
-            "id", "session_id", "query", "sub_questions_json", "collections_searched",
-            "chunks_retrieved_json", "reasoning_steps_json", "strategy_switches_json",
-            "meta_reasoning_triggered", "latency_ms", "llm_model", "embed_model",
-            "confidence_score", "created_at",
+            "id",
+            "session_id",
+            "query",
+            "sub_questions_json",
+            "collections_searched",
+            "chunks_retrieved_json",
+            "reasoning_steps_json",
+            "strategy_switches_json",
+            "meta_reasoning_triggered",
+            "latency_ms",
+            "llm_model",
+            "embed_model",
+            "confidence_score",
+            "created_at",
         }
         assert required.issubset(cols), f"Missing columns in query_traces: {required - cols}"
 
@@ -635,6 +662,7 @@ class TestSC004QdrantVectors:
         assert dense.size == 768
 
         from qdrant_client.models import Distance
+
         assert dense.distance == Distance.COSINE
 
         sparse_cfg = call_kwargs["sparse_vectors_config"]
@@ -676,9 +704,7 @@ class TestSC006ParentLatency:
         # Insert 100 parent chunks
         ids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, f"latency-test-{i}")) for i in range(100)]
         for pid in ids:
-            await db.create_parent_chunk(
-                id=pid, collection_id=coll_id, document_id=doc_id, text=f"text {pid}"
-            )
+            await db.create_parent_chunk(id=pid, collection_id=coll_id, document_id=doc_id, text=f"text {pid}")
 
         # Measure retrieval time
         start = time.monotonic()
@@ -745,9 +771,7 @@ class TestSC009EncryptedKeys:
         plaintext_key = "sk-supersecret-apikey-should-not-appear"
         encrypted = key_manager.encrypt(plaintext_key)
 
-        await db.create_provider(
-            name="openrouter", api_key_encrypted=encrypted, is_active=True
-        )
+        await db.create_provider(name="openrouter", api_key_encrypted=encrypted, is_active=True)
         row = await db.get_provider("openrouter")
 
         stored = row["api_key_encrypted"]
@@ -830,7 +854,9 @@ class TestSC011CrossReferences:
         db, coll_id, doc_id = populated_db
         parent_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "cross-ref-test"))
         await db.create_parent_chunk(
-            id=parent_id, collection_id=coll_id, document_id=doc_id,
+            id=parent_id,
+            collection_id=coll_id,
+            document_id=doc_id,
             text="cross reference chunk",
         )
 
@@ -849,16 +875,14 @@ class TestSC011CrossReferences:
         parent_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "fk-cascade-test"))
 
         await file_db.create_collection(
-            id=coll_id, name="fk-test-col",
-            embedding_model="nomic", chunk_profile="default",
+            id=coll_id,
+            name="fk-test-col",
+            embedding_model="nomic",
+            chunk_profile="default",
             qdrant_collection_name="fk_test_qdrant",
         )
-        await file_db.create_document(
-            id=doc_id, collection_id=coll_id, filename="x.pdf", file_hash="fk_hash"
-        )
-        await file_db.create_parent_chunk(
-            id=parent_id, collection_id=coll_id, document_id=doc_id, text="data"
-        )
+        await file_db.create_document(id=doc_id, collection_id=coll_id, filename="x.pdf", file_hash="fk_hash")
+        await file_db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text="data")
 
         await file_db.delete_collection(coll_id)
 
@@ -891,18 +915,24 @@ class TestEdgeCases:
         coll_id_2 = str(uuid.uuid4())
         for i, cid in enumerate([coll_id_1, coll_id_2]):
             await db.create_collection(
-                id=cid, name=f"col-{i}",
-                embedding_model="nomic", chunk_profile="default",
+                id=cid,
+                name=f"col-{i}",
+                embedding_model="nomic",
+                chunk_profile="default",
                 qdrant_collection_name=f"qdrant_{i}",
             )
         # Same file_hash in different collections must succeed
         await db.create_document(
-            id=str(uuid.uuid4()), collection_id=coll_id_1,
-            filename="file.pdf", file_hash="same_hash",
+            id=str(uuid.uuid4()),
+            collection_id=coll_id_1,
+            filename="file.pdf",
+            file_hash="same_hash",
         )
         await db.create_document(
-            id=str(uuid.uuid4()), collection_id=coll_id_2,
-            filename="file.pdf", file_hash="same_hash",
+            id=str(uuid.uuid4()),
+            collection_id=coll_id_2,
+            filename="file.pdf",
+            file_hash="same_hash",
         )
         docs1 = await db.list_documents(coll_id_1)
         docs2 = await db.list_documents(coll_id_2)
@@ -945,14 +975,14 @@ class TestEdgeCases:
         partial_ids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, f"partial-{i}")) for i in range(3)]
         for pid in partial_ids:
             await db.create_parent_chunk(
-                id=pid, collection_id=coll_id, document_id=doc_id,
+                id=pid,
+                collection_id=coll_id,
+                document_id=doc_id,
                 text=f"partial chunk {pid}",
             )
 
         # Job fails
-        await db.update_ingestion_job(
-            job_id, status="failed", error_msg="embedding service timeout"
-        )
+        await db.update_ingestion_job(job_id, status="failed", error_msg="embedding service timeout")
 
         # Partial data still exists
         chunks = await db.get_parent_chunks_batch(partial_ids)

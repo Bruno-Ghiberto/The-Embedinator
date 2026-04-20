@@ -568,9 +568,16 @@ class TestAllEventTypes:
         # Not all appear in a single stream — clarification and error
         # are mutually exclusive with the success path.
         all_event_types = {
-            "session", "status", "chunk", "citation",
-            "meta_reasoning", "confidence", "groundedness",
-            "done", "clarification", "error",
+            "session",
+            "status",
+            "chunk",
+            "citation",
+            "meta_reasoning",
+            "confidence",
+            "groundedness",
+            "done",
+            "clarification",
+            "error",
         }
 
         # Scenario 1: Full success path (8 types)
@@ -617,8 +624,14 @@ class TestAllEventTypes:
         events = _parse_ndjson(resp.text)
         success_types = {e["type"] for e in events}
         expected_success = {
-            "session", "status", "chunk", "citation",
-            "meta_reasoning", "confidence", "groundedness", "done",
+            "session",
+            "status",
+            "chunk",
+            "citation",
+            "meta_reasoning",
+            "confidence",
+            "groundedness",
+            "done",
         }
         assert expected_success == success_types
 

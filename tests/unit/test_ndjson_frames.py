@@ -84,9 +84,7 @@ def validate_error_frame(frame: dict) -> None:
     assert isinstance(frame["message"], str), "Error 'message' must be a string"
     assert "code" in frame, "Error frame must have 'code' field"
     assert isinstance(frame["code"], str), "Error 'code' must be a string"
-    assert frame["code"] in _VALID_ERROR_CODES, (
-        f"Error code '{frame['code']}' not in valid codes: {_VALID_ERROR_CODES}"
-    )
+    assert frame["code"] in _VALID_ERROR_CODES, f"Error code '{frame['code']}' not in valid codes: {_VALID_ERROR_CODES}"
 
 
 def validate_frame(frame: dict) -> None:
@@ -296,13 +294,15 @@ class TestGenericFrameValidator:
         validate_frame({"type": "clarification", "question": "Which one?"})
 
     def test_dispatches_to_metadata(self):
-        validate_frame({
-            "type": "metadata",
-            "trace_id": "abc-123",
-            "confidence": 75,
-            "citations": [],
-            "latency_ms": 500,
-        })
+        validate_frame(
+            {
+                "type": "metadata",
+                "trace_id": "abc-123",
+                "confidence": 75,
+                "citations": [],
+                "latency_ms": 500,
+            }
+        )
 
     def test_dispatches_to_error(self):
         validate_frame({"type": "error", "message": "err", "code": "INTERNAL_ERROR"})

@@ -271,20 +271,26 @@ class TestStats:
     def test_returns_all_7_fields(self):
         """StatsResponse has all 7 numeric fields."""
         db = AsyncMock()
-        db.list_collections = AsyncMock(return_value=[
-            {"id": "c1", "name": "docs"},
-            {"id": "c2", "name": "notes"},
-        ])
-        db.list_documents = AsyncMock(return_value=[
-            {"id": "d1", "chunk_count": 100},
-            {"id": "d2", "chunk_count": 50},
-        ])
-        stats_cursor = _make_cursor(fetchone_val={
-            "total_queries": 20,
-            "avg_confidence": 72.5,
-            "avg_latency_ms": 1500.0,
-            "meta_count": 3,
-        })
+        db.list_collections = AsyncMock(
+            return_value=[
+                {"id": "c1", "name": "docs"},
+                {"id": "c2", "name": "notes"},
+            ]
+        )
+        db.list_documents = AsyncMock(
+            return_value=[
+                {"id": "d1", "chunk_count": 100},
+                {"id": "d2", "chunk_count": 50},
+            ]
+        )
+        stats_cursor = _make_cursor(
+            fetchone_val={
+                "total_queries": 20,
+                "avg_confidence": 72.5,
+                "avg_latency_ms": 1500.0,
+                "meta_count": 3,
+            }
+        )
         db.db.execute = AsyncMock(return_value=stats_cursor)
 
         app = _make_app(db=db)
@@ -304,20 +310,26 @@ class TestStats:
     def test_stats_values_computed_correctly(self):
         """Verify aggregate computation."""
         db = AsyncMock()
-        db.list_collections = AsyncMock(return_value=[
-            {"id": "c1", "name": "docs"},
-            {"id": "c2", "name": "notes"},
-        ])
-        db.list_documents = AsyncMock(return_value=[
-            {"id": "d1", "chunk_count": 100},
-            {"id": "d2", "chunk_count": 50},
-        ])
-        stats_cursor = _make_cursor(fetchone_val={
-            "total_queries": 20,
-            "avg_confidence": 72.5,
-            "avg_latency_ms": 1500.0,
-            "meta_count": 3,
-        })
+        db.list_collections = AsyncMock(
+            return_value=[
+                {"id": "c1", "name": "docs"},
+                {"id": "c2", "name": "notes"},
+            ]
+        )
+        db.list_documents = AsyncMock(
+            return_value=[
+                {"id": "d1", "chunk_count": 100},
+                {"id": "d2", "chunk_count": 50},
+            ]
+        )
+        stats_cursor = _make_cursor(
+            fetchone_val={
+                "total_queries": 20,
+                "avg_confidence": 72.5,
+                "avg_latency_ms": 1500.0,
+                "meta_count": 3,
+            }
+        )
         db.db.execute = AsyncMock(return_value=stats_cursor)
 
         app = _make_app(db=db)
@@ -340,12 +352,14 @@ class TestStats:
         """No data returns zeroes, not error."""
         db = AsyncMock()
         db.list_collections = AsyncMock(return_value=[])
-        stats_cursor = _make_cursor(fetchone_val={
-            "total_queries": 0,
-            "avg_confidence": None,
-            "avg_latency_ms": None,
-            "meta_count": 0,
-        })
+        stats_cursor = _make_cursor(
+            fetchone_val={
+                "total_queries": 0,
+                "avg_confidence": None,
+                "avg_latency_ms": None,
+                "meta_count": 0,
+            }
+        )
         db.db.execute = AsyncMock(return_value=stats_cursor)
 
         app = _make_app(db=db)
@@ -365,16 +379,20 @@ class TestStats:
         """Documents with null chunk_count contribute 0 to total_chunks."""
         db = AsyncMock()
         db.list_collections = AsyncMock(return_value=[{"id": "c1", "name": "test"}])
-        db.list_documents = AsyncMock(return_value=[
-            {"id": "d1", "chunk_count": None},
-            {"id": "d2", "chunk_count": 10},
-        ])
-        stats_cursor = _make_cursor(fetchone_val={
-            "total_queries": 0,
-            "avg_confidence": None,
-            "avg_latency_ms": None,
-            "meta_count": 0,
-        })
+        db.list_documents = AsyncMock(
+            return_value=[
+                {"id": "d1", "chunk_count": None},
+                {"id": "d2", "chunk_count": 10},
+            ]
+        )
+        stats_cursor = _make_cursor(
+            fetchone_val={
+                "total_queries": 0,
+                "avg_confidence": None,
+                "avg_latency_ms": None,
+                "meta_count": 0,
+            }
+        )
         db.db.execute = AsyncMock(return_value=stats_cursor)
 
         app = _make_app(db=db)

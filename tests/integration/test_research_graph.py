@@ -2,6 +2,7 @@
 
 Tests full graph compilation and execution flows with mocked LLM and Qdrant.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -9,12 +10,17 @@ from backend.agent.research_graph import build_research_graph
 from backend.agent.schemas import RetrievedChunk
 
 
-def _chunk(chunk_id="c1", rerank_score=0.8, dense_score=0.5,
-           collection="col1", parent_id="p1", text="test evidence"):
+def _chunk(chunk_id="c1", rerank_score=0.8, dense_score=0.5, collection="col1", parent_id="p1", text="test evidence"):
     return RetrievedChunk(
-        chunk_id=chunk_id, text=text, source_file="test.md",
-        breadcrumb="ch1", parent_id=parent_id, collection=collection,
-        dense_score=dense_score, sparse_score=0.3, rerank_score=rerank_score,
+        chunk_id=chunk_id,
+        text=text,
+        source_file="test.md",
+        breadcrumb="ch1",
+        parent_id=parent_id,
+        collection=collection,
+        dense_score=dense_score,
+        sparse_score=0.3,
+        rerank_score=rerank_score,
     )
 
 
@@ -119,9 +125,7 @@ class TestDeduplication:
         mock_tool.ainvoke = AsyncMock(return_value=[chunk1, chunk2])
 
         mock_ai_msg = MagicMock()
-        mock_ai_msg.tool_calls = [
-            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"}
-        ]
+        mock_ai_msg.tool_calls = [{"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"}]
 
         state = _make_initial_state(messages=[mock_ai_msg])
         config = {"configurable": {"tools": [mock_tool]}}
