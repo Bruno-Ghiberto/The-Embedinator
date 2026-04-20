@@ -309,12 +309,13 @@ jobs:
   docker-build-smoke:
     name: docker-build-smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25     # Multi-stage build + health-check polling
-    # TODO(spec-28): docker-compose.yml pins an NVIDIA GPU reservation on the
-    # Ollama service which ubuntu-latest runners cannot satisfy. Non-blocking
-    # until the compose file grows a CPU-only override compatible with CI.
-    # Tracked in T172 tech-debt issue.
-    continue-on-error: true
+    timeout-minutes: 25     # Multi-stage build + liveness polling
+    # Smoke starts backend + frontend + qdrant only (no Ollama — compose
+    # declares an NVIDIA GPU reservation that ubuntu-latest cannot satisfy).
+    # Polls /api/health/live (liveness, unconditional 200). Readiness probe
+    # /api/health returns 503 without Ollama; full-stack readiness smoke is
+    # deferred to spec-28 behind a docker-compose.ci.yml override. Tracked
+    # in issue #4.
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -323,20 +324,20 @@ jobs:
       - name: Build stack
         run: docker compose build
 
-      - name: Start stack
-        run: docker compose up -d --wait
+      - name: Start stack (CI — omit Ollama; GPU reservation incompatible with ubuntu-latest)
+        run: docker compose up -d --no-deps qdrant backend frontend
 
-      - name: Wait for backend health
+      - name: Wait for backend liveness
         run: |
           for i in {1..60}; do
-            if curl -sf http://localhost:8000/api/health; then
+            if curl -sf http://localhost:8000/api/health/live; then
               echo ""
-              echo "Backend healthy after $((i*2))s"
+              echo "Backend alive after $((i*2))s"
               exit 0
             fi
             sleep 2
           done
-          echo "Backend never became healthy within 120s"
+          echo "Backend never became live within 120s"
           docker compose logs --no-color
           exit 1
 
