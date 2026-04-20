@@ -39,4 +39,5 @@ USER appuser
 
 EXPOSE 8000
 ENTRYPOINT ["tini", "--"]
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Red-CI demo: crash on startup — DO NOT MERGE (docker-build-smoke demo)
+CMD ["python", "-c", "import sys; sys.exit(1)"]
