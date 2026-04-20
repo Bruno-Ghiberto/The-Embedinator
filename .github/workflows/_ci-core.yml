@@ -275,6 +275,13 @@ jobs:
     if: needs.detect-frontend-changes.outputs.frontend == 'true' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Create .env for compose (CI uses defaults; no secrets needed for E2E)
+        run: |
+          # docker-compose.yml declares `env_file: .env` on the backend service.
+          # .env is gitignored and does not exist on CI runners — without it,
+          # `docker compose up` errors immediately with "env file ... not found".
+          cp .env.example .env 2>/dev/null || touch .env
+          ls -la .env
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
@@ -310,12 +317,13 @@ jobs:
     name: docker-build-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25     # Multi-stage build + liveness polling
-    # Smoke starts backend + frontend + qdrant only (no Ollama — compose
-    # declares an NVIDIA GPU reservation that ubuntu-latest cannot satisfy).
-    # Polls /api/health/live (liveness, unconditional 200). Readiness probe
-    # /api/health returns 503 without Ollama; full-stack readiness smoke is
-    # deferred to spec-28 behind a docker-compose.ci.yml override. Tracked
-    # in issue #4.
+    # Smoke starts qdrant + backend only (no Ollama — compose declares an
+    # NVIDIA GPU reservation that ubuntu-latest cannot satisfy; no frontend
+    # — frontend's depends_on.backend.condition: service_healthy waits on
+    # the compose healthcheck which polls /api/health, returning 503
+    # without Ollama). Polls /api/health/live (liveness, unconditional 200).
+    # Full-stack readiness smoke (frontend boot + Ollama) is deferred to
+    # spec-28 behind a docker-compose.ci.yml override. Tracked in issue #4.
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -334,8 +342,8 @@ jobs:
       - name: Build stack
         run: docker compose build
 
-      - name: Start stack (CI — omit Ollama; GPU reservation incompatible with ubuntu-latest)
-        run: docker compose up -d --no-deps qdrant backend frontend
+      - name: Start backend + qdrant (CI — omit Ollama + frontend; frontend's depends_on waits on backend /api/health which is Ollama-gated)
+        run: docker compose up -d --no-deps qdrant backend
 
       - name: Wait for backend liveness
         run: |
