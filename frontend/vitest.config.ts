@@ -13,7 +13,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      // TODO: raise to 70% once test suite expands — see spec-27 tech-debt
+      // TODO(#4): raise to 70% once test suite expands — tracked in spec-27 tech-debt issue
+      //  https://github.com/Bruno-Ghiberto/The-Embedinator/issues/4
       thresholds: {
         lines: 15,
         branches: 85,
