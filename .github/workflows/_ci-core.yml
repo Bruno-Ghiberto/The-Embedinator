@@ -282,15 +282,17 @@ jobs:
           # `docker compose up` errors immediately with "env file ... not found".
           cp .env.example .env 2>/dev/null || touch .env
           ls -la .env
-      - name: Prepare ./data bind-mount target (backend writes to /data/{uploads,embedinator.db})
+      - name: Prepare ./data bind-mount targets (backend + qdrant)
         run: |
-          # docker-compose.yml binds ./data → /data on the backend service.
-          # Without this step, Docker auto-creates ./data as root, so the
-          # non-root backend user (spec-17 hardening) can't write. chmod 1777
-          # mirrors /tmp semantics so the container's UID can write freely.
-          mkdir -p ./data
-          chmod 1777 ./data
-          ls -ld ./data
+          # docker-compose.yml binds ./data → /data on the backend service AND
+          # ./data/qdrant_db → /qdrant/storage on the qdrant service.
+          # Without this step, Docker auto-creates these as root, so the
+          # non-root backend user (spec-17 hardening) can't write — and qdrant
+          # may hit the same fault if its image runs non-root. chmod 1777
+          # mirrors /tmp semantics so each container's UID can write freely.
+          mkdir -p ./data ./data/qdrant_db
+          chmod 1777 ./data ./data/qdrant_db
+          ls -ld ./data ./data/qdrant_db
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22.22.2"
@@ -348,15 +350,17 @@ jobs:
           cp .env.example .env 2>/dev/null || touch .env
           ls -la .env
 
-      - name: Prepare ./data bind-mount target (backend writes to /data/{uploads,embedinator.db})
+      - name: Prepare ./data bind-mount targets (backend + qdrant)
         run: |
-          # docker-compose.yml binds ./data → /data on the backend service.
-          # Without this step, Docker auto-creates ./data as root, so the
-          # non-root backend user (spec-17 hardening) can't write. chmod 1777
-          # mirrors /tmp semantics so the container's UID can write freely.
-          mkdir -p ./data
-          chmod 1777 ./data
-          ls -ld ./data
+          # docker-compose.yml binds ./data → /data on the backend service AND
+          # ./data/qdrant_db → /qdrant/storage on the qdrant service.
+          # Without this step, Docker auto-creates these as root, so the
+          # non-root backend user (spec-17 hardening) can't write — and qdrant
+          # may hit the same fault if its image runs non-root. chmod 1777
+          # mirrors /tmp semantics so each container's UID can write freely.
+          mkdir -p ./data ./data/qdrant_db
+          chmod 1777 ./data ./data/qdrant_db
+          ls -ld ./data ./data/qdrant_db
 
       - name: Build stack
         run: docker compose build
