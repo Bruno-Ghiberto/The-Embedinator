@@ -568,3 +568,5 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ## Contributing
 
 Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.
+
+<!-- spec-27 gate 3 smoke -->
