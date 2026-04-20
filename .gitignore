@@ -109,3 +109,6 @@ skills/
 /sc*.png
 /t*.png
 /chat-*.png
+
+# Frontend test coverage artifacts
+frontend/coverage/
