@@ -70,7 +70,9 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
 
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+      - name: Build and push backend image
+        id: build-backend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: Dockerfile.backend
@@ -80,6 +82,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
+
+      # ----- FR-009: Trivy image scan (fails on HIGH/CRITICAL fixable CVEs) -----
+      - name: Trivy scan backend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: 1
+          ignore-unfixed: true
+          format: table
 
   build-frontend:
     needs: ci
@@ -111,7 +123,9 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
 
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+      - name: Build and push frontend image
+        id: build-frontend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./frontend
           file: frontend/Dockerfile
@@ -123,3 +137,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             BACKEND_URL=http://backend:8000
+
+      # ----- FR-009: Trivy image scan (fails on HIGH/CRITICAL fixable CVEs) -----
+      - name: Trivy scan frontend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: 1
+          ignore-unfixed: true
+          format: table
