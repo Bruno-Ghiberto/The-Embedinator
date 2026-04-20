@@ -1,5 +1,7 @@
 # .goreleaser.yml
 # goreleaser v2 configuration for the embedinator CLI binary.
+# Red-CI demo: invalid key below triggers goreleaser check failure. DO NOT MERGE.
+invalid_goreleaser_demo_field_v2: true
 # Run from the cli/ directory: goreleaser release --clean
 #
 # Tag format: cli/v<semver>  (e.g., cli/v0.1.0)
