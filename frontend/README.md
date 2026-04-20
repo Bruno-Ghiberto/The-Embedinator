@@ -1,4 +1,5 @@
 # frontend/
+<!-- Red-CI demo: touch triggers frontend/** path filter → frontend-e2e fires. DO NOT MERGE. -->
 
 Next.js 16 web interface for The Embedinator, built with React 19 and
 Tailwind CSS 4.
