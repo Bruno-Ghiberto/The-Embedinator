@@ -38,6 +38,8 @@ fn detect_type(path: &Path) -> Option<&'static str> {
 }
 
 fn main() {
+    // Red-CI demo: unused variable triggers `cargo clippy -D warnings`. DO NOT MERGE.
+    let demo_unused_for_red_ci = 42;
     let cli = Cli::parse();
     let path = Path::new(&cli.file);
 
