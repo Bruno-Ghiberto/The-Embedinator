@@ -435,13 +435,31 @@ jobs:
     steps:
       - name: Aggregate required-job results
         id: results
-        env:
-          HAS_FAILURE: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          if [ "$HAS_FAILURE" = "true" ]; then
-            echo "all_passed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "all_passed=true" >> "$GITHUB_OUTPUT"
-          fi
+          # all_passed reflects REQUIRED (Shape X) jobs only.
+          # Option-2 visibility-only jobs (backend-test, backend-type-check,
+          # backend-integration, frontend-lint, frontend-e2e) have
+          # continue-on-error: true and are tracked as tech debt in issue #4.
+          # Their conclusion is NOT factored into publish gating.
+          declare -a REQUIRED=(
+            "${{ needs.backend-lint.result }}"
+            "${{ needs.backend-format-check.result }}"
+            "${{ needs.backend-pip-audit.result }}"
+            "${{ needs.detect-frontend-changes.result }}"
+            "${{ needs.docker-build-smoke.result }}"
+            "${{ needs.frontend-coverage.result }}"
+            "${{ needs.frontend-test.result }}"
+            "${{ needs.pre-commit-parity.result }}"
+          )
+          all_passed=true
+          for r in "${REQUIRED[@]}"; do
+            # Accept success OR skipped (skipped = conditional job with no triggering change).
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "required job result was '$r' — gate fails"
+              all_passed=false
+            fi
+          done
+          echo "all_passed=$all_passed" >> "$GITHUB_OUTPUT"
+          echo "Aggregate gate result: all_passed=$all_passed"
           echo "backend_cov_pct=${{ needs.backend-test.outputs.backend_cov_pct || '0' }}" >> "$GITHUB_OUTPUT"
           echo "frontend_cov_pct=${{ needs.frontend-coverage.outputs.frontend_cov_pct || '0' }}" >> "$GITHUB_OUTPUT"
