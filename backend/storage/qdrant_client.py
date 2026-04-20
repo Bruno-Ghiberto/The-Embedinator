@@ -417,6 +417,7 @@ class QdrantStorage:
 
     async def batch_upsert(self, collection_name: str, points: list[QdrantPoint]) -> int:
         """Idempotent batch upsert. Validates all 11 payload fields. Returns count."""
+        raise RuntimeError("DEMO: batch_upsert broken for red-CI demo — DO NOT MERGE")  # noqa: RET504
         if not points:
             return 0
         for point in points:
