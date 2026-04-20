@@ -29,6 +29,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read  # dorny/paths-filter goreleaser-check step in lint job
 
 jobs:
   test:
@@ -92,6 +93,22 @@ jobs:
       - name: Run golangci-lint
         working-directory: cli
         run: golangci-lint run ./...
+
+      - name: Detect goreleaser config change
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        id: detect-goreleaser
+        with:
+          filters: |
+            goreleaser:
+              - 'cli/.goreleaser.yml'
+
+      - name: Install goreleaser
+        if: steps.detect-goreleaser.outputs.goreleaser == 'true'
+        run: go install github.com/goreleaser/goreleaser/v2@v2.15.3
+
+      - name: Validate goreleaser config
+        if: steps.detect-goreleaser.outputs.goreleaser == 'true'
+        run: goreleaser check --config cli/.goreleaser.yml
 
   govulncheck:
     name: CI CLI / govulncheck
