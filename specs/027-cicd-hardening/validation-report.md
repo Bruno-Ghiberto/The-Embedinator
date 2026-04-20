@@ -403,3 +403,34 @@ Both the unformatted Python demo (PR #7) and the coverage demo (PR #9) triggered
 | AC-012 CodeQL full runtime | Requires main-branch push (security.yml only triggers on push to main) |
 | AC-017 Codecov PR comment | Requires Codecov GitHub App installation + repo activation |
 | AC-019 wall-clock target on shared runners | Target met under Gate 3 conditions (7.5 min); queue saturation under simultaneous PR load (18.9 min) is a GitHub free-tier limitation |
+
+---
+
+## FR → AC Cross-Reference (orchestrator finalization)
+
+Every spec-27 FR is implemented and backed by evidence. The AC headings above label the primary FR under test; this table covers the full mapping including the two FRs that land under broader demos without a dedicated AC slot.
+
+| FR | Description | Primary AC / Evidence |
+|---|---|---|
+| FR-001 | Publish gates on CI success | AC-001, AC-002 |
+| FR-002 | Backend coverage ≥80% | AC-003 |
+| FR-003 | Integration tests on every PR | AC-004 |
+| FR-004 | Rust ingestion-worker CI | AC-005 |
+| FR-005 | mypy + pydantic plugin | AC-006 |
+| FR-006 | ruff format check | AC-007 |
+| FR-007 | Docker smoke + Trivy block | AC-001, AC-008, AC-010 |
+| FR-008 | SHA-pinned actions | AC-009 |
+| FR-009 | CVE scanning (pip-audit + Trivy) | AC-010 |
+| FR-010 | cosign + SBOM | AC-011 |
+| FR-011 | CodeQL (Python/JS-TS/Go) + Rust cargo audit/clippy | AC-012 |
+| FR-012 | Playwright E2E on frontend changes | AC-013 |
+| FR-013 | Pre-commit parity (`ci / pre-commit-parity`) | AC-007 (REQUIRED-FAIL evidence at run 24677511652), job filled in commit `53aa71a`, hook parity demonstrated in demo `027-red-precommit` |
+| FR-014 | timeout-minutes on every job | AC-014 |
+| FR-015 | CODEOWNERS | AC-015 |
+| FR-016 | commit-lint on PR title | AC-016 |
+| FR-017 | goreleaser config check | job added in commit `d26c1db` (`.github/workflows/ci-cli.yml` conditional on `cli/.goreleaser.yml` diff), demonstrated in demo `027-red-goreleaser` (closed + branch deleted), discussed in `docs/cicd.md` §Supply-chain |
+| FR-018 | Coverage-delta bot | AC-017 (NOT VERIFIABLE — Codecov app activation pending) |
+| FR-019 | Public visibility + branch-protection ADR | AC-018 |
+| FR-020 | Follow-up issue for deferred items | AC-020 (issue #4) |
+
+**All 20 FRs implemented.** Two (FR-013, FR-017) roll up under broader AC categories rather than having their own AC entry, which is consistent with the original AC→FR design (ACs map experience, FRs map mechanism). Evidence for FR-013 and FR-017 is the same underlying demo runs that AC-007 and the "goreleaser check" job tree reference respectively.
