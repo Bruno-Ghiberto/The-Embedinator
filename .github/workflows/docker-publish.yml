@@ -1,12 +1,18 @@
 # Build and push backend + frontend Docker images to ghcr.io.
 # Purpose:  Publish container images ONLY when CI passes on the exact
-#           triggering commit SHA — no race window possible.
+#           triggering commit SHA — no race window possible. Each published
+#           image is Trivy-scanned and cosign-signed (keyless OIDC) before
+#           being considered a valid distribution artifact.
 # Triggers: push to main (tagged 'latest'), semver tags (v*).
 # Blockers: The 'ci' job must complete with all_passed == 'true' before
-#           any image is pushed.  A failed CI run short-circuits both
-#           build-backend and build-frontend.
-# Future:   A6 (Wave 3) adds trivy scan, cosign keyless signing, and
-#           syft SBOM attestation after the 'ci' gate.
+#           any image is pushed. Trivy fails the job on HIGH/CRITICAL
+#           fixable CVEs. cosign signs AFTER push using the build-push
+#           digest (immutable reference).
+# Role:     REQUIRED — images are the primary distribution surface.
+# Security: `permissions: id-token: write` at workflow AND job level is
+#           REQUIRED for cosign keyless OIDC. Each job restates the full
+#           permission set because workflow-level defaults are silently
+#           dropped when a job declares its own `permissions:` block.
 
 name: Docker Publish
 
@@ -14,6 +20,13 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+
+# Workflow-level permissions — required because cosign keyless signing
+# needs an OIDC token (`id-token: write`) in the publish jobs.
+permissions:
+  contents: read
+  packages: write
+  id-token: write   # REQUIRED for cosign keyless OIDC (Fulcio/Rekor)
 
 env:
   REGISTRY: ghcr.io
@@ -44,10 +57,11 @@ jobs:
     needs: ci
     if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+      id-token: write   # cosign keyless (must restate at job level or workflow perms are dropped)
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -93,14 +107,22 @@ jobs:
           ignore-unfixed: true
           format: table
 
+      # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Sign backend image by digest
+        run: cosign sign --yes ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+
   build-frontend:
     needs: ci
     if: needs.ci.outputs.all_passed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+      id-token: write   # cosign keyless (must restate at job level or workflow perms are dropped)
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -147,3 +169,10 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           format: table
+
+      # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Sign frontend image by digest
+        run: cosign sign --yes ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
