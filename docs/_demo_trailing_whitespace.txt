@@ -1,0 +1,2 @@
+Red-CI demo: trailing whitespace for pre-commit parity test.   
+This file has intentional trailing spaces. DO NOT MERGE.
