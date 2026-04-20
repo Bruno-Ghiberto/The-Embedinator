@@ -95,7 +95,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          # arm64 dropped temporarily — Rust cross-compile via QEMU on amd64 runner
+          # exceeds 30m timeout. Restore when native arm64 runner is available
+          # (spec-28 or follow-up issue). Tracked in issue #4.
+          platforms: linux/amd64
 
       # ----- FR-009: Trivy image scan (fails on HIGH/CRITICAL fixable CVEs) -----
       - name: Trivy scan backend image
@@ -167,7 +170,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          # arm64 dropped temporarily — Rust cross-compile via QEMU on amd64 runner
+          # exceeds 30m timeout. Restore when native arm64 runner is available
+          # (spec-28 or follow-up issue). Tracked in issue #4.
+          platforms: linux/amd64
           build-args: |
             BACKEND_URL=http://backend:8000
 
