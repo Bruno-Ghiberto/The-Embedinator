@@ -28,11 +28,11 @@ All paths are absolute-from-repo-root, matching the repo layout from `plan.md` �
 
 **Purpose**: Environment preflight and baseline capture before any wave work.
 
-- [ ] T001 Verify tmux session active and Agent Teams feature flag exported: `[ -n "$TMUX" ] && [ "$CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1" ]`
-- [ ] T002 [P] Verify `gh` CLI authenticated: `gh auth status`
-- [ ] T003 [P] Confirm branch is `027-cicd-hardening` and working tree clean: `git branch --show-current && git status -s`
-- [ ] T004 [P] Capture test baseline for regression comparison at each gate: `zsh scripts/run-tests-external.sh -n spec27-baseline --no-cov tests/` then record `Docs/Tests/spec27-baseline.status` + failure count
-- [ ] T005 [P] Read context docs: specs/027-cicd-hardening/spec.md (authoritative), plan.md (wave structure), research.md (tool decisions), quickstart.md (reproduction recipes)
+- [X] T001 Verify tmux session active and Agent Teams feature flag exported: `[ -n "$TMUX" ] && [ "$CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1" ]`
+- [X] T002 [P] Verify `gh` CLI authenticated: `gh auth status`
+- [X] T003 [P] Confirm branch is `027-cicd-hardening` and working tree clean: `git branch --show-current && git status -s`
+- [X] T004 [P] Capture test baseline for regression comparison at each gate: `zsh scripts/run-tests-external.sh -n spec27-baseline --no-cov tests/` then record `Docs/Tests/spec27-baseline.status` + failure count
+- [X] T005 [P] Read context docs: specs/027-cicd-hardening/spec.md (authoritative), plan.md (wave structure), research.md (tool decisions), quickstart.md (reproduction recipes)
 
 ---
 
@@ -44,21 +44,21 @@ All paths are absolute-from-repo-root, matching the repo layout from `plan.md` �
 
 ### Wave 1 A1 — Reusable Workflow + Publish Refactor (devops-architect, Sonnet)
 
-- [ ] T010 Create `.github/workflows/_ci-core.yml` — `on: workflow_call` with inputs (`commit_sha` optional), outputs (`backend_cov_pct`, `frontend_cov_pct`, `all_passed`), and explicit `permissions:` block (contents:read, checks:write, pull-requests:write, id-token:write). Top-of-file comment block documenting purpose/triggers/blockers per NFR-005.
-- [ ] T011 Refactor `.github/workflows/ci.yml` — becomes thin dispatcher on `pull_request` and `push: main` that calls `uses: ./.github/workflows/_ci-core.yml`. Preserve existing job-fan-out visibility in the Checks UI.
-- [ ] T012 Refactor `.github/workflows/docker-publish.yml` — trigger on `push: main` AND `tags: [v*]`; FIRST job `ci: uses: ./.github/workflows/_ci-core.yml`; publish job adds `needs: ci` + `if: needs.ci.outputs.all_passed == 'true'`.
-- [ ] T013 Refactor `.github/workflows/release.yml` — same pattern as T012; `_ci-core.yml` runs before `gh release create`.
-- [ ] T014 Refactor `.github/workflows/release-cli.yml` — gate goreleaser on `_ci-core.yml` (CLI-scoped subset); **PRESERVE** PR #2 fixes (Go 1.25, `shell:bash` on Windows, golangci-lint-from-source) — do NOT revert commits `d8f6034` or `1b6b234`.
+- [X] T010 Create `.github/workflows/_ci-core.yml` — `on: workflow_call` with inputs (`commit_sha` optional), outputs (`backend_cov_pct`, `frontend_cov_pct`, `all_passed`), and explicit `permissions:` block (contents:read, checks:write, pull-requests:write, id-token:write). Top-of-file comment block documenting purpose/triggers/blockers per NFR-005.
+- [X] T011 Refactor `.github/workflows/ci.yml` — becomes thin dispatcher on `pull_request` and `push: main` that calls `uses: ./.github/workflows/_ci-core.yml`. Preserve existing job-fan-out visibility in the Checks UI.
+- [X] T012 Refactor `.github/workflows/docker-publish.yml` — trigger on `push: main` AND `tags: [v*]`; FIRST job `ci: uses: ./.github/workflows/_ci-core.yml`; publish job adds `needs: ci` + `if: needs.ci.outputs.all_passed == 'true'`.
+- [X] T013 Refactor `.github/workflows/release.yml` — same pattern as T012; `_ci-core.yml` runs before `gh release create`.
+- [X] T014 Refactor `.github/workflows/release-cli.yml` — gate goreleaser on `_ci-core.yml` (CLI-scoped subset); **PRESERVE** PR #2 fixes (Go 1.25, `shell:bash` on Windows, golangci-lint-from-source) — do NOT revert commits `d8f6034` or `1b6b234`.
 
 ### Wave 1 A2 — Cross-Cutting Hardening (security-engineer, Opus)
 
-- [ ] T020 [P] Resolve 40-char SHA for every external action across `.github/workflows/*.yml` via `gh api repos/<owner>/<action>/commits/<tag> --jq .sha`; build an action→SHA lookup table
-- [ ] T021 Apply SHA-pin sweep: replace every `uses: <owner>/<action>@vX.Y.Z` with `uses: <owner>/<action>@<40-char-sha> # vX.Y.Z` across all workflow files in a single commit
-- [ ] T022 [P] Add `timeout-minutes:` to every job in every workflow file — default 15, docker-build 25, Playwright 20, CodeQL 30; separate commit for bisectability
-- [ ] T023 [P] Pin runtime versions to full semver in every workflow: `python-version: "3.14.1"`, `node-version: "22.12.0"` (or current), `go-version: "1.25.3"` (or current — confirm via `gh run view --log`); consolidate duplicates across files; separate commit
-- [ ] T024 [P] Pin `golangci-lint` version in `.github/workflows/ci-cli.yml` source-install step (e.g. `@v2.11.4`); never `@latest`
-- [ ] T025 [P] Create `.github/CODEOWNERS` with `* @Bruno-Ghiberto` (solo-dev default); commit separately
-- [ ] T026 Add top-of-file comment blocks to every workflow file documenting purpose/triggers/blockers per NFR-005
+- [X] T020 [P] Resolve 40-char SHA for every external action across `.github/workflows/*.yml` via `gh api repos/<owner>/<action>/commits/<tag> --jq .sha`; build an action→SHA lookup table
+- [X] T021 Apply SHA-pin sweep: replace every `uses: <owner>/<action>@vX.Y.Z` with `uses: <owner>/<action>@<40-char-sha> # vX.Y.Z` across all workflow files in a single commit
+- [X] T022 [P] Add `timeout-minutes:` to every job in every workflow file — default 15, docker-build 25, Playwright 20, CodeQL 30; separate commit for bisectability
+- [X] T023 [P] Pin runtime versions to full semver in every workflow: `python-version: "3.14.1"`, `node-version: "22.12.0"` (or current), `go-version: "1.25.3"` (or current — confirm via `gh run view --log`); consolidate duplicates across files; separate commit
+- [X] T024 [P] Pin `golangci-lint` version in `.github/workflows/ci-cli.yml` source-install step (e.g. `@v2.11.4`); never `@latest`
+- [X] T025 [P] Create `.github/CODEOWNERS` with `* @Bruno-Ghiberto` (solo-dev default); commit separately
+- [X] T026 Add top-of-file comment blocks to every workflow file documenting purpose/triggers/blockers per NFR-005
 
 ### Gate 1 — Orchestrator (Opus)
 
@@ -106,25 +106,25 @@ All paths are absolute-from-repo-root, matching the repo layout from `plan.md` �
 
 ### Wave 2 A3 — Python Gates (python-expert, Sonnet)
 
-- [ ] T060 [US2] Create a NEW `pyproject.toml` at repo root (file does NOT exist currently — verify via `test -f pyproject.toml`). Content: minimal PEP 621 `[project]` stub (name = "the-embedinator-backend", description, no new runtime deps) + `[tool.mypy]` block with `plugins = ["pydantic.mypy"]`, `python_version = "3.14"`, `no_implicit_optional = true`, `warn_unused_ignores = true`, `ignore_missing_imports = false`, exclude patterns (`^build/`, `^dist/`, `^\\.venv/`) + `[tool.pydantic-mypy]` sub-block with `init_forbid_extra=true`, `init_typed=true`, `warn_required_dynamic_aliases=true` per `research.md` § 3. Rationale: PEP 621 is the modern standard for Python tool config consolidation; a one-off `mypy.ini` would fragment future tooling choices (ruff migration, pytest config) that might move to pyproject.toml.
-- [ ] T061 [P] [US2] Add `mypy`, `pydantic[mypy]`, `pip-audit` to `requirements.txt` as dev-deps (or `requirements-dev.txt` if that pattern exists; verify before picking)
-- [ ] T062 [US2] Add `backend-test` step in `.github/workflows/_ci-core.yml` Python job: `pytest tests/ --cov=backend --cov-fail-under=80` (EXPLICITLY REMOVE `--no-cov` — this is the FR-002 fix; `pytest.ini` already declares the threshold)
-- [ ] T063 [US2] Add `backend-format-check` step in `_ci-core.yml` Python job: `ruff format --check backend/` as a SEPARATE step from the existing `ruff check` step; fails CI on format drift
-- [ ] T064 [US2] Add `backend-type-check` step in `_ci-core.yml` Python job: `mypy backend/` using the config from T060
-- [ ] T065 [US2] Add `backend-integration` job in `_ci-core.yml` with `services: qdrant:` block (qdrant/qdrant image, port 6333 exposed, healthcheck); runs `pytest tests/ -m require_docker --no-cov`; **NO path filter** per Q3 — runs on every PR
-- [ ] T066 [US2] Add `backend-pip-audit` step in `_ci-core.yml` Python job: `pip-audit --requirement requirements.txt` (FR-009 Python portion)
+- [X] T060 [US2] Create a NEW `pyproject.toml` at repo root (file does NOT exist currently — verify via `test -f pyproject.toml`). Content: minimal PEP 621 `[project]` stub (name = "the-embedinator-backend", description, no new runtime deps) + `[tool.mypy]` block with `plugins = ["pydantic.mypy"]`, `python_version = "3.14"`, `no_implicit_optional = true`, `warn_unused_ignores = true`, `ignore_missing_imports = false`, exclude patterns (`^build/`, `^dist/`, `^\\.venv/`) + `[tool.pydantic-mypy]` sub-block with `init_forbid_extra=true`, `init_typed=true`, `warn_required_dynamic_aliases=true` per `research.md` § 3. Rationale: PEP 621 is the modern standard for Python tool config consolidation; a one-off `mypy.ini` would fragment future tooling choices (ruff migration, pytest config) that might move to pyproject.toml.
+- [X] T061 [P] [US2] Add `mypy`, `pydantic[mypy]`, `pip-audit` to `requirements.txt` as dev-deps (or `requirements-dev.txt` if that pattern exists; verify before picking)
+- [X] T062 [US2] Add `backend-test` step in `.github/workflows/_ci-core.yml` Python job: `pytest tests/ --cov=backend --cov-fail-under=80` (EXPLICITLY REMOVE `--no-cov` — this is the FR-002 fix; `pytest.ini` already declares the threshold)
+- [X] T063 [US2] Add `backend-format-check` step in `_ci-core.yml` Python job: `ruff format --check backend/` as a SEPARATE step from the existing `ruff check` step; fails CI on format drift
+- [X] T064 [US2] Add `backend-type-check` step in `_ci-core.yml` Python job: `mypy backend/` using the config from T060
+- [X] T065 [US2] Add `backend-integration` job in `_ci-core.yml` with `services: qdrant:` block (qdrant/qdrant image, port 6333 exposed, healthcheck); runs `pytest tests/ -m require_docker --no-cov`; **NO path filter** per Q3 — runs on every PR
+- [X] T066 [US2] Add `backend-pip-audit` step in `_ci-core.yml` Python job: `pip-audit --requirement requirements.txt` (FR-009 Python portion)
 
 ### Wave 2 A4 — Rust + Go Gates (devops-architect, Sonnet)
 
-- [ ] T070 [P] [US2] Create `.github/workflows/ci-rust.yml` — triggers on `pull_request: paths: ['ingestion-worker/**']` and `push: branches: [main]: paths: ['ingestion-worker/**']`. Jobs: `fmt` (`cargo fmt --check`), `clippy` (`cargo clippy --all-targets --all-features -- -D warnings`), `test` (`cargo test --all-features`), `audit` (`cargo audit`). Toolchain via `dtolnay/rust-toolchain@<sha>` with `toolchain: 1.93.1`. Matrix on `ubuntu-latest` only
-- [ ] T071 [US2] Add top-of-file comment block to `.github/workflows/ci-rust.yml` per NFR-005
-- [ ] T072 [US2] Add `govulncheck` step to `.github/workflows/ci-cli.yml` Go job: `go install golang.org/x/vuln/cmd/govulncheck@<pinned-version>` then `govulncheck ./...`; fails PR on reported vuln; **PRESERVE** PR #2 fixes (commits `d8f6034`, `1b6b234`)
+- [X] T070 [P] [US2] Create `.github/workflows/ci-rust.yml` — triggers on `pull_request: paths: ['ingestion-worker/**']` and `push: branches: [main]: paths: ['ingestion-worker/**']`. Jobs: `fmt` (`cargo fmt --check`), `clippy` (`cargo clippy --all-targets --all-features -- -D warnings`), `test` (`cargo test --all-features`), `audit` (`cargo audit`). Toolchain via `dtolnay/rust-toolchain@<sha>` with `toolchain: 1.93.1`. Matrix on `ubuntu-latest` only
+- [X] T071 [US2] Add top-of-file comment block to `.github/workflows/ci-rust.yml` per NFR-005
+- [X] T072 [US2] Add `govulncheck` step to `.github/workflows/ci-cli.yml` Go job: `go install golang.org/x/vuln/cmd/govulncheck@<pinned-version>` then `govulncheck ./...`; fails PR on reported vuln; **PRESERVE** PR #2 fixes (commits `d8f6034`, `1b6b234`)
 
 ### Wave 2 A5 — Frontend Gates (frontend-architect, Sonnet)
 
 - [ ] T080 [P] [US2] Edit `frontend/vitest.config.ts` — add `coverage: { lines: 70, branches: 70, functions: 70, statements: 70, thresholdAutoUpdate: false }`. Confirm 70% is achievable on current suite via `pnpm test --coverage` before landing
-- [ ] T081 [US2] Add `frontend-coverage` step in `_ci-core.yml` frontend job: `pnpm test --coverage --coverage.thresholdAutoUpdate=false`; fails on threshold breach
-- [ ] T082 [US2] Add `frontend-e2e` job in `_ci-core.yml` — triggered by path `frontend/**`; spins up backend+frontend stack (reuse `docker compose`); runs `pnpm exec playwright test`; uploads report as artifact on failure; timeout 20min
+- [X] T081 [US2] Add `frontend-coverage` step in `_ci-core.yml` frontend job: `pnpm test --coverage --coverage.thresholdAutoUpdate=false`; fails on threshold breach
+- [X] T082 [US2] Add `frontend-e2e` job in `_ci-core.yml` — triggered by path `frontend/**`; spins up backend+frontend stack (reuse `docker compose`); runs `pnpm exec playwright test`; uploads report as artifact on failure; timeout 20min
 - [ ] T083 [US2] Verify `frontend/playwright.config.ts` `use.baseURL` matches CI target (backend service URL); adjust only if needed
 
 ### Wave 3 A6 — Docker Smoke Test (security-engineer, Opus) — US2 portion
