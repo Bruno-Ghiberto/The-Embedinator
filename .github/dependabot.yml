@@ -1,37 +1,122 @@
+# Dependabot configuration — target develop, group patches/minors, defer risky majors.
+# Rationale:
+#   * `target-branch: develop` routes updates through the normal develop → main release
+#     flow instead of bypassing it (main has required_approvals: 1 + enforce_admins: true
+#     so Dependabot PRs against main cannot self-merge).
+#   * `groups` collapses routine patch/minor updates into a single PR per ecosystem and
+#     per week, replacing the 23-PR explosion that occurred on the first public-repo run.
+#   * `ignore` blocks major bumps that require explicit migration work (TypeScript 6,
+#     Vitest 4, lucide-react 1.x) and 0.x minor bumps in Cargo (0.x minors are breaking
+#     under Rust semver). These should be opened intentionally via dedicated spec work.
 version: 2
 updates:
+  # ---------------------------------------------------------------------------
+  # Python (backend)
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "pip"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
       - "python"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      python-patch-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      # Python majors need manual review — pin via spec work, not Dependabot.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
 
+  # ---------------------------------------------------------------------------
+  # npm (frontend)
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/frontend"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
       - "javascript"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      frontend-patch-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      # Typescript 6.x introduced breaking type-checker changes — migrate via spec.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+      # Vitest 4.x reworks config + globals — migrate via spec.
+      - dependency-name: "vitest"
+        update-types:
+          - "version-update:semver-major"
+      # lucide-react 1.x renames and re-exports icons — migrate via spec.
+      - dependency-name: "lucide-react"
+        update-types:
+          - "version-update:semver-major"
+      # React majors are cross-cutting — keep pinned to the explicit target in package.json.
+      - dependency-name: "react"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "react-dom"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "next"
+        update-types:
+          - "version-update:semver-major"
 
+  # ---------------------------------------------------------------------------
+  # Cargo (ingestion-worker)
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "cargo"
     directory: "/ingestion-worker"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
       - "rust"
     open-pull-requests-limit: 5
+    groups:
+      rust-patches:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    ignore:
+      # 0.x minor bumps are breaking under Rust semver (pulldown-cmark, pdf-extract).
+      # Open these via dedicated spec work only.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
+  # ---------------------------------------------------------------------------
+  # GitHub Actions
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
       - "ci"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
+    groups:
+      actions-all:
+        patterns:
+          - "*"
