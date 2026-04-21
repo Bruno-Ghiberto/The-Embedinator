@@ -4,9 +4,7 @@ use crate::types::{Chunk, DocType};
 const MAX_CHUNK_CHARS: usize = 4000;
 
 /// Supported code file extensions.
-pub const CODE_EXTENSIONS: &[&str] = &[
-    "py", "js", "ts", "rs", "go", "java", "c", "cpp", "h",
-];
+pub const CODE_EXTENSIONS: &[&str] = &["py", "js", "ts", "rs", "go", "java", "c", "cpp", "h"];
 
 /// Check if a file extension is a supported code type.
 pub fn is_code_extension(ext: &str) -> bool {
@@ -32,9 +30,7 @@ pub fn parse_code(content: &str) -> Vec<Chunk> {
         }
 
         // If adding this block would exceed limit, flush
-        if !current_text.is_empty()
-            && current_text.len() + trimmed.len() + 2 > MAX_CHUNK_CHARS
-        {
+        if !current_text.is_empty() && current_text.len() + trimmed.len() + 2 > MAX_CHUNK_CHARS {
             chunks.push(Chunk::new(
                 current_text.trim().to_string(),
                 section_index,

@@ -24,9 +24,7 @@ pub fn parse_text(content: &str) -> Vec<Chunk> {
         }
 
         // If adding this paragraph would exceed limit, flush current buffer
-        if !current_text.is_empty()
-            && current_text.len() + trimmed.len() + 2 > MAX_CHUNK_CHARS
-        {
+        if !current_text.is_empty() && current_text.len() + trimmed.len() + 2 > MAX_CHUNK_CHARS {
             chunks.push(Chunk::new(
                 current_text.trim().to_string(),
                 section_index,
@@ -176,7 +174,10 @@ mod tests {
         let input = format!("{}\n\n{}\n\n{}", para, para, para);
         let chunks = parse_text(&input);
         for (i, chunk) in chunks.iter().enumerate() {
-            assert_eq!(chunk.chunk_index, i, "chunk_index must be monotonically increasing");
+            assert_eq!(
+                chunk.chunk_index, i,
+                "chunk_index must be monotonically increasing"
+            );
         }
     }
 
@@ -197,7 +198,10 @@ mod tests {
         let input = "text\n\n\n\n\n\nmore text";
         let chunks = parse_text(input);
         for chunk in &chunks {
-            assert!(!chunk.text.trim().is_empty(), "Empty chunks must not be emitted");
+            assert!(
+                !chunk.text.trim().is_empty(),
+                "Empty chunks must not be emitted"
+            );
         }
     }
 }

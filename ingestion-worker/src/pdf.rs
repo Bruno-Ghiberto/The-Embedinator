@@ -8,9 +8,8 @@ use crate::types::{Chunk, DocType};
 /// Skips image-only pages (empty text) with a warning to stderr.
 /// Returns Ok(chunks) on success, or Err with any chunks produced before failure.
 pub fn parse_pdf(path: &Path) -> Result<Vec<Chunk>, (Vec<Chunk>, String)> {
-    let pages = pdf_extract::extract_text_by_pages(path).map_err(|e| {
-        (Vec::new(), format!("Failed to open PDF: {}", e))
-    })?;
+    let pages = pdf_extract::extract_text_by_pages(path)
+        .map_err(|e| (Vec::new(), format!("Failed to open PDF: {}", e)))?;
 
     let mut chunks = Vec::new();
     let mut chunk_index: usize = 0;

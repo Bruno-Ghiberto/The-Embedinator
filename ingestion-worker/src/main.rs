@@ -70,24 +70,18 @@ fn main() {
     // Dispatch to parser and collect chunks
     let result: Result<Vec<Chunk>, (Vec<Chunk>, String)> = match doc_type {
         "pdf" => pdf::parse_pdf(path),
-        "markdown" => {
-            match std::fs::read_to_string(path) {
-                Ok(content) => Ok(markdown::parse_markdown(&content)),
-                Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
-            }
-        }
-        "text" => {
-            match std::fs::read_to_string(path) {
-                Ok(content) => Ok(text::parse_text(&content)),
-                Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
-            }
-        }
-        "code" => {
-            match std::fs::read_to_string(path) {
-                Ok(content) => Ok(code::parse_code(&content)),
-                Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
-            }
-        }
+        "markdown" => match std::fs::read_to_string(path) {
+            Ok(content) => Ok(markdown::parse_markdown(&content)),
+            Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
+        },
+        "text" => match std::fs::read_to_string(path) {
+            Ok(content) => Ok(text::parse_text(&content)),
+            Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
+        },
+        "code" => match std::fs::read_to_string(path) {
+            Ok(content) => Ok(code::parse_code(&content)),
+            Err(e) => Err((Vec::new(), format!("Failed to read file: {}", e))),
+        },
         _ => {
             eprintln!("[ERROR] Unsupported document type: {}", doc_type);
             std::process::exit(1);
