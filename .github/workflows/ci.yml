@@ -1,0 +1,33 @@
+# Thin CI dispatcher for The Embedinator.
+# Purpose:  Triggers _ci-core.yml on every PR (any base branch) and every push to main.
+#           All job logic lives in _ci-core.yml; this file is intentionally
+#           minimal so contributors can trace the full gate from one place.
+# Triggers: pull_request (all base branches — supports feature→develop→main flow
+#           AND long-lived feature/spec branches like this one), push to main.
+# Blockers: None — this is the trigger, not the gate.  Publish workflows
+#           (docker-publish, release, release-cli) are the gated consumers.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    # Reusable-workflow caller jobs CANNOT declare timeout-minutes / runs-on /
+    # steps (runner-job fields) OR `permissions: inherit` (not a valid value).
+    # Explicit permissions mirror what _ci-core.yml declares internally for its
+    # jobs (id-token for cosign, checks/pull-requests for status reporting).
+    uses: ./.github/workflows/_ci-core.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write

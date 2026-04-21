@@ -1,0 +1,78 @@
+# API Gateway MCP Server
+
+A universal MCP (Model Context Protocol) server to integrate any API with Claude Desktop using only Docker configurations.
+
+[What is an MCP Server?](https://www.anthropic.com/news/model-context-protocol)
+
+## MCP Info
+Attribute|Details|
+|-|-|
+**Docker Image**|[mcp/api-gateway](https://hub.docker.com/repository/docker/mcp/api-gateway)
+**Author**|[rflpazini](https://github.com/rflpazini)
+**Repository**|https://github.com/rflpazini/mcp-api-gateway
+
+## Image Building Info
+Attribute|Details|
+|-|-|
+**Dockerfile**|https://github.com/rflpazini/mcp-api-gateway/blob/f197f8db4f4990d76148342e27f005d9022df417/Dockerfile
+**Commit**|`f197f8db4f4990d76148342e27f005d9022df417`
+**Docker Image built by**|Docker Inc.
+**Docker Scout Health Score**| ![Docker Scout Health Score](https://api.scout.docker.com/v1/policy/insights/org-image-score/badge/mcp/api-gateway)
+**Verify Signature**|`COSIGN_REPOSITORY=mcp/signatures cosign verify mcp/api-gateway --key https://raw.githubusercontent.com/docker/keyring/refs/heads/main/public/mcp/latest.pub`
+**Licence**|
+
+## Available Tools (2)
+Tools provided by this Server|Short Description
+-|-
+`execute_api`|Execute any API endpoint with custom parameters|
+`get_api_info`|Get information about available APIs and their endpoints|
+
+---
+## Tools Details
+
+#### Tool: **`execute_api`**
+Execute any API endpoint with custom parameters
+Parameters|Type|Description
+-|-|-
+`api_name`|`string`|Name of the API
+`method`|`string`|
+`path`|`string`|API endpoint path
+`data`|`object` *optional*|Request body data
+`headers`|`object` *optional*|Additional headers
+`params`|`object` *optional*|Query parameters
+
+---
+#### Tool: **`get_api_info`**
+Get information about available APIs and their endpoints
+Parameters|Type|Description
+-|-|-
+`api_name`|`string` *optional*|Name of the API (optional, shows all if not provided)
+
+---
+## Use this MCP Server
+
+```json
+{
+  "mcpServers": {
+    "mcp-api-gateway": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "API_1_NAME",
+        "-e",
+        "API_1_SWAGGER_URL",
+        "-e",
+        "API_1_HEADER_AUTHORIZATION",
+        "mcp/api-gateway"
+      ],
+      "env": {
+        "API_1_NAME": "name",
+        "API_1_SWAGGER_URL": "https://api.github.com/swagger.json",
+        "API_1_HEADER_AUTHORIZATION": "token"
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+# Static analysis security scanning via GitHub CodeQL.
+# Purpose:  Run CodeQL's semantic analysis across Python, JavaScript/
+#           TypeScript, and Go sources to surface injection, hardcoded-secret,
+#           and unsafe-deserialization findings before they reach main.
+# Triggers: push to main; weekly schedule (Mondays 06:00 UTC) to catch newly
+#           published rules against unchanged code.
+# Blockers: Runs post-push; does NOT gate merges by default (ADVISORY).
+#           May flip role to REQUIRED for security-events findings in a
+#           follow-up spec once the tooling matures.
+# Role:     ADVISORY (informational) — surfaces findings in the Security tab.
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday at 06:00 UTC
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL analysis
+    runs-on: ubuntu-latest
+    # 30 min covers CodeQL build + analysis across python, javascript-typescript, and go.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Rust covered by cargo audit + clippy -D warnings in ci-rust.yml;
+        # CodeQL does not natively support Rust (FR-011).
+        language: [python, javascript-typescript, go]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: github/codeql-action/init@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3.35.2
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3.35.2
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -1,0 +1,6 @@
+# Intel Arc GPU overlay (experimental) — merge with docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu-intel.yml up
+services:
+  ollama:
+    devices:
+      - /dev/dri:/dev/dri

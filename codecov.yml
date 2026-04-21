@@ -1,0 +1,29 @@
+# Codecov configuration for The Embedinator.
+# Tokenless uploads enabled — public repo (research.md §6, spec-27 FR-018).
+# fail_ci_if_error: false in workflow steps so Codecov outages never block merges (NFR-006).
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto      # track against base branch, not a fixed number
+        threshold: 2%     # allow up to 2% drop without failing
+    patch:
+      default:
+        target: 70%       # new code in PRs should be at least 70% covered
+        threshold: 5%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false  # always post a comment, even if coverage is unchanged
+
+flags:
+  backend:
+    paths:
+      - backend/
+    carryforward: true   # carry forward coverage when backend tests don't run
+  frontend:
+    paths:
+      - frontend/src/
+    carryforward: true

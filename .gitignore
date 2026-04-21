@@ -18,8 +18,7 @@ env/
 ENV/
 
 # Environment variables
-.env
-.env.*
+.env*
 !.env.example
 
 # Jupyter
@@ -51,7 +50,65 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+frontend/.next/
+frontend/node_modules/
+# TypeScript incremental build output — transient, never commit
+tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# Docker
+*.log*
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# External test runner output
+Docs/Tests/*.status
+Docs/Tests/*.summary
+Docs/Tests/*.log
+
+# Rust
+target/
+*.rs.bk
+
 # Secrets / API keys
 secrets/
 *.pem
 *.key
+
+# Dev tooling (internal, not for public repo)
+CLAUDE.md
+AGENTS.md
+skills-lock.json
+.agents/
+.claude/
+.specify/
+.serena/
+.gitnexus/
+.gitnexus
+Docs/PROMPTS/
+docs/PROMPTS/
+frontend/test-results/
+.atl/
+.playwright-mcp/
+skills/
+
+# Runtime / build artifacts
+/embedinator
+/config.yaml
+/.mcp.json
+/empty.md
+
+# Loose E2E test evidence dropped at repo root (kept out of commit history)
+/sc*.png
+/t*.png
+/chat-*.png
+
+# Frontend test coverage artifacts
+frontend/coverage/

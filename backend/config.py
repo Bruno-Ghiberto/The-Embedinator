@@ -1,0 +1,99 @@
+"""Application configuration via environment variables with sensible local-first defaults."""
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application configuration loaded from environment variables and an optional .env file.
+
+    All fields have sensible local-first defaults for zero-config Docker Compose deployment.
+    Override via environment variables or a .env file at the project root.
+    Field aliases (e.g. EMBEDINATOR_FERNET_KEY, EMBEDINATOR_PORT_QDRANT) are accepted
+    because populate_by_name=True is set in model_config.
+    """
+
+    # Server
+    host: str = "0.0.0.0"
+    port: int = 8000
+    log_level: str = "INFO"
+    debug: bool = False
+
+    # Observability: per-component log level overrides (US3, FR-004)
+    # Format: comma-separated module.path=LEVEL pairs
+    # Example: backend.retrieval.reranker=DEBUG,backend.storage.sqlite_db=WARNING
+    log_level_overrides: str = Field(default="", alias="LOG_LEVEL_OVERRIDES")
+
+    # Frontend
+    frontend_port: int = 3000
+
+    # Qdrant
+    qdrant_host: str = "localhost"
+    qdrant_port: int = Field(default=6333, alias="EMBEDINATOR_PORT_QDRANT")
+
+    # Providers
+    ollama_base_url: str = "http://localhost:11434"
+    default_provider: str = "ollama"
+    default_llm_model: str = "qwen2.5:7b"  # spec-26: FR-004 Path B — revert to proven non-thinking model
+    supported_llm_models: list[str] = [
+        "qwen2.5:7b",
+        "llama3.1:8b",
+        "mistral:7b",
+    ]  # spec-26: FR-004 — tested-and-recommended list; thinking models unsupported, see docs/performance.md
+    default_embed_model: str = "nomic-embed-text"
+    api_key_encryption_secret: str = Field(default="", alias="EMBEDINATOR_FERNET_KEY")  # Constitution V
+
+    # SQLite
+    sqlite_path: str = "data/embedinator.db"
+    checkpoint_max_threads: int = (
+        100  # spec-26 DISK-001: cap LangGraph checkpoints.db growth; prune oldest threads on startup. Set 0 to disable.
+    )
+
+    # Ingestion
+    upload_dir: str = "data/uploads"
+    max_upload_size_mb: int = 100
+    parent_chunk_size: int = 3000
+    child_chunk_size: int = 500
+    embed_batch_size: int = 16
+    rust_worker_path: str = "ingestion-worker/target/release/embedinator-worker"
+    embed_max_workers: int = 12  # spec-26: BUG-023 opportunistic P3 — audit §CPU CPU-002 shows backend at 2-10% CPU during inference on 20-thread host; 4 workers left 16 threads idle, 12 aligns with reference hardware headroom.
+    qdrant_upsert_batch_size: int = 50
+
+    # Agent
+    max_iterations: int = 3  # spec-26: FR-005 iter2 cap research loop — smoke bench (aa9c875) showed orchestrator p50 = 14.6s across 4 calls (58% of total latency); cap at 3 prevents iteration explosion. See docs/benchmarks/aa9c875-smoke-instrumented.json.
+    max_tool_calls: int = 8
+    max_loop_seconds: int = 300  # BUG-008: wall-clock deadline for research loop
+    confidence_threshold: int = 60  # 0–100 scale
+    compression_threshold: float = 0.75
+    meta_reasoning_max_attempts: int = 2
+    meta_relevance_threshold: float = 0.2  # R4: mean cross-encoder score threshold
+    meta_variance_threshold: float = 0.15  # R4: stdev threshold for noisy results
+
+    # Retrieval
+    hybrid_dense_weight: float = 0.7
+    hybrid_sparse_weight: float = 0.3
+    top_k_retrieval: int = 20
+    top_k_rerank: int = 5
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    # Accuracy & Robustness
+    groundedness_check_enabled: bool = False  # spec-26: FR-005 top-1 — disable by default; verify_groundedness pays a full-context LLM round-trip (~3-8s on qwen2.5:7b) per turn. Opt-in via settings API for quality-over-speed. See audit §GPU FINDING GPU-001 + synthesis Top-1.
+    citation_alignment_threshold: float = 0.3
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_cooldown_secs: int = 60  # spec-26: FR-009 — audit §ConfigChanges: 30s lockout is aggressive for single-user workstation; 60s gives Ollama reload time after a true failure while still recovering quickly.
+    retry_max_attempts: int = 3
+    retry_backoff_initial_secs: float = 1.0
+
+    # Rate Limiting
+    rate_limit_chat_per_minute: int = 30
+    rate_limit_ingest_per_minute: int = 10
+    rate_limit_provider_keys_per_minute: int = 5
+    rate_limit_general_per_minute: int = 120
+
+    # CORS
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    model_config = SettingsConfigDict(env_file=".env", populate_by_name=True, extra="ignore")
+
+
+settings = Settings()

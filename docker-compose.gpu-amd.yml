@@ -1,0 +1,8 @@
+# AMD ROCm GPU overlay — merge with docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu-amd.yml up
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri

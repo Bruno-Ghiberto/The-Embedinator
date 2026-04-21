@@ -1,0 +1,232 @@
+# Build and push backend + frontend Docker images to ghcr.io.
+# Purpose:  Publish container images ONLY when CI passes on the exact
+#           triggering commit SHA — no race window possible. Each published
+#           image is Trivy-scanned and cosign-signed (keyless OIDC) before
+#           being considered a valid distribution artifact.
+# Triggers: push to main (tagged 'latest'), semver tags (v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           any image is pushed. Trivy fails the job on HIGH/CRITICAL
+#           fixable CVEs. cosign signs AFTER push using the build-push
+#           digest (immutable reference).
+# Role:     REQUIRED — images are the primary distribution surface.
+# Security: `permissions: id-token: write` at workflow AND job level is
+#           REQUIRED for cosign keyless OIDC. Each job restates the full
+#           permission set because workflow-level defaults are silently
+#           dropped when a job declares its own `permissions:` block.
+
+name: Docker Publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+# Workflow-level permissions — required because cosign keyless signing
+# needs an OIDC token (`id-token: write`) in the publish jobs.
+permissions:
+  contents: read
+  packages: write
+  id-token: write   # REQUIRED for cosign keyless OIDC (Fulcio/Rekor)
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/embedinator-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/embedinator-frontend
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact commit before pushing anything
+  # ---------------------------------------------------------------------------
+
+  ci:
+    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps/`permissions: inherit`.
+    # Explicit permissions mirror _ci-core.yml's internal declaration.
+    uses: ./.github/workflows/_ci-core.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write
+
+  # ---------------------------------------------------------------------------
+  # Publish jobs — only execute when CI passes
+  # ---------------------------------------------------------------------------
+
+  build-backend:
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # cosign keyless (must restate at job level or workflow perms are dropped)
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Lowercase image refs (OCI spec)
+        run: |
+          # OCI refs must be lowercase; github.repository_owner preserves user case
+          # (e.g. "Bruno-Ghiberto" breaks Trivy/cosign/sbom parsing of image@digest).
+          # docker/build-push-action dodges this via docker/metadata-action's tag
+          # lowercasing, but env.BACKEND_IMAGE/FRONTEND_IMAGE are built literally
+          # from github.repository_owner — so we override them with lowercased
+          # values at the job level. Bash `${VAR,,}` = to-lowercase.
+          echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-frontend" >> "$GITHUB_ENV"
+          echo "Resolved BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-backend"
+          echo "Resolved FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-frontend"
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+
+      - name: Build and push backend image
+        id: build-backend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # arm64 dropped temporarily — Rust cross-compile via QEMU on amd64 runner
+          # exceeds 30m timeout. Restore when native arm64 runner is available
+          # (spec-28 or follow-up issue). Tracked in issue #4.
+          platforms: linux/amd64
+
+      # ----- FR-009: Trivy image scan (fails on HIGH/CRITICAL fixable CVEs) -----
+      - name: Trivy scan backend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: 1
+          ignore-unfixed: true
+          format: table
+
+      # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Sign backend image by digest
+        run: cosign sign --yes ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+
+      # ----- FR-010: SBOM generate + attest (SPDX JSON) -----
+      - name: Generate backend SBOM (SPDX JSON)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+          format: spdx-json
+          output-file: backend-sbom.spdx.json
+
+      - name: Attest backend SBOM
+        run: cosign attest --yes --predicate backend-sbom.spdx.json --type spdxjson ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
+
+  build-frontend:
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # cosign keyless (must restate at job level or workflow perms are dropped)
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Lowercase image refs (OCI spec)
+        run: |
+          # OCI refs must be lowercase; github.repository_owner preserves user case
+          # (e.g. "Bruno-Ghiberto" breaks Trivy/cosign/sbom parsing of image@digest).
+          # docker/build-push-action dodges this via docker/metadata-action's tag
+          # lowercasing, but env.BACKEND_IMAGE/FRONTEND_IMAGE are built literally
+          # from github.repository_owner — so we override them with lowercased
+          # values at the job level. Bash `${VAR,,}` = to-lowercase.
+          echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-frontend" >> "$GITHUB_ENV"
+          echo "Resolved BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-backend"
+          echo "Resolved FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/embedinator-frontend"
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+
+      - name: Build and push frontend image
+        id: build-frontend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # arm64 dropped temporarily — Rust cross-compile via QEMU on amd64 runner
+          # exceeds 30m timeout. Restore when native arm64 runner is available
+          # (spec-28 or follow-up issue). Tracked in issue #4.
+          platforms: linux/amd64
+          build-args: |
+            BACKEND_URL=http://backend:8000
+
+      # ----- FR-009: Trivy image scan (fails on HIGH/CRITICAL fixable CVEs) -----
+      - name: Trivy scan frontend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: 1
+          ignore-unfixed: true
+          format: table
+
+      # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Sign frontend image by digest
+        run: cosign sign --yes ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+
+      # ----- FR-010: SBOM generate + attest (SPDX JSON) -----
+      - name: Generate frontend SBOM (SPDX JSON)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
+          format: spdx-json
+          output-file: frontend-sbom.spdx.json
+
+      - name: Attest frontend SBOM
+        run: cosign attest --yes --predicate frontend-sbom.spdx.json --type spdxjson ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}

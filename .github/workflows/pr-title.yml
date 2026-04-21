@@ -1,0 +1,39 @@
+# Workflow: PR Title
+# Purpose: Enforce Conventional Commits on PR titles (squash-merge: PR title = main commit).
+# Triggers: pull_request (opened, edited, synchronize)
+# Blockers: Non-conforming title blocks merge — exits non-zero on failure.
+# Required-status role: REQUIRED for merge (clarification Q5). See docs/cicd.md §Required Checks.
+
+name: PR Title / semantic
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: PR Title / semantic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+            build
+            perf
+            style
+            revert
+          requireScope: false
+          validateSingleCommit: false

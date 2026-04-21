@@ -1,0 +1,6 @@
+# Compiled binary (root only, not cmd/embedinator/)
+/embedinator
+/embedinator.exe
+
+# Homebrew tap (separate repo)
+homebrew-tap/

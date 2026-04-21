@@ -1,0 +1,42 @@
+# docker-compose.prod.yml — Production deployment override.
+# Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Overrides: backend + frontend services only (no Qdrant/Ollama — use managed services in prod).
+#
+# HTTPS/TLS Configuration (T074):
+# For production deployments, TLS should be handled by a reverse proxy
+# (e.g., Caddy, nginx, or Traefik) placed in front of the backend.
+#
+# Option A — Caddy (auto-TLS with Let's Encrypt):
+#   caddy:
+#     image: caddy:latest
+#     ports:
+#       - "443:443"
+#     volumes:
+#       - ./Caddyfile:/etc/caddy/Caddyfile
+#       - caddy_data:/data
+#
+# Option B — nginx with manually managed certs:
+#   nginx:
+#     image: nginx:latest
+#     ports:
+#       - "443:443"
+#     volumes:
+#       - ./nginx.conf:/etc/nginx/nginx.conf
+#       - /etc/letsencrypt:/etc/letsencrypt:ro
+#
+# Environment variables for TLS (when implemented):
+#   TLS_CERT_PATH=/etc/ssl/certs/embedinator.crt
+#   TLS_KEY_PATH=/etc/ssl/private/embedinator.key
+#
+# The backend itself runs plain HTTP behind the reverse proxy.
+# Do NOT expose port 8000 directly in production.
+
+services:
+  backend:
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 4
+    environment:
+      - LOG_LEVEL=WARNING
+      - DEBUG=false
+
+  frontend:
+    command: npm start

@@ -1,0 +1,62 @@
+# The Embedinator — Python Backend Dependencies
+
+# Web framework
+fastapi>=0.135
+uvicorn[standard]>=0.34
+python-multipart>=0.0.18
+
+# Configuration
+pydantic>=2.0
+pydantic-settings>=2.0
+
+# Database
+aiosqlite>=0.20
+
+# Vector database
+qdrant-client>=1.17.0
+
+# Cross-encoder reranking
+sentence-transformers>=5.2.3
+
+# HTTP client (for Ollama/provider API calls)
+httpx>=0.27
+
+# Logging
+structlog>=24.0
+
+# PDF parsing
+pypdf>=5.0
+
+# API key encryption
+cryptography>=44.0
+
+# Testing
+pytest>=8.0
+pytest-asyncio>=0.24
+pytest-cov>=6.0
+pytest-httpx>=0.35
+
+# LangGraph agent framework
+langgraph>=1.0.10
+langchain-core>=1.2.10
+
+# LangChain provider adapters (lazy-imported in registry.py)
+langchain-ollama>=0.3
+langchain-openai>=0.3
+langchain-anthropic>=0.3
+
+# LangGraph checkpointing
+langgraph-checkpoint-sqlite>=2.0
+
+# Token counting (spec-26: FR-007 true token counter for message trimming)
+tiktoken>=0.8
+
+# Linting
+ruff>=0.9
+
+# Type checking and security auditing (CI dev-deps)
+# Note: pydantic.mypy plugin auto-activates via pyproject.toml [tool.mypy].plugins
+# when pydantic is installed (see line above). No separate `pydantic[mypy]` extra needed
+# (deprecated in pydantic 2.x).
+mypy>=1.11
+pip-audit>=2.9

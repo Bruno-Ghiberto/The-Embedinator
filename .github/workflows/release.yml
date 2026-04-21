@@ -1,0 +1,67 @@
+# Create GitHub Releases for The Embedinator.
+# Purpose:  Publish a GitHub release ONLY when CI passes on the tagged
+#           commit — prevents broken releases from reaching users.
+# Triggers: push of a semver tag (v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           the release job runs.  A failed CI run leaves no release artifact.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact tagged commit
+  # ---------------------------------------------------------------------------
+
+  ci:
+    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps/`permissions: inherit`.
+    # Explicit permissions mirror _ci-core.yml's internal declaration.
+    uses: ./.github/workflows/_ci-core.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write
+
+  # ---------------------------------------------------------------------------
+  # Release — only runs when CI passes
+  # ---------------------------------------------------------------------------
+
+  release:
+    name: Create GitHub Release
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          # Extract section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \\[${VERSION}\\]|^## ${VERSION}/{found=1; next} /^## /{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release ${TAG}. See [CHANGELOG.md](CHANGELOG.md) for full details."
+          fi
+          {
+            echo "body<<RELEASE_EOF"
+            echo "$NOTES"
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          generate_release_notes: false

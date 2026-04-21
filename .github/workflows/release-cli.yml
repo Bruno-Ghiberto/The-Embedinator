@@ -1,0 +1,68 @@
+# Build and release CLI binaries via GoReleaser for The Embedinator.
+# Purpose:  Publish CLI binaries and Homebrew tap ONLY when CI passes on
+#           the tagged commit — prevents broken CLI releases from shipping.
+# Triggers: push of a CLI semver tag (cli/v*).
+# Blockers: The 'ci' job must complete with all_passed == 'true' before
+#           goreleaser runs.  A failed CI run produces no binaries or tap update.
+# Future:   A6 (Wave 3) adds SBOM generation via goreleaser checksums config.
+
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - "cli/v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: run the full CI suite on this exact tagged commit
+  # ---------------------------------------------------------------------------
+
+  ci:
+    # Reusable-workflow caller — NO timeout-minutes/runs-on/steps/`permissions: inherit`.
+    # Explicit permissions mirror _ci-core.yml's internal declaration.
+    uses: ./.github/workflows/_ci-core.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write
+
+  # ---------------------------------------------------------------------------
+  # Release — only runs when CI passes
+  # ---------------------------------------------------------------------------
+
+  release:
+    name: Build and release CLI
+    needs: ci
+    if: needs.ci.outputs.all_passed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Run tests
+        working-directory: cli
+        run: go test ./...
+
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          version: "~> v2"
+          args: release --clean
+          workdir: cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

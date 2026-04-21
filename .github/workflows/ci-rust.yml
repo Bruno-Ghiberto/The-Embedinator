@@ -1,0 +1,72 @@
+# Workflow: CI Rust
+# Purpose: Format, lint, test, and audit the Rust ingestion-worker crate.
+# Triggers: PRs and pushes to main touching ingestion-worker/**
+# Blockers: fmt drift, clippy warnings (-D warnings), test failures, cargo-audit findings
+# Required-status role: Path-conditional REQUIRED (ingestion-worker/** changes)
+
+name: CI (Rust)
+
+on:
+  pull_request:
+    paths:
+      - "ingestion-worker/**"
+  push:
+    branches: [main]
+    paths:
+      - "ingestion-worker/**"
+
+concurrency:
+  group: ci-rust-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    name: CI Rust / fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.93.1"
+          components: rustfmt
+      - run: cargo fmt --manifest-path ingestion-worker/Cargo.toml --all --check
+
+  clippy:
+    name: CI Rust / clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.93.1"
+          components: clippy
+      - run: cargo clippy --manifest-path ingestion-worker/Cargo.toml --all-targets --all-features -- -D warnings
+
+  test:
+    name: CI Rust / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.93.1"
+      - run: cargo test --manifest-path ingestion-worker/Cargo.toml --all-features
+
+  audit:
+    name: CI Rust / audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.93.1"
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.1
+      - run: cargo audit --file ingestion-worker/Cargo.lock

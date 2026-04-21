@@ -1,0 +1,138 @@
+# CLI test and lint pipeline for the Go installer (cli/**).
+# Purpose:  Run `go vet`, `go build`, race-enabled tests with coverage, and
+#           golangci-lint on every change that touches `cli/**`.  Keeps the
+#           CLI binary green across Linux/macOS/Windows without holding up
+#           backend/frontend CI.
+# Triggers: push to main (paths: cli/**), pull_request (paths: cli/**).
+# Blockers: Not a blocker for _ci-core.yml's gate — this is an independent
+#           path-scoped pipeline.  Still treated as REQUIRED for merges that
+#           touch `cli/**` so a broken installer never lands on main.
+# Role:     REQUIRED (path-scoped) — see docs/cicd.md §Required Checks.
+# PR #2:    Preserves `install-from-source` golangci-lint, Windows `shell: bash`,
+#           and the `ci-cli-env` preflight test.  Version pins (Go, golangci-lint)
+#           live inline because this workflow does NOT consume _ci-core.yml.
+
+name: CI (CLI)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+  pull_request:
+    paths:
+      - "cli/**"
+
+concurrency:
+  group: ci-cli-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read  # dorny/paths-filter goreleaser-check step in lint job
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        go:
+          - "1.25.4"
+    runs-on: ${{ matrix.os }}
+    # 20 min accommodates the Windows matrix leg (2x slower than ubuntu per research.md).
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: cli/go.sum
+
+      - name: Vet
+        working-directory: cli
+        run: go vet ./...
+
+      - name: Build
+        working-directory: cli
+        run: go build ./...
+
+      - name: Test with race detector and coverage
+        working-directory: cli
+        shell: bash
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cli-coverage-go${{ matrix.go }}
+          path: cli/coverage.out
+          retention-days: 7
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.4"
+          cache-dependency-path: cli/go.sum
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+
+      - name: Run golangci-lint
+        working-directory: cli
+        run: golangci-lint run ./...
+
+      - name: Detect goreleaser config change
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        id: detect-goreleaser
+        with:
+          filters: |
+            goreleaser:
+              - 'cli/.goreleaser.yml'
+
+      - name: Install goreleaser
+        if: steps.detect-goreleaser.outputs.goreleaser == 'true'
+        run: go install github.com/goreleaser/goreleaser/v2@v2.15.3
+
+      - name: Validate goreleaser config
+        if: steps.detect-goreleaser.outputs.goreleaser == 'true'
+        run: goreleaser check --config cli/.goreleaser.yml
+
+  govulncheck:
+    name: CI CLI / govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # continue-on-error: accepted risk — GO-2026-4887 (docker/docker v28.5.2,
+    # "Moby AuthZ plugin bypass on oversized requests") has Fixed-in: N/A and
+    # no newer docker/docker release patches it. The vulnerability lives in the
+    # Moby daemon's AuthZ plugin layer; our CLI only uses the Docker client SDK
+    # to call daemon APIs (PullImage, ListContainers, etc.) and never implements
+    # or exposes an AuthZ plugin endpoint. Re-evaluate when docker/docker publishes
+    # a patched release or when govulncheck adds per-module exclusion support.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.4"
+          cache-dependency-path: cli/go.sum
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.2.0
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+        working-directory: cli
