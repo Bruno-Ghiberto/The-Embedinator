@@ -1,4 +1,5 @@
 """Unit tests for spec-03 5-signal confidence scoring (R8)."""
+
 import pytest
 
 from backend.agent.confidence import compute_confidence
@@ -111,16 +112,19 @@ class TestLegacyConfidence:
         assert result == 0
 
     def test_legacy_mixed_scores(self):
-        result = compute_confidence([
-            {"relevance_score": 0.9},
-            {"relevance_score": 0.5},
-        ])
+        result = compute_confidence(
+            [
+                {"relevance_score": 0.9},
+                {"relevance_score": 0.5},
+            ]
+        )
         assert 0 < result < 100
 
 
 # ---------------------------------------------------------------------------
 # BUG-010 regression tests (spec-26: FR-003)
 # ---------------------------------------------------------------------------
+
 
 class TestBug010Regression:
     """Regression tests for BUG-010: confidence must be non-zero on real retrieval.
@@ -171,10 +175,7 @@ class TestBug010Regression:
             )
             for i in range(3)
         ]
-        scores = [
-            compute_confidence(chunks, num_collections_searched=1, num_collections_total=1)
-            for _ in range(3)
-        ]
+        scores = [compute_confidence(chunks, num_collections_searched=1, num_collections_total=1) for _ in range(3)]
         assert len(set(scores)) == 1, f"BUG-010: non-deterministic scores: {scores}"
 
     def test_chunks_with_no_rerank_score_fallback_to_dense(self):
@@ -213,6 +214,5 @@ class TestBug010Regression:
         raw = compute_confidence(chunks, num_collections_searched=1, num_collections_total=1)
         score_int = int(raw * 100) if isinstance(raw, float) else int(raw)
         assert score_int > 30, (
-            f"BUG-010: int(score*100)={score_int} on 5 high-quality chunks — "
-            f"aggregate_answers would emit 0 to chat.py"
+            f"BUG-010: int(score*100)={score_int} on 5 high-quality chunks — aggregate_answers would emit 0 to chat.py"
         )

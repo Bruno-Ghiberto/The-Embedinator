@@ -113,9 +113,7 @@ class TestCollectionCreateRequest:
 
 class TestCollectionResponse:
     def test_has_seven_fields(self):
-        resp = CollectionResponse(
-            id="uuid", name="test", created_at="2026-01-01T00:00:00Z"
-        )
+        resp = CollectionResponse(id="uuid", name="test", created_at="2026-01-01T00:00:00Z")
         assert resp.id == "uuid"
         assert resp.name == "test"
         assert resp.description is None
@@ -126,7 +124,8 @@ class TestCollectionResponse:
 
     def test_description_optional(self):
         resp = CollectionResponse(
-            id="uuid", name="test",
+            id="uuid",
+            name="test",
             description="Custom desc",
             created_at="2026-01-01T00:00:00Z",
         )
@@ -140,8 +139,11 @@ class TestDocumentResponse:
     def test_valid_statuses(self):
         for status in ("pending", "ingesting", "completed", "failed", "duplicate"):
             resp = DocumentResponse(
-                id="d1", collection_id="c1", filename="f.txt",
-                status=status, created_at="2026-01-01T00:00:00Z",
+                id="d1",
+                collection_id="c1",
+                filename="f.txt",
+                status=status,
+                created_at="2026-01-01T00:00:00Z",
             )
             assert resp.status == status
 
@@ -149,21 +151,30 @@ class TestDocumentResponse:
         for bad_status in ("uploaded", "parsing", "indexing", "indexed", "deleted"):
             with pytest.raises(ValidationError):
                 DocumentResponse(
-                    id="d1", collection_id="c1", filename="f.txt",
-                    status=bad_status, created_at="2026-01-01T00:00:00Z",
+                    id="d1",
+                    collection_id="c1",
+                    filename="f.txt",
+                    status=bad_status,
+                    created_at="2026-01-01T00:00:00Z",
                 )
 
     def test_chunk_count_optional(self):
         resp = DocumentResponse(
-            id="d1", collection_id="c1", filename="f.txt",
-            status="pending", created_at="2026-01-01T00:00:00Z",
+            id="d1",
+            collection_id="c1",
+            filename="f.txt",
+            status="pending",
+            created_at="2026-01-01T00:00:00Z",
         )
         assert resp.chunk_count is None
 
     def test_updated_at_optional(self):
         resp = DocumentResponse(
-            id="d1", collection_id="c1", filename="f.txt",
-            status="completed", created_at="2026-01-01T00:00:00Z",
+            id="d1",
+            collection_id="c1",
+            filename="f.txt",
+            status="completed",
+            created_at="2026-01-01T00:00:00Z",
         )
         assert resp.updated_at is None
 
@@ -195,40 +206,48 @@ class TestSettingsResponse:
     def test_rejects_confidence_threshold_150(self):
         with pytest.raises(ValidationError):
             SettingsResponse(
-                default_llm_model="m", default_embed_model="e",
+                default_llm_model="m",
+                default_embed_model="e",
                 confidence_threshold=150,
                 groundedness_check_enabled=True,
                 citation_alignment_threshold=0.3,
-                parent_chunk_size=2000, child_chunk_size=500,
+                parent_chunk_size=2000,
+                child_chunk_size=500,
             )
 
     def test_rejects_confidence_threshold_negative(self):
         with pytest.raises(ValidationError):
             SettingsResponse(
-                default_llm_model="m", default_embed_model="e",
+                default_llm_model="m",
+                default_embed_model="e",
                 confidence_threshold=-1,
                 groundedness_check_enabled=True,
                 citation_alignment_threshold=0.3,
-                parent_chunk_size=2000, child_chunk_size=500,
+                parent_chunk_size=2000,
+                child_chunk_size=500,
             )
 
     def test_accepts_confidence_threshold_0(self):
         resp = SettingsResponse(
-            default_llm_model="m", default_embed_model="e",
+            default_llm_model="m",
+            default_embed_model="e",
             confidence_threshold=0,
             groundedness_check_enabled=True,
             citation_alignment_threshold=0.3,
-            parent_chunk_size=2000, child_chunk_size=500,
+            parent_chunk_size=2000,
+            child_chunk_size=500,
         )
         assert resp.confidence_threshold == 0
 
     def test_accepts_confidence_threshold_100(self):
         resp = SettingsResponse(
-            default_llm_model="m", default_embed_model="e",
+            default_llm_model="m",
+            default_embed_model="e",
             confidence_threshold=100,
             groundedness_check_enabled=True,
             citation_alignment_threshold=0.3,
-            parent_chunk_size=2000, child_chunk_size=500,
+            parent_chunk_size=2000,
+            child_chunk_size=500,
         )
         assert resp.confidence_threshold == 100
 
@@ -319,7 +338,9 @@ class TestIngestionJobResponse:
     def test_valid_statuses(self):
         for status in ("pending", "started", "streaming", "embedding", "completed", "failed", "paused"):
             resp = IngestionJobResponse(
-                job_id="j1", document_id="d1", status=status,
+                job_id="j1",
+                document_id="d1",
+                status=status,
             )
             assert resp.status == status
 
@@ -384,16 +405,24 @@ class TestProviderDetailResponse:
 class TestQueryTraceResponse:
     def test_confidence_score_is_int_or_none(self):
         resp = QueryTraceResponse(
-            id="t1", session_id="s1", query="q",
-            collections_searched=[], latency_ms=100, created_at="2026-01-01",
+            id="t1",
+            session_id="s1",
+            query="q",
+            collections_searched=[],
+            latency_ms=100,
+            created_at="2026-01-01",
         )
         assert resp.confidence_score is None
 
     def test_confidence_score_int(self):
         resp = QueryTraceResponse(
-            id="t1", session_id="s1", query="q",
-            collections_searched=[], confidence_score=82,
-            latency_ms=100, created_at="2026-01-01",
+            id="t1",
+            session_id="s1",
+            query="q",
+            collections_searched=[],
+            confidence_score=82,
+            latency_ms=100,
+            created_at="2026-01-01",
         )
         assert resp.confidence_score == 82
         assert isinstance(resp.confidence_score, int)
@@ -402,11 +431,17 @@ class TestQueryTraceResponse:
 class TestQueryTraceDetailResponse:
     def test_inherits_base_fields(self):
         resp = QueryTraceDetailResponse(
-            id="t1", session_id="s1", query="q",
-            collections_searched=["c1"], latency_ms=200,
-            created_at="2026-01-01", confidence_score=75,
-            sub_questions=["sub1"], chunks_retrieved=[{"id": "ch1"}],
-            reasoning_steps=[{"step": 1}], strategy_switches=[{"from": "a"}],
+            id="t1",
+            session_id="s1",
+            query="q",
+            collections_searched=["c1"],
+            latency_ms=200,
+            created_at="2026-01-01",
+            confidence_score=75,
+            sub_questions=["sub1"],
+            chunks_retrieved=[{"id": "ch1"}],
+            reasoning_steps=[{"step": 1}],
+            strategy_switches=[{"from": "a"}],
         )
         assert resp.id == "t1"
         assert resp.sub_questions == ["sub1"]
@@ -414,8 +449,12 @@ class TestQueryTraceDetailResponse:
 
     def test_detail_defaults_empty(self):
         resp = QueryTraceDetailResponse(
-            id="t1", session_id="s1", query="q",
-            collections_searched=[], latency_ms=100, created_at="2026-01-01",
+            id="t1",
+            session_id="s1",
+            query="q",
+            collections_searched=[],
+            latency_ms=100,
+            created_at="2026-01-01",
         )
         assert resp.sub_questions == []
         assert resp.chunks_retrieved == []
@@ -429,8 +468,12 @@ class TestQueryTraceDetailResponse:
 class TestStatsResponse:
     def test_all_numeric_fields(self):
         resp = StatsResponse(
-            total_collections=3, total_documents=47, total_chunks=8920,
-            total_queries=312, avg_confidence=74.2, avg_latency_ms=1840.5,
+            total_collections=3,
+            total_documents=47,
+            total_chunks=8920,
+            total_queries=312,
+            avg_confidence=74.2,
+            avg_latency_ms=1840.5,
             meta_reasoning_rate=0.12,
         )
         assert resp.total_collections == 3
@@ -467,8 +510,11 @@ class TestNDJSONEventTypedDicts:
 
     def test_groundedness_event_importable(self):
         event: GroundednessEvent = {
-            "type": "groundedness", "overall_grounded": True,
-            "supported": 3, "unsupported": 0, "contradicted": 0,
+            "type": "groundedness",
+            "overall_grounded": True,
+            "supported": 3,
+            "unsupported": 0,
+            "contradicted": 0,
         }
         assert event["overall_grounded"] is True
 

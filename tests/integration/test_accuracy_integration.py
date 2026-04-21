@@ -3,6 +3,7 @@
 End-to-end flows: GAV, citation alignment, tier params routing, circuit breaker.
 Uses unique_name() helper to avoid Qdrant collection 409 conflicts across runs.
 """
+
 import time
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -32,10 +33,12 @@ from backend.storage.qdrant_client import QdrantClientWrapper
 # Module-level fixture: reset inference circuit breaker between tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def reset_inference_cb():
     """Reset module-level inference circuit breaker state before/after each test."""
     import backend.agent.nodes as nodes_module
+
     nodes_module._inf_circuit_open = False
     nodes_module._inf_failure_count = 0
     nodes_module._inf_last_failure_time = None
@@ -49,6 +52,7 @@ def reset_inference_cb():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_chunk(chunk_id="c1", text="Integration test evidence.") -> RetrievedChunk:
     return RetrievedChunk(
@@ -119,6 +123,7 @@ def _make_mock_llm(return_value):
 # ---------------------------------------------------------------------------
 # IT-01: End-to-End GAV Flow
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -242,9 +247,7 @@ class TestGAVIntegration:
 
     async def test_gav_disabled_skips_llm_call(self, monkeypatch):
         """When groundedness_check_enabled=False, LLM is never called."""
-        monkeypatch.setattr(
-            "backend.agent.nodes.settings.groundedness_check_enabled", False
-        )
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", False)
         mock_llm = MagicMock()
         state = _make_state()
 
@@ -270,6 +273,7 @@ class TestGAVIntegration:
 # ---------------------------------------------------------------------------
 # IT-02: End-to-End Citation Alignment Flow
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -300,7 +304,7 @@ class TestCitationAlignmentIntegration:
         # First call: original citation scores below threshold (0.3)
         # Second call: scores for all chunks — chunk_c2 (index 1) is best
         mock_reranker.model.rank.side_effect = [
-            [{"corpus_id": 0, "score": 0.1}],                           # original citation
+            [{"corpus_id": 0, "score": 0.1}],  # original citation
             [{"corpus_id": 0, "score": 0.1}, {"corpus_id": 1, "score": 0.95}],  # all chunks
         ]
 
@@ -325,7 +329,7 @@ class TestCitationAlignmentIntegration:
         mock_reranker = MagicMock()
         # Both original and all-chunk scores below threshold (0.3)
         mock_reranker.model.rank.side_effect = [
-            [{"corpus_id": 0, "score": 0.1}],                           # original citation
+            [{"corpus_id": 0, "score": 0.1}],  # original citation
             [{"corpus_id": 0, "score": 0.1}, {"corpus_id": 1, "score": 0.15}],  # all chunks
         ]
 
@@ -365,6 +369,7 @@ class TestCitationAlignmentIntegration:
 # ---------------------------------------------------------------------------
 # IT-03: Tier Params Routing
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -463,10 +468,7 @@ class TestTierParamsIntegration:
         multihop_state = _make_state(messages=[HumanMessage(content="Compare A and B across C")])
         multihop_result = await rewrite_query(multihop_state, llm=mock_llm)
 
-        assert (
-            factoid_result["retrieval_params"]["top_k"]
-            < multihop_result["retrieval_params"]["top_k"]
-        )
+        assert factoid_result["retrieval_params"]["top_k"] < multihop_result["retrieval_params"]["top_k"]
         assert (
             factoid_result["retrieval_params"]["confidence_threshold"]
             > multihop_result["retrieval_params"]["confidence_threshold"]
@@ -476,6 +478,7 @@ class TestTierParamsIntegration:
 # ---------------------------------------------------------------------------
 # IT-04: Circuit Breaker Integration
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -543,6 +546,7 @@ class TestCircuitBreakerIntegration:
 
         # spec-26: FR-009 — cooldown is 60s default (was 30s); simulate elapsed
         from backend.config import settings
+
         wrapper._last_failure_time = time.monotonic() - (settings.circuit_breaker_cooldown_secs + 1)
 
         # Probe call succeeds (empty result list) → circuit closes
@@ -572,9 +576,7 @@ class TestCircuitBreakerIntegration:
         threshold = 5
         for i in range(threshold):
             result = await verify_groundedness(state, llm=mock_llm)
-            assert result["groundedness_result"] is None, (
-                f"Expected graceful degradation on call {i + 1}"
-            )
+            assert result["groundedness_result"] is None, f"Expected graceful degradation on call {i + 1}"
 
         # Circuit should now be open
         assert nodes_module._inf_circuit_open is True, (

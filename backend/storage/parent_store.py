@@ -3,6 +3,7 @@
 Follows existing SQLiteDB patterns from backend/storage/sqlite_db.py.
 Uses aiosqlite async connection from the shared DB instance.
 """
+
 from __future__ import annotations
 
 import structlog
@@ -60,8 +61,7 @@ class ParentStore:
                 for row in rows
             ]
 
-            logger.info("storage_parent_chunks_fetched",
-                        requested=len(parent_ids), found=len(results))
+            logger.info("storage_parent_chunks_fetched", requested=len(parent_ids), found=len(results))
             return results
 
         except Exception as exc:

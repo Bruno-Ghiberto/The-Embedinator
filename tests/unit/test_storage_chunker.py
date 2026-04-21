@@ -3,6 +3,7 @@
 chunk_text is a MODULE-LEVEL FUNCTION — do NOT instantiate any class.
 Returns list[dict] with keys: text, chunk_index, start_offset, end_offset.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,6 +14,7 @@ from backend.storage.chunker import chunk_text
 # ---------------------------------------------------------------------------
 # T014.1 — Empty input
 # ---------------------------------------------------------------------------
+
 
 class TestChunkTextEmpty:
     def test_empty_string_returns_empty_list(self):
@@ -34,6 +36,7 @@ class TestChunkTextEmpty:
 # ---------------------------------------------------------------------------
 # T014.2 — Short text → single chunk
 # ---------------------------------------------------------------------------
+
 
 class TestChunkTextShortText:
     def test_short_text_returns_single_chunk(self):
@@ -68,6 +71,7 @@ class TestChunkTextShortText:
 # ---------------------------------------------------------------------------
 # T014.3 — Long text → multiple chunks
 # ---------------------------------------------------------------------------
+
 
 class TestChunkTextLongText:
     def test_long_text_produces_multiple_chunks(self):
@@ -107,6 +111,7 @@ class TestChunkTextLongText:
 # T014.4 — No chunk exceeds max_size
 # ---------------------------------------------------------------------------
 
+
 class TestChunkTextMaxSize:
     def test_no_chunk_exceeds_chunk_size_by_more_than_boundary_slack(self):
         """Each chunk's text length must not exceed chunk_size by a large margin.
@@ -116,15 +121,13 @@ class TestChunkTextMaxSize:
         """
         chunk_size = 150
         long_text = (
-            "This is a longer sentence that continues. " * 20
-            + "Another paragraph starts here and continues on. " * 10
+            "This is a longer sentence that continues. " * 20 + "Another paragraph starts here and continues on. " * 10
         )
         result = chunk_text(long_text, chunk_size=chunk_size, chunk_overlap=20)
         for chunk in result:
             # Allow 2x slack for boundary-seeking, but not unbounded growth
             assert len(chunk["text"]) <= chunk_size * 2, (
-                f"Chunk {chunk['chunk_index']} text length {len(chunk['text'])} "
-                f"exceeds 2×chunk_size={2*chunk_size}"
+                f"Chunk {chunk['chunk_index']} text length {len(chunk['text'])} exceeds 2×chunk_size={2 * chunk_size}"
             )
 
     def test_chunk_size_controls_granularity(self):
@@ -138,6 +141,7 @@ class TestChunkTextMaxSize:
 # ---------------------------------------------------------------------------
 # T014.5 — Overlap parameter
 # ---------------------------------------------------------------------------
+
 
 class TestChunkTextOverlap:
     def test_overlap_zero_no_repeated_content(self):

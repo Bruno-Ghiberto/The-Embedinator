@@ -95,7 +95,7 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
-            _filter_by_component,           # inserted between merge_contextvars and add_log_level
+            _filter_by_component,  # inserted between merge_contextvars and add_log_level
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
@@ -103,9 +103,7 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
             _strip_sensitive_fields,
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, log_level.upper(), logging.INFO)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, log_level.upper(), logging.INFO)),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
         cache_logger_on_first_use=True,
@@ -124,8 +122,7 @@ async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) 
     if max_threads <= 0:
         return 0
     async with checkpointer.conn.execute(
-        "SELECT thread_id, MAX(checkpoint_id) AS latest "
-        "FROM checkpoints GROUP BY thread_id ORDER BY latest DESC"
+        "SELECT thread_id, MAX(checkpoint_id) AS latest FROM checkpoints GROUP BY thread_id ORDER BY latest DESC"
     ) as cursor:
         rows = await cursor.fetchall()
     if len(rows) <= max_threads:
@@ -189,12 +186,14 @@ async def lifespan(app: FastAPI):
 
     # Spec 07: QdrantStorage (full-featured, coexists with QdrantClientWrapper)
     from backend.storage.qdrant_client import QdrantStorage
+
     qdrant_storage = QdrantStorage(settings.qdrant_host, settings.qdrant_port)
     app.state.qdrant_storage = qdrant_storage
     logger.info("storage_qdrant_storage_initialized")
 
     # Spec 07: KeyManager (optional -- graceful degradation if env var missing)
     from backend.providers.key_manager import KeyManager
+
     try:
         key_manager = KeyManager()
         app.state.key_manager = key_manager
@@ -213,9 +212,7 @@ async def lifespan(app: FastAPI):
     checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
     checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
-    pruned = await _prune_old_checkpoint_threads(
-        checkpointer, settings.checkpoint_max_threads, logger
-    )
+    pruned = await _prune_old_checkpoint_threads(checkpointer, settings.checkpoint_max_threads, logger)
     if pruned > 0:
         logger.info(
             "storage_checkpoint_pruned",
@@ -255,7 +252,9 @@ async def lifespan(app: FastAPI):
 
     # Build tool list via closure-based factory (R6)
     embed_provider = registry._ollama_embed
-    research_tools = create_research_tools(hybrid_searcher, reranker_instance, parent_store, embed_provider=embed_provider)
+    research_tools = create_research_tools(
+        hybrid_searcher, reranker_instance, parent_store, embed_provider=embed_provider
+    )
     app.state.research_tools = research_tools
     logger.info("agent_research_tools_created", count=len(research_tools))
 

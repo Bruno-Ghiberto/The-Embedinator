@@ -33,10 +33,12 @@ class ProviderRegistry:
             await db.upsert_provider(
                 name="ollama",
                 provider_type="local",
-                config_json=json.dumps({
-                    "model": self.settings.default_llm_model,
-                    "embed_model": self.settings.default_embed_model,
-                }),
+                config_json=json.dumps(
+                    {
+                        "model": self.settings.default_llm_model,
+                        "embed_model": self.settings.default_embed_model,
+                    }
+                ),
                 is_active=True,
             )
             logger.info("provider_default_registered", name="ollama")
@@ -53,12 +55,15 @@ class ProviderRegistry:
 
         if provider_name == "openrouter":
             from backend.providers.openrouter import OpenRouterLLMProvider
+
             return OpenRouterLLMProvider(api_key=config.get("api_key", ""), model=config.get("model", ""))
         elif provider_name == "openai":
             from backend.providers.openai import OpenAILLMProvider
+
             return OpenAILLMProvider(api_key=config.get("api_key", ""), model=config.get("model", ""))
         elif provider_name == "anthropic":
             from backend.providers.anthropic import AnthropicLLMProvider
+
             return AnthropicLLMProvider(api_key=config.get("api_key", ""), model=config.get("model", ""))
 
         # Fallback to Ollama
@@ -74,6 +79,7 @@ class ProviderRegistry:
         active = await db.get_active_provider()
         if not active or active["name"] == "ollama":
             from langchain_ollama import ChatOllama
+
             # Prefer model from DB config_json over settings default
             ollama_config = json.loads(active["config_json"] or "{}") if active else {}
             ollama_model = ollama_config.get("model") or self.settings.default_llm_model
@@ -92,6 +98,7 @@ class ProviderRegistry:
         if active.get("api_key_encrypted"):
             try:
                 from backend.providers.key_manager import KeyManager
+
                 key_manager = KeyManager()
                 key = key_manager.decrypt(active["api_key_encrypted"])
             except Exception:
@@ -100,6 +107,7 @@ class ProviderRegistry:
         if not key:
             # No key available — fall back to Ollama
             from langchain_ollama import ChatOllama
+
             return ChatOllama(
                 base_url=self.settings.ollama_base_url,
                 model=self.settings.default_llm_model,
@@ -108,17 +116,17 @@ class ProviderRegistry:
 
         if name in ("openrouter", "openai"):
             from langchain_openai import ChatOpenAI
-            base_url = (
-                "https://openrouter.ai/api/v1" if name == "openrouter"
-                else "https://api.openai.com/v1"
-            )
+
+            base_url = "https://openrouter.ai/api/v1" if name == "openrouter" else "https://api.openai.com/v1"
             return ChatOpenAI(api_key=key, model=model, base_url=base_url)
         elif name == "anthropic":
             from langchain_anthropic import ChatAnthropic
+
             return ChatAnthropic(api_key=key, model=model)
 
         # Unknown provider — fall back to Ollama
         from langchain_ollama import ChatOllama
+
         return ChatOllama(
             base_url=self.settings.ollama_base_url,
             model=self.settings.default_llm_model,
@@ -129,9 +137,7 @@ class ProviderRegistry:
         """Get the embedding provider (always Ollama for Phase 1)."""
         return self._ollama_embed
 
-    async def set_active_provider(
-        self, db: SQLiteDB, name: str, config: dict | None = None
-    ) -> bool:
+    async def set_active_provider(self, db: SQLiteDB, name: str, config: dict | None = None) -> bool:
         """Switch the active provider."""
         config_json = json.dumps(config or {})
         provider_type = "local" if name == "ollama" else "cloud"

@@ -3,6 +3,7 @@
 Verifies that SQLiteDB creates the correct 7 tables, indexes, WAL mode,
 and FK enforcement. All tests use file-based SQLite (WAL requires a real file).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -56,9 +57,7 @@ async def test_all_tables_exist(db):
     """Verify all 7 required tables are created by init_schema."""
     database, _ = db
 
-    cursor = await database.db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    )
+    cursor = await database.db.execute("SELECT name FROM sqlite_master WHERE type='table'")
     rows = await cursor.fetchall()
     table_names = {row["name"] for row in rows}
 
@@ -71,9 +70,7 @@ async def test_all_indexes_present(db):
     """Verify required indexes are created for query performance."""
     database, _ = db
 
-    cursor = await database.db.execute(
-        "SELECT name FROM sqlite_master WHERE type='index'"
-    )
+    cursor = await database.db.execute("SELECT name FROM sqlite_master WHERE type='index'")
     rows = await cursor.fetchall()
     index_names = {row["name"] for row in rows}
 
@@ -96,12 +93,8 @@ async def test_fk_cascades_working(db):
         chunk_profile="default",
         qdrant_collection_name=f"qdrant_{coll_id[:8]}",
     )
-    await database.create_document(
-        id=doc_id, collection_id=coll_id, filename="test.pdf", file_hash="fk_hash"
-    )
-    await database.create_parent_chunk(
-        id=parent_id, collection_id=coll_id, document_id=doc_id, text="cascade chunk"
-    )
+    await database.create_document(id=doc_id, collection_id=coll_id, filename="test.pdf", file_hash="fk_hash")
+    await database.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text="cascade chunk")
 
     # Cascade via collection deletion
     await database.delete_collection(coll_id)

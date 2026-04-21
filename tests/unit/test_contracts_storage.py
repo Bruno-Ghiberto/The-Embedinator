@@ -4,6 +4,7 @@ Contract tests for storage layer — T023-T028 (spec-11, US2, FR-008, FR-009).
 These tests enforce interface contracts for SQLiteDB, QdrantStorage, and
 ParentStore using introspection. No database connections are made.
 """
+
 import inspect
 
 import pytest
@@ -22,6 +23,7 @@ from backend.storage.parent_store import ParentStore
 # ---------------------------------------------------------------------------
 # T024 — SQLiteDB method existence tests (FR-008)
 # ---------------------------------------------------------------------------
+
 
 class TestSQLiteDBMethodExistence:
     """Verify all 35+ methods exist on SQLiteDB, organised by category."""
@@ -199,6 +201,7 @@ class TestSQLiteDBMethodExistence:
 # T025 — SQLiteDB key method signature tests (FR-008)
 # ---------------------------------------------------------------------------
 
+
 class TestSQLiteDBSignatures:
     """Verify parameter names and counts for critical SQLiteDB methods."""
 
@@ -225,9 +228,7 @@ class TestSQLiteDBSignatures:
             "stage_timings_json",
         ]
         assert params == expected_params, (
-            f"create_query_trace params mismatch.\n"
-            f"Expected: {expected_params}\n"
-            f"Got:      {params}"
+            f"create_query_trace params mismatch.\nExpected: {expected_params}\nGot:      {params}"
         )
 
     def test_create_query_trace_has_provider_name(self):
@@ -281,6 +282,7 @@ class TestSQLiteDBSignatures:
 # T026 — QdrantStorage tests (FR-009)
 # ---------------------------------------------------------------------------
 
+
 class TestQdrantStorageMethods:
     """Verify QdrantStorage method names, data classes, and coexistence."""
 
@@ -289,22 +291,16 @@ class TestQdrantStorageMethods:
     def test_batch_upsert_exists_not_upsert_batch(self):
         """Correct method is batch_upsert, NOT upsert_batch."""
         assert hasattr(QdrantStorage, "batch_upsert"), "batch_upsert must exist"
-        assert not hasattr(QdrantStorage, "upsert_batch"), (
-            "upsert_batch must NOT exist (use batch_upsert)"
-        )
+        assert not hasattr(QdrantStorage, "upsert_batch"), "upsert_batch must NOT exist (use batch_upsert)"
 
     def test_search_hybrid_exists_not_hybrid_search(self):
         """Correct method is search_hybrid, NOT hybrid_search."""
         assert hasattr(QdrantStorage, "search_hybrid"), "search_hybrid must exist"
-        assert not hasattr(QdrantStorage, "hybrid_search"), (
-            "hybrid_search must NOT exist (use search_hybrid)"
-        )
+        assert not hasattr(QdrantStorage, "hybrid_search"), "hybrid_search must NOT exist (use search_hybrid)"
 
     def test_delete_points_by_filter_exists_not_delete_by_filter(self):
         """Correct method is delete_points_by_filter, NOT delete_by_filter."""
-        assert hasattr(QdrantStorage, "delete_points_by_filter"), (
-            "delete_points_by_filter must exist"
-        )
+        assert hasattr(QdrantStorage, "delete_points_by_filter"), "delete_points_by_filter must exist"
         assert not hasattr(QdrantStorage, "delete_by_filter"), (
             "delete_by_filter must NOT exist (use delete_points_by_filter)"
         )
@@ -359,6 +355,7 @@ class TestQdrantStorageMethods:
 # T027 — ParentStore tests
 # ---------------------------------------------------------------------------
 
+
 class TestParentStoreContract:
     """Verify ParentStore constructor and public method contracts."""
 
@@ -366,9 +363,7 @@ class TestParentStoreContract:
         """ParentStore.__init__ must accept a 'db' parameter."""
         sig = inspect.signature(ParentStore.__init__)
         params = list(sig.parameters.keys())
-        assert "db" in params, (
-            f"ParentStore.__init__ must have 'db' param, got: {params}"
-        )
+        assert "db" in params, f"ParentStore.__init__ must have 'db' param, got: {params}"
 
     def test_constructor_param_count(self):
         """ParentStore.__init__ should take exactly self + db."""
@@ -388,6 +383,7 @@ class TestParentStoreContract:
 # T028 — Negative assertions: phantom methods must NOT exist (SC-006)
 # ---------------------------------------------------------------------------
 
+
 class TestSQLiteDBNegativeAssertions:
     """
     Verify commonly confused phantom method names do NOT exist on SQLiteDB.
@@ -398,9 +394,7 @@ class TestSQLiteDBNegativeAssertions:
 
     def test_find_by_hash_does_not_exist(self):
         """Use get_document_by_hash, not find_by_hash."""
-        assert not hasattr(SQLiteDB, "find_by_hash"), (
-            "find_by_hash must NOT exist — use get_document_by_hash"
-        )
+        assert not hasattr(SQLiteDB, "find_by_hash"), "find_by_hash must NOT exist — use get_document_by_hash"
 
     def test_store_parent_chunks_does_not_exist(self):
         """Use create_parent_chunk (singular), not store_parent_chunks."""
@@ -410,27 +404,19 @@ class TestSQLiteDBNegativeAssertions:
 
     def test_store_trace_does_not_exist(self):
         """Use create_query_trace, not store_trace."""
-        assert not hasattr(SQLiteDB, "store_trace"), (
-            "store_trace must NOT exist — use create_query_trace"
-        )
+        assert not hasattr(SQLiteDB, "store_trace"), "store_trace must NOT exist — use create_query_trace"
 
     def test_get_all_settings_does_not_exist(self):
         """Use list_settings, not get_all_settings."""
-        assert not hasattr(SQLiteDB, "get_all_settings"), (
-            "get_all_settings must NOT exist — use list_settings"
-        )
+        assert not hasattr(SQLiteDB, "get_all_settings"), "get_all_settings must NOT exist — use list_settings"
 
     def test_set_provider_key_does_not_exist(self):
         """set_provider_key does not exist as a direct method on SQLiteDB."""
-        assert not hasattr(SQLiteDB, "set_provider_key"), (
-            "set_provider_key must NOT exist on SQLiteDB"
-        )
+        assert not hasattr(SQLiteDB, "set_provider_key"), "set_provider_key must NOT exist on SQLiteDB"
 
     def test_delete_provider_key_does_not_exist(self):
         """Use delete_provider, not delete_provider_key."""
-        assert not hasattr(SQLiteDB, "delete_provider_key"), (
-            "delete_provider_key must NOT exist — use delete_provider"
-        )
+        assert not hasattr(SQLiteDB, "delete_provider_key"), "delete_provider_key must NOT exist — use delete_provider"
 
     def test_update_document_status_does_not_exist(self):
         """Use update_document, not update_document_status."""

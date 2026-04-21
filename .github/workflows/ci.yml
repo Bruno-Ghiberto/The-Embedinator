@@ -1,123 +1,33 @@
+# Thin CI dispatcher for The Embedinator.
+# Purpose:  Triggers _ci-core.yml on every PR (any base branch) and every push to main.
+#           All job logic lives in _ci-core.yml; this file is intentionally
+#           minimal so contributors can trace the full gate from one place.
+# Triggers: pull_request (all base branches — supports feature→develop→main flow
+#           AND long-lived feature/spec branches like this one), push to main.
+# Blockers: None — this is the trigger, not the gate.  Publish workflows
+#           (docker-publish, release, release-cli) are the gated consumers.
+
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      docker: ${{ steps.filter.outputs.docker }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - 'tests/**'
-              - 'requirements.txt'
-              - 'ruff.toml'
-              - 'pytest.ini'
-            frontend:
-              - 'frontend/**'
-            docker:
-              - 'docker-compose*.yml'
-              - 'Dockerfile*'
-              - '.github/workflows/**'
-
-  backend-lint:
-    name: Backend lint
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.docker == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-      - run: pip install ruff
-      - run: ruff check backend/ --config ruff.toml --output-format=github
-
-  backend-test:
-    name: Backend tests
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.docker == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - run: pip install -r requirements.txt
-      - run: pytest tests/ -m "not require_docker" --no-cov
-
-  frontend-lint:
-    name: Frontend lint
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.docker == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-      - run: cd frontend && npm ci
-      - run: cd frontend && npm run lint
-
-  frontend-test:
-    name: Frontend tests
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.docker == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-      - run: cd frontend && npm ci
-      - run: cd frontend && npm run test
-
-  docker-build:
-    name: Docker build validation
-    needs: changes
-    if: >-
-      needs.changes.outputs.docker == 'true' ||
-      needs.changes.outputs.backend == 'true' ||
-      needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker compose build
+  ci:
+    # Reusable-workflow caller jobs CANNOT declare timeout-minutes / runs-on /
+    # steps (runner-job fields) OR `permissions: inherit` (not a valid value).
+    # Explicit permissions mirror what _ci-core.yml declares internally for its
+    # jobs (id-token for cosign, checks/pull-requests for status reporting).
+    uses: ./.github/workflows/_ci-core.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      id-token: write

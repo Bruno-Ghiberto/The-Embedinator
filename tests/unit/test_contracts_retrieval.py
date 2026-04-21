@@ -4,6 +4,7 @@ Contract tests for retrieval layer — T035-T038 (spec-11, US3, FR-010, FR-011).
 These tests enforce interface contracts for HybridSearcher, Reranker, and
 ScoreNormalizer using introspection. No external services are contacted.
 """
+
 import inspect
 
 from backend.retrieval.searcher import HybridSearcher
@@ -15,6 +16,7 @@ from backend.retrieval.score_normalizer import normalize_scores
 # T036 — HybridSearcher tests (FR-010)
 # ---------------------------------------------------------------------------
 
+
 class TestHybridSearcherContract:
     """Verify HybridSearcher constructor, method names, and circuit breaker."""
 
@@ -23,9 +25,7 @@ class TestHybridSearcherContract:
         sig = inspect.signature(HybridSearcher.__init__)
         params = list(sig.parameters.keys())
         assert params == ["self", "client", "settings"], (
-            f"HybridSearcher.__init__ params mismatch.\n"
-            f"Expected: ['self', 'client', 'settings']\n"
-            f"Got:      {params}"
+            f"HybridSearcher.__init__ params mismatch.\nExpected: ['self', 'client', 'settings']\nGot:      {params}"
         )
 
     def test_constructor_does_not_take_storage(self):
@@ -50,15 +50,11 @@ class TestHybridSearcherContract:
     def test_search_has_embed_fn_param(self):
         """search() must accept embed_fn so callers inject the embedding function."""
         sig = inspect.signature(HybridSearcher.search)
-        assert "embed_fn" in sig.parameters, (
-            "HybridSearcher.search must have an 'embed_fn' parameter"
-        )
+        assert "embed_fn" in sig.parameters, "HybridSearcher.search must have an 'embed_fn' parameter"
 
     def test_search_all_collections_exists_not_search_multi_collection(self):
         """Correct method is search_all_collections, NOT search_multi_collection."""
-        assert hasattr(HybridSearcher, "search_all_collections"), (
-            "search_all_collections must exist"
-        )
+        assert hasattr(HybridSearcher, "search_all_collections"), "search_all_collections must exist"
         assert not hasattr(HybridSearcher, "search_multi_collection"), (
             "search_multi_collection must NOT exist (use search_all_collections)"
         )
@@ -85,6 +81,7 @@ class TestHybridSearcherContract:
 # T037 — Reranker tests (FR-011)
 # ---------------------------------------------------------------------------
 
+
 class TestRerankerContract:
     """Verify Reranker constructor and rerank method contract."""
 
@@ -93,17 +90,13 @@ class TestRerankerContract:
         sig = inspect.signature(Reranker.__init__)
         params = list(sig.parameters.keys())
         assert params == ["self", "settings"], (
-            f"Reranker.__init__ params mismatch.\n"
-            f"Expected: ['self', 'settings']\n"
-            f"Got:      {params}"
+            f"Reranker.__init__ params mismatch.\nExpected: ['self', 'settings']\nGot:      {params}"
         )
 
     def test_constructor_does_not_take_model_name(self):
         """Constructor must NOT accept 'model_name' param (wrong interface)."""
         sig = inspect.signature(Reranker.__init__)
-        assert "model_name" not in sig.parameters, (
-            "Reranker.__init__ must NOT have 'model_name' param — use settings"
-        )
+        assert "model_name" not in sig.parameters, "Reranker.__init__ must NOT have 'model_name' param — use settings"
 
     def test_rerank_method_exists(self):
         assert hasattr(Reranker, "rerank")
@@ -114,9 +107,7 @@ class TestRerankerContract:
         sig = inspect.signature(Reranker.rerank)
         params = list(sig.parameters.keys())
         assert params == ["self", "query", "chunks", "top_k"], (
-            f"Reranker.rerank params mismatch.\n"
-            f"Expected: ['self', 'query', 'chunks', 'top_k']\n"
-            f"Got:      {params}"
+            f"Reranker.rerank params mismatch.\nExpected: ['self', 'query', 'chunks', 'top_k']\nGot:      {params}"
         )
 
     def test_rerank_has_query_param(self):
@@ -133,14 +124,13 @@ class TestRerankerContract:
 
     def test_score_pair_does_not_exist(self):
         """score_pair must NOT exist — reranking uses model.rank() internally."""
-        assert not hasattr(Reranker, "score_pair"), (
-            "score_pair must NOT exist on Reranker — use rerank()"
-        )
+        assert not hasattr(Reranker, "score_pair"), "score_pair must NOT exist on Reranker — use rerank()"
 
 
 # ---------------------------------------------------------------------------
 # T038 — ScoreNormalizer test
 # ---------------------------------------------------------------------------
+
 
 class TestScoreNormalizerContract:
     """Verify normalize_scores is a module-level function, not a class method."""
@@ -158,8 +148,7 @@ class TestScoreNormalizerContract:
     def test_normalize_scores_is_module_level(self):
         """normalize_scores must live at module scope, not inside a class."""
         import backend.retrieval.score_normalizer as mod
-        assert hasattr(mod, "normalize_scores"), (
-            "normalize_scores must be accessible directly from the module"
-        )
+
+        assert hasattr(mod, "normalize_scores"), "normalize_scores must be accessible directly from the module"
         # Confirm it is not a class
         assert not isinstance(mod.normalize_scores, type)

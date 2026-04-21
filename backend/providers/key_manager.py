@@ -21,8 +21,8 @@ class KeyManager:
         if not raw_key:
             raise ValueError(
                 "EMBEDINATOR_FERNET_KEY environment variable is not set. "
-                "Generate with: python -c \"from cryptography.fernet import Fernet; "
-                "print(Fernet.generate_key().decode())\""
+                'Generate with: python -c "from cryptography.fernet import Fernet; '
+                'print(Fernet.generate_key().decode())"'
             )
         self._fernet = Fernet(raw_key.encode() if isinstance(raw_key, str) else raw_key)
 

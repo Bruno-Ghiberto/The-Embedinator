@@ -76,13 +76,15 @@ def _make_rate_limit_app(
         app.state._conversation_graph = graph
 
     # Make db.get_provider return a provider for key operations
-    app.state.db.get_provider = AsyncMock(return_value={
-        "name": "openai",
-        "api_key_encrypted": None,
-        "base_url": None,
-        "is_active": False,
-        "created_at": "2026-01-01T00:00:00Z",
-    })
+    app.state.db.get_provider = AsyncMock(
+        return_value={
+            "name": "openai",
+            "api_key_encrypted": None,
+            "base_url": None,
+            "is_active": False,
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    )
     app.state.db.update_provider = AsyncMock()
     app.state.db.list_collections = AsyncMock(return_value=[])
 
@@ -115,9 +117,7 @@ class TestChatRateLimit:
                 statuses.append(resp.status_code)
 
             # First 30 should succeed (200)
-            assert all(s == 200 for s in statuses[:30]), (
-                f"Expected first 30 to be 200, got: {statuses[:30]}"
-            )
+            assert all(s == 200 for s in statuses[:30]), f"Expected first 30 to be 200, got: {statuses[:30]}"
             # 31st should be rate limited
             assert statuses[30] == 429
 
@@ -185,9 +185,7 @@ class TestIngestRateLimit:
                 statuses.append(resp.status_code)
 
             # First 10 should NOT be 429 (they may be 404 from missing collection)
-            assert all(s != 429 for s in statuses[:10]), (
-                f"Expected first 10 to not be 429, got: {statuses[:10]}"
-            )
+            assert all(s != 429 for s in statuses[:10]), f"Expected first 10 to not be 429, got: {statuses[:10]}"
             # 11th should be rate limited
             assert statuses[10] == 429
 
@@ -209,9 +207,7 @@ class TestProviderKeyRateLimit:
                 statuses.append(resp.status_code)
 
             # First 5 should succeed (200)
-            assert all(s == 200 for s in statuses[:5]), (
-                f"Expected first 5 to be 200, got: {statuses[:5]}"
-            )
+            assert all(s == 200 for s in statuses[:5]), f"Expected first 5 to be 200, got: {statuses[:5]}"
             # 6th should be rate limited
             assert statuses[5] == 429
 
@@ -230,9 +226,7 @@ class TestGeneralRateLimit:
                 statuses.append(resp.status_code)
 
             # First 120 should succeed (200)
-            assert all(s == 200 for s in statuses[:120]), (
-                "Expected first 120 to be 200, got non-200 in first 120"
-            )
+            assert all(s == 200 for s in statuses[:120]), "Expected first 120 to be 200, got non-200 in first 120"
             # 121st should be rate limited
             assert statuses[120] == 429
 

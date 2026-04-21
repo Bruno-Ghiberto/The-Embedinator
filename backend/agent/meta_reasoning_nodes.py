@@ -3,6 +3,7 @@
 4 async node functions + 3 private strategy helpers.
 Dependencies (LLM, Reranker) resolved from RunnableConfig at invocation time.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -25,7 +26,8 @@ FALLBACK_ORDER = [STRATEGY_WIDEN_SEARCH, STRATEGY_CHANGE_COLLECTION, STRATEGY_RE
 
 
 async def generate_alternative_queries(
-    state: MetaReasoningState, config: RunnableConfig = None,
+    state: MetaReasoningState,
+    config: RunnableConfig = None,
 ) -> dict:
     """Produce 3 rephrased query variants using LLM (FR-001).
 
@@ -52,9 +54,7 @@ async def generate_alternative_queries(
                     {"status": "Generating alternative queries...", "attempt": attempt},
                 )
 
-    chunk_summaries = "\n".join(
-        f"- {c.text[:100]}..." for c in chunks[:5]
-    ) or "(no chunks retrieved)"
+    chunk_summaries = "\n".join(f"- {c.text[:100]}..." for c in chunks[:5]) or "(no chunks retrieved)"
 
     try:
         llm = config["configurable"]["llm"]
@@ -62,10 +62,12 @@ async def generate_alternative_queries(
             sub_question=sub_question,
             chunk_summaries=chunk_summaries,
         )
-        response = await llm.ainvoke([
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": f"Generate 3 alternative queries for: {sub_question}"},
-        ])
+        response = await llm.ainvoke(
+            [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Generate 3 alternative queries for: {sub_question}"},
+            ]
+        )
 
         # Parse: expect numbered list or newline-separated
         lines = [
@@ -88,7 +90,8 @@ async def generate_alternative_queries(
 
 
 async def evaluate_retrieval_quality(
-    state: MetaReasoningState, config: RunnableConfig = None,
+    state: MetaReasoningState,
+    config: RunnableConfig = None,
 ) -> dict:
     """Score all retrieved chunks with cross-encoder (FR-002, FR-003).
 
@@ -124,7 +127,7 @@ async def evaluate_retrieval_quality(
         reranker = config["configurable"]["reranker"]
         if reranker is None:
             raise ValueError("Reranker is None")
-    except (KeyError, TypeError, ValueError):
+    except KeyError, TypeError, ValueError:
         log.warning("agent_reranker_unavailable")
         return {"mean_relevance_score": 0.0, "chunk_relevance_scores": []}
 
@@ -154,7 +157,8 @@ async def evaluate_retrieval_quality(
 
 
 async def decide_strategy(
-    state: MetaReasoningState, config: RunnableConfig = None,
+    state: MetaReasoningState,
+    config: RunnableConfig = None,
 ) -> dict:
     """Select recovery strategy based on quantitative evaluation (FR-004).
 
@@ -299,7 +303,8 @@ def _build_modified_state_relax() -> dict:
 
 
 async def report_uncertainty(
-    state: MetaReasoningState, config: RunnableConfig = None,
+    state: MetaReasoningState,
+    config: RunnableConfig = None,
 ) -> dict:
     """Generate honest uncertainty report (FR-007, FR-008).
 
@@ -335,10 +340,10 @@ async def report_uncertainty(
 
     # Build context for LLM prompt
     collections_searched = list({c.collection for c in chunks}) if chunks else ["(none)"]
-    chunk_summary = "\n".join(
-        f"- [{c.collection}] {c.text[:80]}... (score: {c.rerank_score or 'N/A'})"
-        for c in chunks[:5]
-    ) or "(no chunks retrieved)"
+    chunk_summary = (
+        "\n".join(f"- [{c.collection}] {c.text[:80]}... (score: {c.rerank_score or 'N/A'})" for c in chunks[:5])
+        or "(no chunks retrieved)"
+    )
 
     context = (
         f"Question: {sub_question}\n"
@@ -353,10 +358,12 @@ async def report_uncertainty(
     try:
         llm = config["configurable"]["llm"]
         prompt = REPORT_UNCERTAINTY_SYSTEM
-        response = await llm.ainvoke([
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": context},
-        ])
+        response = await llm.ainvoke(
+            [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": context},
+            ]
+        )
         answer = response.content.strip()
         uncertainty_reason = (
             f"Mean relevance {mean_score:.3f} below threshold after {attempt} "

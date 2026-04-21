@@ -29,17 +29,19 @@ def test_app(tmp_path):
     mock_qdrant.close = AsyncMock()
     mock_qdrant.ensure_collection = AsyncMock()
     mock_qdrant.upsert = AsyncMock()
-    mock_qdrant.search = AsyncMock(return_value=[
-        {
-            "id": "chunk-1",
-            "score": 0.95,
-            "payload": {
-                "document_id": None,  # Set dynamically
-                "text": "The capital of France is Paris.",
-                "chunk_index": 0,
-            },
-        }
-    ])
+    mock_qdrant.search = AsyncMock(
+        return_value=[
+            {
+                "id": "chunk-1",
+                "score": 0.95,
+                "payload": {
+                    "document_id": None,  # Set dynamically
+                    "text": "The capital of France is Paris.",
+                    "chunk_index": 0,
+                },
+            }
+        ]
+    )
     mock_qdrant.health_check = AsyncMock(return_value=True)
 
     mock_embed = AsyncMock()
@@ -60,18 +62,21 @@ def test_app(tmp_path):
     mock_registry.get_embedding_provider = AsyncMock(return_value=mock_embed)
     mock_registry.get_active_llm = AsyncMock(return_value=mock_llm)
 
-    with patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant), \
-         patch("backend.main.ProviderRegistry", return_value=mock_registry), \
-         patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls:
-
+    with (
+        patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant),
+        patch("backend.main.ProviderRegistry", return_value=mock_registry),
+        patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls,
+    ):
         mock_saver_cls.from_conn_string.return_value = mock_checkpointer
 
         from backend.main import create_app
+
         app = create_app()
 
         with TestClient(app) as client:
             # Set up a simple mock graph (no LLM dependencies)
             from tests.mocks import build_simple_chat_graph
+
             app.state._conversation_graph = build_simple_chat_graph()
 
             client._mock_qdrant = mock_qdrant

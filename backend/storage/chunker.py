@@ -40,12 +40,14 @@ def chunk_text(
 
         chunk_text_content = text[start:end].strip()
         if chunk_text_content:
-            chunks.append({
-                "text": chunk_text_content,
-                "chunk_index": index,
-                "start_offset": start,
-                "end_offset": min(end, len(text)),
-            })
+            chunks.append(
+                {
+                    "text": chunk_text_content,
+                    "chunk_index": index,
+                    "start_offset": start,
+                    "end_offset": min(end, len(text)),
+                }
+            )
             index += 1
 
         start = end - chunk_overlap

@@ -2,6 +2,7 @@
 
 Single conditional edge: route_after_strategy.
 """
+
 from __future__ import annotations
 
 from backend.agent.state import MetaReasoningState

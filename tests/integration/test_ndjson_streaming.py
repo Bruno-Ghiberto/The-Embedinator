@@ -154,9 +154,7 @@ class TestNDJSONStreamingIntegration:
             )
 
         for line in resp.text.strip().split("\n"):
-            assert not line.startswith("data:"), (
-                f"NDJSON line must NOT start with 'data:': {line}"
-            )
+            assert not line.startswith("data:"), f"NDJSON line must NOT start with 'data:': {line}"
 
     def test_media_type_header(self):
         """Assert Content-Type header contains application/x-ndjson."""
@@ -251,8 +249,14 @@ class TestNDJSONStreamingIntegration:
 
         # Verify success path event types
         success_expected = {
-            "session", "status", "chunk", "citation",
-            "meta_reasoning", "confidence", "groundedness", "done",
+            "session",
+            "status",
+            "chunk",
+            "citation",
+            "meta_reasoning",
+            "confidence",
+            "groundedness",
+            "done",
         }
         assert success_expected.issubset(observed_types)
 
@@ -290,9 +294,16 @@ class TestNDJSONStreamingIntegration:
 
         # Final: all 10 types observed
         all_10 = {
-            "session", "status", "chunk", "citation",
-            "meta_reasoning", "confidence", "groundedness",
-            "done", "clarification", "error",
+            "session",
+            "status",
+            "chunk",
+            "citation",
+            "meta_reasoning",
+            "confidence",
+            "groundedness",
+            "done",
+            "clarification",
+            "error",
         }
         assert all_10 == observed_types
 

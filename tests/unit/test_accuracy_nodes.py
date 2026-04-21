@@ -9,6 +9,7 @@ HybridSearcher circuit breaker reference pattern (4-field state machine):
   _record_success()          -- reset count + close
   _record_failure()          -- increment + open at threshold
 """
+
 import time  # noqa: F401 (used in perf tests added by Wave 4)
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch  # noqa: F401 (used by Wave 2/3 test methods)
@@ -53,6 +54,7 @@ except (ImportError, AttributeError):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_chunk(chunk_id="c1", text="Test evidence for the claim.") -> RetrievedChunk:
     return RetrievedChunk(
@@ -116,26 +118,32 @@ def _make_groundedness_result(
 ) -> GroundednessResult:
     verifications = []
     for i in range(supported):
-        verifications.append(ClaimVerification(
-            claim=f"Supported claim {i + 1}",
-            verdict="supported",
-            evidence_chunk_id="c1",
-            explanation="Evidence found.",
-        ))
+        verifications.append(
+            ClaimVerification(
+                claim=f"Supported claim {i + 1}",
+                verdict="supported",
+                evidence_chunk_id="c1",
+                explanation="Evidence found.",
+            )
+        )
     for i in range(unsupported):
-        verifications.append(ClaimVerification(
-            claim=f"Unsupported claim {i + 1}",
-            verdict="unsupported",
-            evidence_chunk_id=None,
-            explanation="No evidence found.",
-        ))
+        verifications.append(
+            ClaimVerification(
+                claim=f"Unsupported claim {i + 1}",
+                verdict="unsupported",
+                evidence_chunk_id=None,
+                explanation="No evidence found.",
+            )
+        )
     for i in range(contradicted):
-        verifications.append(ClaimVerification(
-            claim=f"Contradicted claim {i + 1}",
-            verdict="contradicted",
-            evidence_chunk_id="c1",
-            explanation="Evidence contradicts this claim.",
-        ))
+        verifications.append(
+            ClaimVerification(
+                claim=f"Contradicted claim {i + 1}",
+                verdict="contradicted",
+                evidence_chunk_id="c1",
+                explanation="Evidence contradicts this claim.",
+            )
+        )
     return GroundednessResult(
         verifications=verifications,
         overall_grounded=overall_grounded,
@@ -146,6 +154,7 @@ def _make_groundedness_result(
 # ---------------------------------------------------------------------------
 # US1: Grounded Answer Verification (verify_groundedness)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 class TestVerifyGroundedness:
@@ -178,8 +187,9 @@ class TestVerifyGroundedness:
         assert result["groundedness_result"] is None
 
     async def test_full_groundedness_check_supported_answer(self):
-        gr = _make_groundedness_result(supported=2, unsupported=0, contradicted=0,
-                                       overall_grounded=True, confidence_adjustment=1.0)
+        gr = _make_groundedness_result(
+            supported=2, unsupported=0, contradicted=0, overall_grounded=True, confidence_adjustment=1.0
+        )
         mock_llm = MagicMock()
         mock_structured = AsyncMock()
         mock_llm.with_structured_output.return_value = mock_structured
@@ -198,8 +208,9 @@ class TestVerifyGroundedness:
 
     async def test_applies_annotations_unsupported_claim(self):
         """T010: unsupported claim gets [unverified] tag."""
-        gr = _make_groundedness_result(supported=1, unsupported=1, contradicted=0,
-                                       overall_grounded=True, confidence_adjustment=0.5)
+        gr = _make_groundedness_result(
+            supported=1, unsupported=1, contradicted=0, overall_grounded=True, confidence_adjustment=0.5
+        )
         response = "Supported claim 1. Unsupported claim 1."
         annotated = _apply_groundedness_annotations(response, gr)
         assert "Unsupported claim 1 [unverified]" in annotated
@@ -208,8 +219,9 @@ class TestVerifyGroundedness:
 
     async def test_applies_annotations_contradicted_claim(self):
         """T010: contradicted claim is removed with explanation."""
-        gr = _make_groundedness_result(supported=1, unsupported=0, contradicted=1,
-                                       overall_grounded=True, confidence_adjustment=0.5)
+        gr = _make_groundedness_result(
+            supported=1, unsupported=0, contradicted=1, overall_grounded=True, confidence_adjustment=0.5
+        )
         response = "Supported claim 1. Contradicted claim 1."
         annotated = _apply_groundedness_annotations(response, gr)
         assert "Contradicted claim 1" not in annotated
@@ -218,16 +230,18 @@ class TestVerifyGroundedness:
 
     async def test_applies_warning_banner_when_not_overall_grounded(self):
         """T010: >50% unsupported triggers warning banner."""
-        gr = _make_groundedness_result(supported=0, unsupported=3, contradicted=0,
-                                       overall_grounded=False, confidence_adjustment=0.0)
+        gr = _make_groundedness_result(
+            supported=0, unsupported=3, contradicted=0, overall_grounded=False, confidence_adjustment=0.0
+        )
         response = "Unsupported claim 1. Unsupported claim 2. Unsupported claim 3."
         annotated = _apply_groundedness_annotations(response, gr)
         assert annotated.startswith("**Warning:")
 
     async def test_gav_adjusted_confidence_score(self):
         """Confidence = mean(sub_answer scores) * confidence_adjustment, clamped 0-100."""
-        gr = _make_groundedness_result(supported=2, unsupported=1, contradicted=0,
-                                       overall_grounded=True, confidence_adjustment=0.8)
+        gr = _make_groundedness_result(
+            supported=2, unsupported=1, contradicted=0, overall_grounded=True, confidence_adjustment=0.8
+        )
         mock_llm = MagicMock()
         mock_structured = AsyncMock()
         mock_llm.with_structured_output.return_value = mock_structured
@@ -269,6 +283,7 @@ class TestVerifyGroundedness:
 # ---------------------------------------------------------------------------
 # US2: Citation Alignment Validation (validate_citations)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 class TestValidateCitations:
@@ -398,6 +413,7 @@ class TestValidateCitations:
 # US3: Confidence Indicator (metadata frame)
 # ---------------------------------------------------------------------------
 
+
 class TestConfidenceIndicator:
     """US3: NDJSON metadata frame includes groundedness object and GAV confidence."""
 
@@ -406,15 +422,9 @@ class TestConfidenceIndicator:
         if groundedness_result is None:
             return None
         return {
-            "supported": sum(
-                1 for v in groundedness_result.verifications if v.verdict == "supported"
-            ),
-            "unsupported": sum(
-                1 for v in groundedness_result.verifications if v.verdict == "unsupported"
-            ),
-            "contradicted": sum(
-                1 for v in groundedness_result.verifications if v.verdict == "contradicted"
-            ),
+            "supported": sum(1 for v in groundedness_result.verifications if v.verdict == "supported"),
+            "unsupported": sum(1 for v in groundedness_result.verifications if v.verdict == "unsupported"),
+            "contradicted": sum(1 for v in groundedness_result.verifications if v.verdict == "contradicted"),
             "overall_grounded": groundedness_result.overall_grounded,
         }
 
@@ -480,6 +490,7 @@ class TestConfidenceIndicator:
     def test_metadata_frame_groundedness_serializes_as_null(self):
         """groundedness=None serializes as JSON null per the SSE contract."""
         import json as _json
+
         frame = {
             "type": "metadata",
             "trace_id": "test-trace",
@@ -517,15 +528,18 @@ class TestConfidenceIndicator:
 # US4: Complexity-Tier Retrieval Parameters (TIER_PARAMS)
 # ---------------------------------------------------------------------------
 
+
 class TestTierParams:
     """US4: Query analysis tier drives retrieval parameter selection."""
 
     def test_tier_params_has_all_five_tiers(self):
         from backend.agent.nodes import TIER_PARAMS as _tp
+
         assert set(_tp.keys()) == {"factoid", "lookup", "comparison", "analytical", "multi_hop"}
 
     def test_factoid_tier_params(self):
         from backend.agent.nodes import TIER_PARAMS as _tp
+
         factoid = _tp["factoid"]
         assert factoid["top_k"] == 5
         assert factoid["max_iterations"] == 3
@@ -538,6 +552,7 @@ class TestTierParams:
 
     def test_multi_hop_tier_params(self):
         from backend.agent.nodes import TIER_PARAMS as _tp
+
         multi_hop = _tp["multi_hop"]
         assert multi_hop["top_k"] == 30
         assert multi_hop["max_iterations"] == 10
@@ -600,6 +615,7 @@ class TestTierParams:
 # US6: Circuit Breaker Resilience
 # ---------------------------------------------------------------------------
 
+
 class TestCircuitBreaker:
     """US6: Circuit breaker prevents cascading failures in Qdrant and inference."""
 
@@ -608,6 +624,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         # 4 failures: circuit stays closed
         for _ in range(4):
@@ -624,6 +641,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         for _ in range(5):
             wrapper._record_failure()
@@ -638,6 +656,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.errors import CircuitOpenError
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         for _ in range(5):
             wrapper._record_failure()
@@ -656,6 +675,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         for _ in range(5):
             wrapper._record_failure()
@@ -672,6 +692,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         assert hasattr(wrapper, "_last_failure_time")
         assert hasattr(wrapper, "_cooldown_secs")
@@ -685,6 +706,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.errors import CircuitOpenError
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         for _ in range(5):
             wrapper._record_failure()
@@ -694,6 +716,7 @@ class TestCircuitBreaker:
     def test_inference_circuit_breaker_opens_at_threshold(self, monkeypatch):
         """5 consecutive inference failures -> circuit opens."""
         import backend.agent.nodes as nodes_mod
+
         monkeypatch.setattr(nodes_mod, "_inf_circuit_open", False)
         monkeypatch.setattr(nodes_mod, "_inf_failure_count", 0)
         monkeypatch.setattr(nodes_mod, "_inf_last_failure_time", None)
@@ -713,6 +736,7 @@ class TestCircuitBreaker:
     def test_inference_circuit_breaker_resets_on_success(self, monkeypatch):
         """Success resets inference circuit breaker."""
         import backend.agent.nodes as nodes_mod
+
         monkeypatch.setattr(nodes_mod, "_inf_circuit_open", True)
         monkeypatch.setattr(nodes_mod, "_inf_failure_count", 5)
         monkeypatch.setattr(nodes_mod, "_inf_last_failure_time", time.monotonic())
@@ -727,6 +751,7 @@ class TestCircuitBreaker:
         """Inference CB transitions to half-open after cooldown."""
         import backend.agent.nodes as nodes_mod
         from backend.errors import CircuitOpenError
+
         monkeypatch.setattr(nodes_mod, "_inf_circuit_open", True)
         monkeypatch.setattr(nodes_mod, "_inf_failure_count", 5)
         monkeypatch.setattr(nodes_mod, "_inf_last_failure_time", time.monotonic())
@@ -747,6 +772,7 @@ class TestCircuitBreaker:
     def test_circuit_open_error_defined_in_errors(self):
         """CircuitOpenError exists in backend.errors and inherits from EmbeddinatorError."""
         from backend.errors import CircuitOpenError, EmbeddinatorError
+
         assert issubclass(CircuitOpenError, EmbeddinatorError)
         err = CircuitOpenError("test")
         assert str(err) == "test"
@@ -757,6 +783,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.errors import CircuitOpenError
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         for _ in range(5):
             wrapper._record_failure()
@@ -773,6 +800,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         wrapper.client = AsyncMock()
 
@@ -797,6 +825,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_failure_threshold", 5)
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         wrapper.client = AsyncMock()
         wrapper.client.search.side_effect = ConnectionError("permanent")
@@ -812,6 +841,7 @@ class TestCircuitBreaker:
         monkeypatch.setattr("backend.config.settings.circuit_breaker_cooldown_secs", 30)
         from backend.errors import CircuitOpenError
         from backend.storage.qdrant_client import QdrantClientWrapper
+
         wrapper = QdrantClientWrapper("localhost", 6333)
         wrapper.client = AsyncMock()
         for _ in range(5):

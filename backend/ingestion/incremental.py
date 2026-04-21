@@ -24,9 +24,7 @@ class IncrementalChecker:
                 sha256.update(block)
         return sha256.hexdigest()
 
-    async def check_duplicate(
-        self, collection_id: str, file_hash: str
-    ) -> tuple[bool, str | None]:
+    async def check_duplicate(self, collection_id: str, file_hash: str) -> tuple[bool, str | None]:
         """Check if a document with this hash already exists (completed) in the collection.
 
         Returns (is_duplicate, existing_document_id).
@@ -47,9 +45,7 @@ class IncrementalChecker:
         # Failed or other non-completed status: not a duplicate
         return (False, None)
 
-    async def check_change(
-        self, collection_id: str, filename: str, new_hash: str
-    ) -> tuple[bool, str | None]:
+    async def check_change(self, collection_id: str, filename: str, new_hash: str) -> tuple[bool, str | None]:
         """Check if a document with the same filename but different hash exists.
 
         Returns (is_changed, old_document_id).

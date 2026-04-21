@@ -24,15 +24,17 @@ async def list_collections(request: Request) -> dict:
     result = []
     for c in collections:
         docs = await db.list_documents(c["id"])
-        result.append(CollectionResponse(
-            id=c["id"],
-            name=c["name"],
-            description=c.get("description"),
-            embedding_model=c["embedding_model"],
-            chunk_profile=c["chunk_profile"],
-            document_count=len(docs),
-            created_at=c["created_at"],
-        ).model_dump())
+        result.append(
+            CollectionResponse(
+                id=c["id"],
+                name=c["name"],
+                description=c.get("description"),
+                embedding_model=c["embedding_model"],
+                chunk_profile=c["chunk_profile"],
+                document_count=len(docs),
+                created_at=c["created_at"],
+            ).model_dump()
+        )
     return {"collections": result}
 
 
@@ -45,25 +47,31 @@ async def create_collection(body: CollectionCreateRequest, request: Request) -> 
 
     name = body.name.strip()
     if not _NAME_PATTERN.match(name):
-        raise HTTPException(status_code=400, detail={
-            "error": {
-                "code": "COLLECTION_NAME_INVALID",
-                "message": f"Collection name '{name}' must match pattern: lowercase alphanumeric, hyphens, underscores, start with alphanumeric",
-                "details": {"pattern": "^[a-z0-9][a-z0-9_-]*$"},
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "code": "COLLECTION_NAME_INVALID",
+                    "message": f"Collection name '{name}' must match pattern: lowercase alphanumeric, hyphens, underscores, start with alphanumeric",
+                    "details": {"pattern": "^[a-z0-9][a-z0-9_-]*$"},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     existing = await db.get_collection_by_name(name)
     if existing:
-        raise HTTPException(status_code=409, detail={
-            "error": {
-                "code": "COLLECTION_NAME_CONFLICT",
-                "message": f"Collection '{name}' already exists",
-                "details": {},
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": "COLLECTION_NAME_CONFLICT",
+                    "message": f"Collection '{name}' already exists",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     collection_id = str(uuid.uuid4())
     embedding_model = body.embedding_model or settings.default_embed_model
@@ -103,14 +111,17 @@ async def delete_collection(collection_id: str, request: Request):
 
     collection = await db.get_collection(collection_id)
     if not collection:
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "COLLECTION_NOT_FOUND",
-                "message": f"Collection '{collection_id}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "COLLECTION_NOT_FOUND",
+                    "message": f"Collection '{collection_id}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     # Step 1: Cancel active ingestion jobs (set to failed)
     documents = await db.list_documents(collection_id)

@@ -19,23 +19,28 @@ async def list_providers(request: Request) -> dict:
 
     result = []
     for p in providers:
-        result.append(ProviderDetailResponse(
-            name=p["name"],
-            is_active=bool(p["is_active"]),
-            has_key=p.get("api_key_encrypted") is not None and p["api_key_encrypted"] != "",
-            base_url=p.get("base_url"),
-            model_count=0,
-        ))
+        result.append(
+            ProviderDetailResponse(
+                name=p["name"],
+                is_active=bool(p["is_active"]),
+                has_key=p.get("api_key_encrypted") is not None and p["api_key_encrypted"] != "",
+                base_url=p.get("base_url"),
+                model_count=0,
+            )
+        )
 
     # Always include Ollama even if not in DB
     if not any(p.name == "ollama" for p in result):
-        result.insert(0, ProviderDetailResponse(
-            name="ollama",
-            is_active=True,
-            has_key=False,
-            base_url=None,
-            model_count=0,
-        ))
+        result.insert(
+            0,
+            ProviderDetailResponse(
+                name="ollama",
+                is_active=True,
+                has_key=False,
+                base_url=None,
+                model_count=0,
+            ),
+        )
 
     return {"providers": [p.model_dump() for p in result]}
 
@@ -48,25 +53,31 @@ async def save_provider_key(name: str, body: ProviderKeyRequest, request: Reques
     trace_id = getattr(request.state, "trace_id", "")
 
     if key_manager is None:
-        raise HTTPException(status_code=503, detail={
-            "error": {
-                "code": "KEY_MANAGER_UNAVAILABLE",
-                "message": "Encryption key not configured. Set EMBEDINATOR_FERNET_KEY environment variable.",
-                "details": {},
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": "KEY_MANAGER_UNAVAILABLE",
+                    "message": "Encryption key not configured. Set EMBEDINATOR_FERNET_KEY environment variable.",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     provider = await db.get_provider(name)
     if not provider:
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "PROVIDER_NOT_FOUND",
-                "message": f"Provider '{name}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "PROVIDER_NOT_FOUND",
+                    "message": f"Provider '{name}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     encrypted = key_manager.encrypt(body.api_key)
     await db.update_provider(name, api_key_encrypted=encrypted)
@@ -93,6 +104,7 @@ async def provider_health(request: Request) -> dict:
         if name == "ollama":
             try:
                 from backend.providers.ollama import OllamaLLMProvider
+
                 provider_instance = OllamaLLMProvider(
                     base_url=settings.ollama_base_url,
                     model=settings.default_llm_model,
@@ -112,12 +124,15 @@ async def provider_health(request: Request) -> dict:
 
             if name == "openrouter":
                 from backend.providers.openrouter import OpenRouterLLMProvider
+
                 provider_instance = OpenRouterLLMProvider(api_key=key, model=model)
             elif name == "openai":
                 from backend.providers.openai import OpenAILLMProvider
+
                 provider_instance = OpenAILLMProvider(api_key=key, model=model)
             elif name == "anthropic":
                 from backend.providers.anthropic import AnthropicLLMProvider
+
                 provider_instance = AnthropicLLMProvider(api_key=key, model=model)
             else:
                 return ProviderHealthSchema(provider=name, reachable=False)
@@ -140,14 +155,17 @@ async def delete_provider_key(name: str, request: Request) -> dict:
 
     provider = await db.get_provider(name)
     if not provider:
-        raise HTTPException(status_code=404, detail={
-            "error": {
-                "code": "PROVIDER_NOT_FOUND",
-                "message": f"Provider '{name}' not found",
-                "details": {},
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "PROVIDER_NOT_FOUND",
+                    "message": f"Provider '{name}' not found",
+                    "details": {},
+                },
+                "trace_id": trace_id,
             },
-            "trace_id": trace_id,
-        })
+        )
 
     await db.update_provider(name, api_key_encrypted="")
 

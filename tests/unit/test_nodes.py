@@ -6,6 +6,7 @@ Covers: classify_intent, handle_collection_mgmt, rewrite_query,
 NEVER uses real LLM calls, real database, or real network.
 Async tests use @pytest.mark.asyncio.
 """
+
 from __future__ import annotations
 
 import json
@@ -538,10 +539,7 @@ def test_request_clarification_calls_interrupt_with_question():
 
     mock_interrupt.assert_called_once_with(question)
     # User response should be appended as HumanMessage
-    assert any(
-        isinstance(m, HumanMessage) and "The past year" in m.content
-        for m in result["messages"]
-    )
+    assert any(isinstance(m, HumanMessage) and "The past year" in m.content for m in result["messages"])
 
 
 def test_request_clarification_increments_iteration_count():

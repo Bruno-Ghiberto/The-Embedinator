@@ -55,9 +55,7 @@ async def phase1_db(tmp_path):
         """)
 
         # Insert Phase 1 test data
-        await conn.execute(
-            "INSERT INTO collections (id, name) VALUES ('col-test1', 'Test Collection')"
-        )
+        await conn.execute("INSERT INTO collections (id, name) VALUES ('col-test1', 'Test Collection')")
         await conn.execute(
             """INSERT INTO documents (id, name, collection_ids, file_path, status, upload_date)
                VALUES ('doc-001', 'report.pdf', '["col-test1"]', '/uploads/report.pdf', 'indexed', '2026-03-01T00:00:00')"""
@@ -84,9 +82,7 @@ class TestFreshDatabase:
 
     @pytest.mark.asyncio
     async def test_documents_table_exists(self, fresh_db):
-        cursor = await fresh_db.db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
-        )
+        cursor = await fresh_db.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
         row = await cursor.fetchone()
         assert row is not None
 
@@ -100,9 +96,7 @@ class TestFreshDatabase:
 
     @pytest.mark.asyncio
     async def test_parent_chunks_table_exists(self, fresh_db):
-        cursor = await fresh_db.db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='parent_chunks'"
-        )
+        cursor = await fresh_db.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='parent_chunks'")
         row = await cursor.fetchone()
         assert row is not None
 
@@ -136,75 +130,57 @@ class TestPhase1Migration:
 
     @pytest.mark.asyncio
     async def test_documents_migrated(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT COUNT(*) FROM documents"
-        )
+        cursor = await phase1_db.db.execute("SELECT COUNT(*) FROM documents")
         row = await cursor.fetchone()
         assert row[0] == 3
 
     @pytest.mark.asyncio
     async def test_column_name_mapped(self, phase1_db):
         """name → filename."""
-        cursor = await phase1_db.db.execute(
-            "SELECT filename FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT filename FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["filename"] == "report.pdf"
 
     @pytest.mark.asyncio
     async def test_collection_ids_mapped(self, phase1_db):
         """collection_ids JSON array → collection_id TEXT (first element)."""
-        cursor = await phase1_db.db.execute(
-            "SELECT collection_id FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT collection_id FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["collection_id"] == "col-test1"
 
     @pytest.mark.asyncio
     async def test_status_indexed_to_completed(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT status FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT status FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_status_uploaded_to_pending(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT status FROM documents WHERE id = 'doc-002'"
-        )
+        cursor = await phase1_db.db.execute("SELECT status FROM documents WHERE id = 'doc-002'")
         row = await cursor.fetchone()
         assert row["status"] == "pending"
 
     @pytest.mark.asyncio
     async def test_status_parsing_to_pending(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT status FROM documents WHERE id = 'doc-003'"
-        )
+        cursor = await phase1_db.db.execute("SELECT status FROM documents WHERE id = 'doc-003'")
         row = await cursor.fetchone()
         assert row["status"] == "pending"
 
     @pytest.mark.asyncio
     async def test_file_hash_empty_for_legacy(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT file_hash FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT file_hash FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["file_hash"] == ""
 
     @pytest.mark.asyncio
     async def test_chunk_count_zero_for_legacy(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT chunk_count FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT chunk_count FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["chunk_count"] == 0
 
     @pytest.mark.asyncio
     async def test_created_at_preserved(self, phase1_db):
-        cursor = await phase1_db.db.execute(
-            "SELECT created_at FROM documents WHERE id = 'doc-001'"
-        )
+        cursor = await phase1_db.db.execute("SELECT created_at FROM documents WHERE id = 'doc-001'")
         row = await cursor.fetchone()
         assert row["created_at"] == "2026-03-01T00:00:00"
 
@@ -223,9 +199,7 @@ class TestParentStoreCompatibility:
     @pytest.mark.asyncio
     async def test_get_by_ids_returns_parent_chunks(self, fresh_db):
         # Create a document first (FK constraint)
-        doc = await fresh_db.create_document(
-            filename="report.pdf", collection_id="col-test1"
-        )
+        doc = await fresh_db.create_document(filename="report.pdf", collection_id="col-test1")
         # Insert a parent chunk directly
         await fresh_db.insert_parent_chunk(
             chunk_id="pc-001",
@@ -267,35 +241,23 @@ class TestUniqueConstraint:
     @pytest.mark.asyncio
     async def test_duplicate_hash_same_collection_rejected(self, fresh_db):
         # First insert succeeds
-        await fresh_db.create_document(
-            filename="doc1.pdf", collection_id="col-1", file_hash="abc123"
-        )
+        await fresh_db.create_document(filename="doc1.pdf", collection_id="col-1", file_hash="abc123")
         # Second insert with same hash + collection should fail
         with pytest.raises(Exception):
-            await fresh_db.create_document(
-                filename="doc2.pdf", collection_id="col-1", file_hash="abc123"
-            )
+            await fresh_db.create_document(filename="doc2.pdf", collection_id="col-1", file_hash="abc123")
 
     @pytest.mark.asyncio
     async def test_same_hash_different_collection_allowed(self, fresh_db):
-        await fresh_db.create_document(
-            filename="doc1.pdf", collection_id="col-1", file_hash="abc123"
-        )
+        await fresh_db.create_document(filename="doc1.pdf", collection_id="col-1", file_hash="abc123")
         # Same hash in different collection should succeed
-        doc = await fresh_db.create_document(
-            filename="doc1.pdf", collection_id="col-2", file_hash="abc123"
-        )
+        doc = await fresh_db.create_document(filename="doc1.pdf", collection_id="col-2", file_hash="abc123")
         assert doc["id"] is not None
 
     @pytest.mark.asyncio
     async def test_empty_hash_not_constrained(self, fresh_db):
         """Legacy rows with empty file_hash should not conflict."""
-        await fresh_db.create_document(
-            filename="doc1.pdf", collection_id="col-1", file_hash=""
-        )
-        doc = await fresh_db.create_document(
-            filename="doc2.pdf", collection_id="col-1", file_hash=""
-        )
+        await fresh_db.create_document(filename="doc1.pdf", collection_id="col-1", file_hash="")
+        doc = await fresh_db.create_document(filename="doc2.pdf", collection_id="col-1", file_hash="")
         assert doc["id"] is not None
 
 
@@ -304,21 +266,15 @@ class TestNewCrudOperations:
 
     @pytest.mark.asyncio
     async def test_create_ingestion_job(self, fresh_db):
-        doc = await fresh_db.create_document(
-            filename="test.pdf", collection_id="col-1"
-        )
+        doc = await fresh_db.create_document(filename="test.pdf", collection_id="col-1")
         job_id = await fresh_db.create_ingestion_job(doc["id"])
         assert job_id.startswith("job-")
 
     @pytest.mark.asyncio
     async def test_update_ingestion_job(self, fresh_db):
-        doc = await fresh_db.create_document(
-            filename="test.pdf", collection_id="col-1"
-        )
+        doc = await fresh_db.create_document(filename="test.pdf", collection_id="col-1")
         job_id = await fresh_db.create_ingestion_job(doc["id"])
-        await fresh_db.update_ingestion_job(
-            job_id, status="completed", chunks_processed=42, chunks_skipped=3
-        )
+        await fresh_db.update_ingestion_job(job_id, status="completed", chunks_processed=42, chunks_skipped=3)
         cursor = await fresh_db.db.execute(
             "SELECT status, chunks_processed, chunks_skipped, finished_at FROM ingestion_jobs WHERE id = ?",
             (job_id,),
@@ -331,25 +287,27 @@ class TestNewCrudOperations:
 
     @pytest.mark.asyncio
     async def test_delete_parent_chunks_by_document(self, fresh_db):
-        doc = await fresh_db.create_document(
-            filename="test.pdf", collection_id="col-1"
+        doc = await fresh_db.create_document(filename="test.pdf", collection_id="col-1")
+        await fresh_db.insert_parent_chunk(
+            chunk_id="pc-1",
+            collection_id="col-1",
+            document_id=doc["id"],
+            text="chunk 1",
+            source_file="test.pdf",
         )
         await fresh_db.insert_parent_chunk(
-            chunk_id="pc-1", collection_id="col-1", document_id=doc["id"],
-            text="chunk 1", source_file="test.pdf",
-        )
-        await fresh_db.insert_parent_chunk(
-            chunk_id="pc-2", collection_id="col-1", document_id=doc["id"],
-            text="chunk 2", source_file="test.pdf",
+            chunk_id="pc-2",
+            collection_id="col-1",
+            document_id=doc["id"],
+            text="chunk 2",
+            source_file="test.pdf",
         )
         deleted = await fresh_db.delete_parent_chunks_by_document(doc["id"])
         assert deleted == 2
 
     @pytest.mark.asyncio
     async def test_find_document_by_hash(self, fresh_db):
-        await fresh_db.create_document(
-            filename="test.pdf", collection_id="col-1", file_hash="abc123"
-        )
+        await fresh_db.create_document(filename="test.pdf", collection_id="col-1", file_hash="abc123")
         result = await fresh_db.find_document_by_hash("col-1", "abc123")
         assert result is not None
         assert result["status"] == "pending"

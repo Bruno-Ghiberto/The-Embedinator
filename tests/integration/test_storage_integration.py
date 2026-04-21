@@ -10,6 +10,7 @@ Requires:
   - Qdrant running: docker compose up qdrant -d
   - EMBEDINATOR_FERNET_KEY env var for encryption tests
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -113,9 +114,7 @@ async def test_parent_chunk_to_qdrant_linking(db, qdrant):
         chunk_profile="default",
         qdrant_collection_name=coll_name,
     )
-    await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="doc.pdf", file_hash="abc123"
-    )
+    await db.create_document(id=doc_id, collection_id=coll_id, filename="doc.pdf", file_hash="abc123")
     await db.create_parent_chunk(
         id=parent_id,
         collection_id=coll_id,
@@ -155,7 +154,6 @@ async def test_duplicate_document_detection(db):
     """Re-ingesting same file_hash in same collection is detected as duplicate."""
     coll_id = str(uuid.uuid4())
     doc_id_1 = str(uuid.uuid4())
-    doc_id_2 = str(uuid.uuid4())
     file_hash = "sha256_deadbeef"
 
     await db.create_collection(
@@ -165,9 +163,7 @@ async def test_duplicate_document_detection(db):
         chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
-    await db.create_document(
-        id=doc_id_1, collection_id=coll_id, filename="file.pdf", file_hash=file_hash
-    )
+    await db.create_document(id=doc_id_1, collection_id=coll_id, filename="file.pdf", file_hash=file_hash)
 
     # Detect duplicate via get_document_by_hash
     existing = await db.get_document_by_hash(coll_id, file_hash)
@@ -193,16 +189,16 @@ async def test_batch_parent_retrieval_performance(db):
         chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
-    await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="big.pdf", file_hash="hash_perf"
-    )
+    await db.create_document(id=doc_id, collection_id=coll_id, filename="big.pdf", file_hash="hash_perf")
 
     # Insert 100 parent chunks
     parent_ids = []
     for i in range(100):
         pid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"perf-chunk-{i}"))
         await db.create_parent_chunk(
-            id=pid, collection_id=coll_id, document_id=doc_id,
+            id=pid,
+            collection_id=coll_id,
+            document_id=doc_id,
             text=f"Parent chunk {i} content.",
         )
         parent_ids.append(pid)
@@ -254,15 +250,17 @@ async def test_search_parent_retrieval_workflow(db, qdrant):
     parent_id = str(uuid.uuid4())
 
     await db.create_collection(
-        id=coll_id, name=unique_name("srw"),
-        embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+        id=coll_id,
+        name=unique_name("srw"),
+        embedding_model="all-MiniLM-L6-v2",
+        chunk_profile="default",
         qdrant_collection_name=coll_name,
     )
-    await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="srw.pdf", file_hash="srw_hash"
-    )
+    await db.create_document(id=doc_id, collection_id=coll_id, filename="srw.pdf", file_hash="srw_hash")
     await db.create_parent_chunk(
-        id=parent_id, collection_id=coll_id, document_id=doc_id,
+        id=parent_id,
+        collection_id=coll_id,
+        document_id=doc_id,
         text="Search-workflow parent chunk.",
     )
 
@@ -303,12 +301,8 @@ async def test_collection_isolation(qdrant):
         await qdrant.batch_upsert(coll_a, [_make_point(1, parent_a, coll_a)])
         await qdrant.batch_upsert(coll_b, [_make_point(2, parent_b, coll_b)])
 
-        results_a = await qdrant.search_hybrid(
-            collection_name=coll_a, dense_vector=[0.1] * 4, sparse_vector=None
-        )
-        results_b = await qdrant.search_hybrid(
-            collection_name=coll_b, dense_vector=[0.1] * 4, sparse_vector=None
-        )
+        results_a = await qdrant.search_hybrid(collection_name=coll_a, dense_vector=[0.1] * 4, sparse_vector=None)
+        results_b = await qdrant.search_hybrid(collection_name=coll_b, dense_vector=[0.1] * 4, sparse_vector=None)
 
         ids_a = {r.payload["parent_id"] for r in results_a}
         ids_b = {r.payload["parent_id"] for r in results_b}
@@ -333,13 +327,9 @@ async def test_parent_id_mismatch_detection(db, qdrant):
 
     await qdrant.create_collection(coll_name, vector_size=4)
     try:
-        await qdrant.batch_upsert(
-            coll_name, [_make_point(1, orphan_parent_id, coll_name)]
-        )
+        await qdrant.batch_upsert(coll_name, [_make_point(1, orphan_parent_id, coll_name)])
 
-        results = await qdrant.search_hybrid(
-            collection_name=coll_name, dense_vector=[0.1] * 4, sparse_vector=None
-        )
+        results = await qdrant.search_hybrid(collection_name=coll_name, dense_vector=[0.1] * 4, sparse_vector=None)
         assert len(results) >= 1
 
         # Attempt to resolve in SQLite — should come back empty (orphaned)
@@ -395,8 +385,12 @@ async def test_query_trace_latency_accuracy(db):
     """latency_ms stored and retrieved accurately."""
     session_id = str(uuid.uuid4())
     await db.create_query_trace(
-        id=str(uuid.uuid4()), session_id=session_id, query="latency test",
-        collections_searched="[]", chunks_retrieved_json="[]", latency_ms=237,
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        query="latency test",
+        collections_searched="[]",
+        chunks_retrieved_json="[]",
+        latency_ms=237,
     )
     traces = await db.list_query_traces(session_id)
     assert traces[0]["latency_ms"] == 237
@@ -410,7 +404,9 @@ async def test_trace_json_field_validation(db):
     sub_qs = ["sub-q1", "sub-q2"]
 
     await db.create_query_trace(
-        id=str(uuid.uuid4()), session_id=session_id, query="json validation",
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        query="json validation",
         collections_searched=json.dumps(["col-a"]),
         chunks_retrieved_json=json.dumps(chunks),
         latency_ms=55,
@@ -432,15 +428,22 @@ async def test_list_traces_by_session(db):
 
     for i in range(3):
         await db.create_query_trace(
-            id=str(uuid.uuid4()), session_id=session_a, query=f"query {i}",
-            collections_searched="[]", chunks_retrieved_json="[]",
+            id=str(uuid.uuid4()),
+            session_id=session_a,
+            query=f"query {i}",
+            collections_searched="[]",
+            chunks_retrieved_json="[]",
             latency_ms=10 + i,
         )
 
     # Session B gets 1 trace
     await db.create_query_trace(
-        id=str(uuid.uuid4()), session_id=session_b, query="other session",
-        collections_searched="[]", chunks_retrieved_json="[]", latency_ms=99,
+        id=str(uuid.uuid4()),
+        session_id=session_b,
+        query="other session",
+        collections_searched="[]",
+        chunks_retrieved_json="[]",
+        latency_ms=99,
     )
 
     traces_a = await db.list_query_traces(session_a)
@@ -489,9 +492,7 @@ async def test_provider_update_changes_key(db, fernet_key):
         key_v1 = "sk-old-key"
         key_v2 = "sk-new-key"
 
-        await db.create_provider(
-            name="anthropic-test", api_key_encrypted=km.encrypt(key_v1)
-        )
+        await db.create_provider(name="anthropic-test", api_key_encrypted=km.encrypt(key_v1))
 
         encrypted_v2 = km.encrypt(key_v2)
         await db.update_provider("anthropic-test", api_key_encrypted=encrypted_v2)
@@ -539,9 +540,7 @@ async def test_plaintext_never_logged(db, fernet_key):
 
         # Verify plaintext never appears in any captured log call
         for call_str in logged_calls:
-            assert plaintext not in call_str, (
-                f"Plaintext API key found in log output: {call_str}"
-            )
+            assert plaintext not in call_str, f"Plaintext API key found in log output: {call_str}"
 
 
 # ---------------------------------------------------------------------------
@@ -558,17 +557,15 @@ async def test_document_delete_cascades(db):
     parent_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "cascade-test"))
 
     await db.create_collection(
-        id=coll_id, name=unique_name("cascade"),
-        embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+        id=coll_id,
+        name=unique_name("cascade"),
+        embedding_model="all-MiniLM-L6-v2",
+        chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
-    await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="cascade.pdf", file_hash="cascade_hash"
-    )
+    await db.create_document(id=doc_id, collection_id=coll_id, filename="cascade.pdf", file_hash="cascade_hash")
     await db.create_ingestion_job(id=job_id, document_id=doc_id)
-    await db.create_parent_chunk(
-        id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk"
-    )
+    await db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk")
 
     await db.delete_document(doc_id)
 
@@ -598,22 +595,18 @@ async def test_idempotent_retry_on_failure(db):
     parent_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "idempotent-chunk"))
 
     await db.create_collection(
-        id=coll_id, name=unique_name("idem"),
-        embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+        id=coll_id,
+        name=unique_name("idem"),
+        embedding_model="all-MiniLM-L6-v2",
+        chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
-    await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="idem.pdf", file_hash="idem_hash"
-    )
-    await db.create_parent_chunk(
-        id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk"
-    )
+    await db.create_document(id=doc_id, collection_id=coll_id, filename="idem.pdf", file_hash="idem_hash")
+    await db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk")
 
     # Second insert with same UUID5 should raise (duplicate primary key)
     with pytest.raises(Exception):
-        await db.create_parent_chunk(
-            id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk again"
-        )
+        await db.create_parent_chunk(id=parent_id, collection_id=coll_id, document_id=doc_id, text="chunk again")
 
     # Original chunk still exists unchanged
     chunks = await db.get_parent_chunks_batch([parent_id])
@@ -628,13 +621,18 @@ async def test_document_status_transitions(db):
     doc_id = str(uuid.uuid4())
 
     await db.create_collection(
-        id=coll_id, name=unique_name("status"),
-        embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+        id=coll_id,
+        name=unique_name("status"),
+        embedding_model="all-MiniLM-L6-v2",
+        chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
     await db.create_document(
-        id=doc_id, collection_id=coll_id, filename="transitions.pdf",
-        file_hash="trans_hash", status="pending",
+        id=doc_id,
+        collection_id=coll_id,
+        filename="transitions.pdf",
+        file_hash="trans_hash",
+        status="pending",
     )
 
     doc = await db.get_document(doc_id)
@@ -672,14 +670,18 @@ async def test_unique_constraints_enforced(db):
     """Duplicate collection name raises IntegrityError."""
     shared_name = unique_name("unique")
     await db.create_collection(
-        id=str(uuid.uuid4()), name=shared_name,
-        embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+        id=str(uuid.uuid4()),
+        name=shared_name,
+        embedding_model="all-MiniLM-L6-v2",
+        chunk_profile="default",
         qdrant_collection_name=unique_collection_name(),
     )
 
     with pytest.raises(Exception):  # sqlite3.IntegrityError
         await db.create_collection(
-            id=str(uuid.uuid4()), name=shared_name,
-            embedding_model="all-MiniLM-L6-v2", chunk_profile="default",
+            id=str(uuid.uuid4()),
+            name=shared_name,
+            embedding_model="all-MiniLM-L6-v2",
+            chunk_profile="default",
             qdrant_collection_name=unique_collection_name(),
         )

@@ -103,14 +103,8 @@ ANALYTICAL_QUERIES = [
         "How would you implement the main idea described in this document "
         "in a real-world production scenario? What would be the main challenges?"
     ),
-    (
-        "What are the most important decisions described in this document, "
-        "and what are their long-term implications?"
-    ),
-    (
-        "Synthesize the main themes across all sections of this document "
-        "into a coherent narrative."
-    ),
+    ("What are the most important decisions described in this document, and what are their long-term implications?"),
+    ("Synthesize the main themes across all sections of this document into a coherent narrative."),
     (
         "What problems does this document solve, and what alternative solutions "
         "could have been chosen instead? Why might they have been rejected?"
@@ -129,6 +123,7 @@ ANALYTICAL_QUERIES = [
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def wait_for_backend(base_url: str, timeout: int = 120) -> None:
     """Poll /api/health until 200 or raise on timeout.
@@ -149,10 +144,7 @@ async def wait_for_backend(base_url: str, timeout: int = 120) -> None:
         except Exception as exc:
             last_err = exc
         await asyncio.sleep(1)
-    raise RuntimeError(
-        f"Backend at {base_url} did not become healthy within {timeout}s "
-        f"(last error: {last_err})"
-    )
+    raise RuntimeError(f"Backend at {base_url} did not become healthy within {timeout}s (last error: {last_err})")
 
 
 async def get_manifest_fields(base_url: str, collection_id: str) -> dict:
@@ -179,9 +171,7 @@ async def get_manifest_fields(base_url: str, collection_id: str) -> dict:
         except Exception:
             pass
 
-    fingerprint = hashlib.md5(
-        f"{collection_id}:{doc_count}".encode()
-    ).hexdigest()[:12]
+    fingerprint = hashlib.md5(f"{collection_id}:{doc_count}".encode()).hexdigest()[:12]
 
     # Git commit SHA
     commit_sha = "unknown"
@@ -308,6 +298,7 @@ def _percentile(data: list[float], p: int) -> float:
 # Measurement pass (priming + measured queries)
 # ---------------------------------------------------------------------------
 
+
 async def run_measurement_pass(
     base_url: str,
     collection_id: str,
@@ -337,11 +328,10 @@ async def run_measurement_pass(
     # httpx client with generous pool for concurrency
     limits = httpx.Limits(max_connections=max(concurrent + 2, 10))
     async with httpx.AsyncClient(base_url=base_url, limits=limits) as client:
-
         # ── Priming phase ──────────────────────────────────────────────────
         for i in range(priming_queries):
             query = FACTOID_QUERIES[i % len(FACTOID_QUERIES)]
-            label = f"[{run_label}priming {i+1}/{priming_queries}]"
+            label = f"[{run_label}priming {i + 1}/{priming_queries}]"
             print(f"  {label} ...", end=" ", flush=True)
             res = await run_single_query(client, query, collection_id)
             print(f"{res['wall_ms']}ms", flush=True)
@@ -362,17 +352,19 @@ async def run_measurement_pass(
             # Sequential
             total = len(measured)
             for idx, (qtype, query) in enumerate(measured):
-                label = f"[{run_label}{qtype} {idx+1}/{total}]"
+                label = f"[{run_label}{qtype} {idx + 1}/{total}]"
                 print(f"  {label} ...", end=" ", flush=True)
                 res = await run_single_query(client, query, collection_id)
                 print(f"{res['wall_ms']}ms", flush=True)
                 if res["error"]:
-                    errors.append({
-                        "type": res["error"],
-                        "query_type": qtype,
-                        "query_index": idx,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                    errors.append(
+                        {
+                            "type": res["error"],
+                            "query_type": qtype,
+                            "query_index": idx,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                 else:
                     if qtype == "factoid":
                         factoid_wall_times.append(res["wall_ms"])
@@ -391,29 +383,30 @@ async def run_measurement_pass(
                     res = await run_single_query(client, query, collection_id)
                     return {"idx": idx, "qtype": qtype, **res}
 
-            tasks = [
-                asyncio.create_task(bounded_query(i, qt, q))
-                for i, (qt, q) in enumerate(measured)
-            ]
+            tasks = [asyncio.create_task(bounded_query(i, qt, q)) for i, (qt, q) in enumerate(measured)]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for res in results:
                 if isinstance(res, Exception):
-                    errors.append({
-                        "type": type(res).__name__,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                    errors.append(
+                        {
+                            "type": type(res).__name__,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                     continue
                 if res.get("error"):
                     err_type = res["error"]
                     # Normalise circuit breaker variants for SC-006 checking
                     if "CIRCUIT_OPEN" in str(err_type).upper():
                         err_type = "CircuitOpenError"
-                    errors.append({
-                        "type": err_type,
-                        "query_type": res.get("qtype"),
-                        "query_index": res.get("idx"),
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                    errors.append(
+                        {
+                            "type": err_type,
+                            "query_type": res.get("qtype"),
+                            "query_index": res.get("idx"),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                 else:
                     qtype = res.get("qtype", "factoid")
                     if qtype == "factoid":
@@ -438,6 +431,7 @@ async def run_measurement_pass(
 # Repeat-run backend restart (T040)
 # ---------------------------------------------------------------------------
 
+
 async def restart_backend_for_cold_start(base_url: str) -> None:
     """
     Restart only the backend container (NOT Qdrant) so the next run starts
@@ -460,6 +454,7 @@ async def restart_backend_for_cold_start(base_url: str) -> None:
 # ---------------------------------------------------------------------------
 # Main benchmark orchestration
 # ---------------------------------------------------------------------------
+
 
 async def run_benchmark(args: argparse.Namespace) -> None:
     base_url = args.base_url
@@ -516,7 +511,7 @@ async def run_benchmark(args: argparse.Namespace) -> None:
             priming_queries=args.priming_queries,
             concurrent=args.concurrent,
             db_path=db_path,
-            run_label=f"r{run_idx+1}|",
+            run_label=f"r{run_idx + 1}|",
         )
         all_run_results.append(result)
 
@@ -621,8 +616,10 @@ async def run_benchmark(args: argparse.Namespace) -> None:
     print(f"  warm_state_p50.factoid_ms    = {f_p50} ms")
     print(f"  warm_state_p50.analytical_ms = {a_p50} ms")
     print(f"  cold_start_ms                = {cold_start_ms} ms")
-    print(f"  variance_cv                  = {variance_cv:.4f}"
-          + ("  ← EXCEEDS NFR-003 (0.15)" if variance_cv > 0.15 else ""))
+    print(
+        f"  variance_cv                  = {variance_cv:.4f}"
+        + ("  ← EXCEEDS NFR-003 (0.15)" if variance_cv > 0.15 else "")
+    )
     print(f"  stage_timings keys           : {list(stage_timings_p50.keys())}")
     print(f"  completions                  : {done_count} done / {len(all_errors)} errors")
 
@@ -641,15 +638,13 @@ async def run_benchmark(args: argparse.Namespace) -> None:
             "(priming query captured as warm, or stack not running correctly)."
         )
     if f_p50 > 300_000:
-        print(
-            "  WARNING: factoid warm p50 > 300s — stack may be broken or "
-            "Ollama model not loaded."
-        )
+        print("  WARNING: factoid warm p50 > 300s — stack may be broken or Ollama model not loaded.")
 
 
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -658,41 +653,57 @@ def main() -> None:
         epilog=__doc__,
     )
     parser.add_argument(
-        "--factoid-n", type=int, default=30,
+        "--factoid-n",
+        type=int,
+        default=30,
         help="Number of factoid queries per run (default: 30)",
     )
     parser.add_argument(
-        "--analytical-n", type=int, default=10,
+        "--analytical-n",
+        type=int,
+        default=10,
         help="Number of analytical queries per run (default: 10)",
     )
     parser.add_argument(
-        "--concurrent", type=int, default=1,
+        "--concurrent",
+        type=int,
+        default=1,
         help="Concurrent query count — use 5 for SC-006 validation (default: 1)",
     )
     parser.add_argument(
-        "--priming-queries", type=int, default=1,
+        "--priming-queries",
+        type=int,
+        default=1,
         help=(
             "Warm-up queries excluded from warm-state stats (default: 1). "
             "Set 0 only for debugging — invalidates warm-state statistics."
         ),
     )
     parser.add_argument(
-        "--repeat", type=int, default=1,
+        "--repeat",
+        type=int,
+        default=1,
         help=(
             "Repeat full harness N times for NFR-003 variance measurement. "
             "Each repeat restarts the backend container for a fresh cold-start (default: 1)."
         ),
     )
     parser.add_argument(
-        "--output", type=str, required=True,
+        "--output",
+        type=str,
+        required=True,
         help="Path to JSON output file (parent directory is created if absent)",
     )
     parser.add_argument(
-        "--base-url", type=str, default="http://localhost:8000",
+        "--base-url",
+        type=str,
+        default="http://localhost:8000",
         help="Backend API base URL (default: http://localhost:8000)",
     )
     parser.add_argument(
-        "--collection-id", type=str, required=True,
+        "--collection-id",
+        type=str,
+        required=True,
         help="Collection ID to benchmark against (use /tmp/spec26-collection-id.txt)",
     )
 

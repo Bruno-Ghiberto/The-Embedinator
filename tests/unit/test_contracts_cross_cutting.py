@@ -236,9 +236,7 @@ class TestAPISchemaImports:
             QueryTraceResponse,
         ]
         for schema in api_schemas:
-            assert issubclass(schema, BaseModel), (
-                f"{schema.__name__} must be a BaseModel subclass"
-            )
+            assert issubclass(schema, BaseModel), f"{schema.__name__} must be a BaseModel subclass"
 
 
 class TestNDJSONEventModels:
@@ -290,9 +288,7 @@ class TestNDJSONEventModels:
         ]
         for event in events:
             # TypedDict classes are dict subclasses at runtime
-            assert issubclass(event, dict), (
-                f"{event.__name__} must be a TypedDict (dict subclass)"
-            )
+            assert issubclass(event, dict), f"{event.__name__} must be a TypedDict (dict subclass)"
 
     def test_no_event_is_basemodel(self):
         """NDJSON events must NOT be BaseModel subclasses (they are TypedDicts)."""
@@ -309,9 +305,7 @@ class TestNDJSONEventModels:
             ErrorEvent,
         ]
         for event in events:
-            assert not issubclass(event, BaseModel), (
-                f"{event.__name__} must NOT be a BaseModel — it is a TypedDict"
-            )
+            assert not issubclass(event, BaseModel), f"{event.__name__} must NOT be a BaseModel — it is a TypedDict"
 
 
 class TestSettingsConfig:

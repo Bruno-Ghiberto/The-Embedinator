@@ -39,6 +39,7 @@ Assertion strategy: Option (a) — defensive upper-bound validation.
 
   Rationale saved to engram via mem_save (topic: spec-26/stage-timings-assertion-rationale).
 """
+
 from __future__ import annotations
 
 import json
@@ -72,7 +73,7 @@ EXPECTED_STAGE_KEYS: frozenset[str] = frozenset(
         "research_orchestrator_calls",
         "research_tools_ms",
         "research_tools_calls",
-        "research_compress_ms",   # may be 0 or absent when no compress step ran
+        "research_compress_ms",  # may be 0 or absent when no compress step ran
         "research_compress_calls",
     }
 )
@@ -216,8 +217,7 @@ class TestStageTimingsPopulated:
     async def test_seeded_rows_have_stage_timings(self, db_with_traces):
         """All seeded rows carry populated (non-empty) stage_timings_json."""
         cursor = await db_with_traces.db.execute(
-            "SELECT id, stage_timings_json FROM query_traces "
-            "WHERE stage_timings_json IS NOT NULL"
+            "SELECT id, stage_timings_json FROM query_traces WHERE stage_timings_json IS NOT NULL"
         )
         rows = await cursor.fetchall()
         assert rows, "no rows with stage_timings_json found — fixture seeding failed"
@@ -236,8 +236,7 @@ class TestStageTimingsKeySetContract:
     async def test_all_keys_subset_of_expected(self, db_with_traces):
         """Every key in every stage_timings_json row is a known expected key."""
         cursor = await db_with_traces.db.execute(
-            "SELECT stage_timings_json FROM query_traces "
-            "WHERE stage_timings_json IS NOT NULL"
+            "SELECT stage_timings_json FROM query_traces WHERE stage_timings_json IS NOT NULL"
         )
         rows = await cursor.fetchall()
         assert rows, "no seeded trace rows found"
@@ -253,9 +252,7 @@ class TestStageTimingsKeySetContract:
     async def test_key_set_stable_across_rows(self, db_with_traces):
         """All trace rows share the same stage key set (FR-008 stability)."""
         cursor = await db_with_traces.db.execute(
-            "SELECT stage_timings_json FROM query_traces "
-            "WHERE stage_timings_json IS NOT NULL "
-            "ORDER BY rowid"
+            "SELECT stage_timings_json FROM query_traces WHERE stage_timings_json IS NOT NULL ORDER BY rowid"
         )
         rows = await cursor.fetchall()
         assert len(rows) >= 2, "need at least 2 rows to assert key-set stability"
@@ -276,16 +273,13 @@ class TestStageTimingsValueIntegrity:
     async def test_all_values_nonnegative(self, db_with_traces):
         """No stage duration is negative — elapsed time cannot go backwards."""
         cursor = await db_with_traces.db.execute(
-            "SELECT stage_timings_json, latency_ms FROM query_traces "
-            "WHERE stage_timings_json IS NOT NULL"
+            "SELECT stage_timings_json, latency_ms FROM query_traces WHERE stage_timings_json IS NOT NULL"
         )
         rows = await cursor.fetchall()
         for row in rows:
             stages = json.loads(row["stage_timings_json"])
             ok, reason = _all_values_nonnegative(stages)
-            assert ok, (
-                f"Negative value in trace with latency_ms={row['latency_ms']}: {reason}"
-            )
+            assert ok, f"Negative value in trace with latency_ms={row['latency_ms']}: {reason}"
 
     @pytest.mark.asyncio
     async def test_ms_sum_does_not_exceed_total_latency(self, db_with_traces):
@@ -297,8 +291,7 @@ class TestStageTimingsValueIntegrity:
         here. The tighter ±5% assertion is deferred to spec-27 (FR-002, SC-004/005).
         """
         cursor = await db_with_traces.db.execute(
-            "SELECT stage_timings_json, latency_ms FROM query_traces "
-            "WHERE stage_timings_json IS NOT NULL"
+            "SELECT stage_timings_json, latency_ms FROM query_traces WHERE stage_timings_json IS NOT NULL"
         )
         rows = await cursor.fetchall()
         for row in rows:
@@ -428,6 +421,4 @@ class TestKeySetContractLogic:
             "intent_classification": {"duration_ms": 200.0},
             "extra_stage_added_later": 0.0,
         }
-        assert set(row_a.keys()) != set(row_b.keys()), (
-            "Stability check should have caught this drift"
-        )
+        assert set(row_a.keys()) != set(row_b.keys()), "Stability check should have caught this drift"

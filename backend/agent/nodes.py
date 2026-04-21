@@ -108,21 +108,14 @@ def count_message_tokens(messages: list, model: Any) -> int:
     """
     try:
         if model is not None and hasattr(model, "count_tokens"):
-            return sum(
-                model.count_tokens(m.content)
-                for m in messages
-                if getattr(m, "content", None)
-            )
+            return sum(model.count_tokens(m.content) for m in messages if getattr(m, "content", None))
     except Exception:  # noqa: BLE001 — fall through to tiktoken
         pass
 
     import tiktoken  # lazy import; tiktoken>=0.8 in requirements.txt
+
     enc = tiktoken.get_encoding("cl100k_base")
-    return sum(
-        len(enc.encode(str(m.content)))
-        for m in messages
-        if getattr(m, "content", None)
-    )
+    return sum(len(enc.encode(str(m.content))) for m in messages if getattr(m, "content", None))
 
 
 # --- Inference Service Circuit Breaker (FR-017, ADR-001) ---
@@ -142,10 +135,7 @@ def _check_inference_circuit() -> None:
     _inf_cooldown_secs = settings.circuit_breaker_cooldown_secs
 
     if _inf_circuit_open:
-        if (
-            _inf_last_failure_time is not None
-            and time.monotonic() - _inf_last_failure_time >= _inf_cooldown_secs
-        ):
+        if _inf_last_failure_time is not None and time.monotonic() - _inf_last_failure_time >= _inf_cooldown_secs:
             # Half-open: allow one probe request
             _inf_circuit_open = False
             logger.info("agent_inference_circuit_half_open")
@@ -171,7 +161,6 @@ def _record_inference_failure() -> None:
 
 
 # --- Node implementations ---
-
 
 
 async def classify_intent(state: ConversationState, config: RunnableConfig = None, *, store=None) -> dict:
@@ -225,10 +214,12 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
 
         # ENH-002: Structured output replaces manual JSON parsing
         structured_llm = llm.with_structured_output(IntentClassification, method="json_mode")
-        result: IntentClassification = await structured_llm.ainvoke([
-            SystemMessage(content=CLASSIFY_INTENT_SYSTEM),
-            HumanMessage(content=user_prompt),
-        ])
+        result: IntentClassification = await structured_llm.ainvoke(
+            [
+                SystemMessage(content=CLASSIFY_INTENT_SYSTEM),
+                HumanMessage(content=user_prompt),
+            ]
+        )
 
         intent = result.intent
         if intent not in _VALID_INTENTS:
@@ -416,16 +407,10 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
     if len(valid) == 1:
         merged_text = valid[0].answer
     else:
-        sections = [
-            f"**{sa.sub_question}**\n\n{sa.answer}"
-            for sa in valid
-        ]
+        sections = [f"**{sa.sub_question}**\n\n{sa.answer}" for sa in valid]
         failed_count = len(sub_answers) - len(valid)
         if failed_count > 0:
-            sections.append(
-                f"*Note: {failed_count} sub-question(s) could not be answered "
-                "due to retrieval failures.*"
-            )
+            sections.append(f"*Note: {failed_count} sub-question(s) could not be answered due to retrieval failures.*")
         merged_text = "\n\n".join(sections)
 
     # Deduplicate citations by passage_id, keeping the entry with the highest relevance_score
@@ -456,8 +441,7 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
             unique_chunks_for_confidence.append(_chunk)
 
     _num_colls_searched = (
-        len({c.collection for c in unique_chunks_for_confidence})
-        if unique_chunks_for_confidence else 1
+        len({c.collection for c in unique_chunks_for_confidence}) if unique_chunks_for_confidence else 1
     )
     _num_colls_total = len(state.get("selected_collections", [])) or 1
     _raw_confidence = compute_confidence(
@@ -466,10 +450,7 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
         num_collections_total=_num_colls_total,
     )
     # spec-26: FR-003 BUG-010 unify confidence_score to int 0-100 at every write site
-    confidence_score: int = (
-        int(_raw_confidence * 100) if isinstance(_raw_confidence, float)
-        else int(_raw_confidence)
-    )
+    confidence_score: int = int(_raw_confidence * 100) if isinstance(_raw_confidence, float) else int(_raw_confidence)
 
     log.info(
         "agent_aggregate_answers_merged",
@@ -644,7 +625,7 @@ def _extract_claim_for_citation(text: str, marker: str) -> str:
     Splits on sentence boundaries (.!?), finds the sentence with the marker.
     Falls back to the first 200 characters if no sentence match.
     """
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
     for sentence in sentences:
         if marker in sentence:
             return sentence.strip()
@@ -697,9 +678,7 @@ async def validate_citations(state: ConversationState, *, reranker: Any = None) 
 
             # Score the cited chunk against the claim
             cited_chunk_text = citation.text
-            scores = reranker.model.rank(
-                claim_text, [cited_chunk_text], return_documents=False
-            )
+            scores = reranker.model.rank(claim_text, [cited_chunk_text], return_documents=False)
             cite_score = scores[0]["score"] if scores else 0.0
 
             if cite_score >= threshold:
@@ -708,9 +687,7 @@ async def validate_citations(state: ConversationState, *, reranker: Any = None) 
 
             # Remap: find best chunk that clears threshold
             all_texts = [c.text for c in all_chunks]
-            all_scores = reranker.model.rank(
-                claim_text, all_texts, return_documents=False
-            )
+            all_scores = reranker.model.rank(claim_text, all_texts, return_documents=False)
             ranked = sorted(all_scores, key=lambda x: x["score"], reverse=True)
 
             if ranked and ranked[0]["score"] >= threshold:
@@ -784,17 +761,15 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
         allow_partial=False,
     )
 
-    history_text = "\n".join(
-        f"{type(m).__name__}: {m.content}" for m in trimmed_old
-    )
+    history_text = "\n".join(f"{type(m).__name__}: {m.content}" for m in trimmed_old)
 
     try:
-        summary_response = await llm.ainvoke([
-            SystemMessage(content=SUMMARIZE_HISTORY_SYSTEM),
-            HumanMessage(
-                content=f"Please summarize these conversation messages:\n\n{history_text}"
-            ),
-        ])
+        summary_response = await llm.ainvoke(
+            [
+                SystemMessage(content=SUMMARIZE_HISTORY_SYSTEM),
+                HumanMessage(content=f"Please summarize these conversation messages:\n\n{history_text}"),
+            ]
+        )
         summary = summary_response.content
         compressed_messages = [SystemMessage(content=summary)] + list(recent_messages)
         log.info(
@@ -848,10 +823,7 @@ def format_response(state: ConversationState, **kwargs: Any) -> dict:
                 formatted = formatted.replace(doc_name, f"{doc_name}{marker}", 1)
 
         # Append numbered citation reference section
-        citation_lines = "\n".join(
-            f"[{i + 1}] {c.document_name}: {c.text[:200]}"
-            for i, c in enumerate(citations)
-        )
+        citation_lines = "\n".join(f"[{i + 1}] {c.document_name}: {c.text[:200]}" for i, c in enumerate(citations))
         formatted += f"\n\n---\n**References:**\n{citation_lines}"
 
     # Phase 1: groundedness_result is None — skip all groundedness annotations entirely.
@@ -884,13 +856,8 @@ def handle_collection_mgmt(state: ConversationState, **kwargs: Any) -> dict:
     Out-of-scope stub for Spec 02. Returns a user-facing message directing
     users to the Collections page. No LLM call, no side effects.
     """
-    logger.bind(session_id=state["session_id"]).info(
-        "agent_handle_collection_mgmt_stub_invoked"
-    )
+    logger.bind(session_id=state["session_id"]).info("agent_handle_collection_mgmt_stub_invoked")
     return {
-        "final_response": (
-            "Collection management is not yet implemented. "
-            "Please use the Collections page."
-        ),
+        "final_response": ("Collection management is not yet implemented. Please use the Collections page."),
         "confidence_score": 0,
     }
