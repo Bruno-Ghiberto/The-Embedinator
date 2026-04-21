@@ -5,6 +5,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Application configuration loaded from environment variables and an optional .env file.
+
+    All fields have sensible local-first defaults for zero-config Docker Compose deployment.
+    Override via environment variables or a .env file at the project root.
+    Field aliases (e.g. EMBEDINATOR_FERNET_KEY, EMBEDINATOR_PORT_QDRANT) are accepted
+    because populate_by_name=True is set in model_config.
+    """
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

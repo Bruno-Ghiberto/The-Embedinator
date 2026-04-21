@@ -36,6 +36,12 @@ def _merge_sets(existing, new):
 
 
 class ConversationState(TypedDict):
+    """State for the outermost ConversationGraph, persisted per session via SQLite checkpointer.
+
+    Fields annotated with reducer functions govern how parallel ResearchGraph
+    results (fan-out via Send()) are merged back into the session state.
+    """
+
     session_id: Annotated[str, _keep_last]
     messages: Annotated[list, add_messages]
     query_analysis: Annotated[QueryAnalysis | None, _keep_last]
@@ -53,6 +59,13 @@ class ConversationState(TypedDict):
 
 
 class ResearchState(TypedDict):
+    """State for a single ResearchGraph execution (one sub-question from fan_out).
+
+    Instantiated fresh for each sub-question. Fields prefixed with _ are
+    internal graph signals not exposed in the final response.
+    May be handed off to MetaReasoningGraph when confidence falls below threshold.
+    """
+
     sub_question: Annotated[str, _keep_last]
     session_id: Annotated[str, _keep_last]
     selected_collections: Annotated[list[str], _keep_last]
@@ -80,6 +93,14 @@ class ResearchState(TypedDict):
 
 
 class MetaReasoningState(TypedDict):
+    """State for the MetaReasoningGraph recovery cycle.
+
+    Invoked when ResearchGraph confidence is below threshold and the budget
+    is exhausted. Generates alternative queries, evaluates retrieval quality,
+    and selects a recovery strategy (widen_search, change_collection,
+    relax_filters, or report_uncertainty). Up to Settings.meta_reasoning_max_attempts.
+    """
+
     sub_question: str
     retrieved_chunks: list[RetrievedChunk]
     alternative_queries: list[str]

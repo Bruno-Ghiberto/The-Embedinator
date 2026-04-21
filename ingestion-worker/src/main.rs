@@ -12,6 +12,9 @@ use clap::Parser;
 use crate::code::is_code_extension;
 use crate::types::Chunk;
 
+/// CLI entry-point for the Embedinator ingestion worker.
+/// Parses a single file and emits child chunks as NDJSON lines to stdout.
+/// Exits 0 on success, 1 on missing/undetectable file, 2 on partial parse error.
 #[derive(Parser)]
 #[command(name = "embedinator-worker", about = "Document parsing worker")]
 struct Cli {
@@ -37,6 +40,8 @@ fn detect_type(path: &Path) -> Option<&'static str> {
     }
 }
 
+/// Parse the file specified by CLI args and stream chunks as NDJSON to stdout.
+/// On partial failure (e.g. corrupt PDF page), emits partial chunks then exits 2.
 fn main() {
     let cli = Cli::parse();
     let path = Path::new(&cli.file);

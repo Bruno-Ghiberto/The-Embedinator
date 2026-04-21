@@ -3493,6 +3493,8 @@ The GRAVITEA UUID5 approach is particularly important for incremental ingestion:
 
 ### Phase 2: Performance and Resilience
 
+**Status**: ✅ Delivered — v0.3.0 (2026-04-20)
+
 **Goal**: Replace Python PDF extraction with Rust worker; add MetaReasoningGraph; add observability.
 
 - Rust ingestion worker binary: PDF, Markdown, plain text parsers
@@ -3510,6 +3512,8 @@ The GRAVITEA UUID5 approach is particularly important for incremental ingestion:
 **Deliverable**: Ingestion is 5-20x faster for large PDFs; system recovers from retrieval failures, verifies answer groundedness, and reports meaningful confidence scores.
 
 ### Phase 3: Ecosystem and Polish
+
+**Status**: 🔲 In progress — OpenAI/Anthropic/OpenRouter providers delivered in v0.2.0; remaining items tracked in changelog [Unreleased].
 
 **Goal**: Additional provider support, per-document chunk profiles, citation highlighting, caching.
 
