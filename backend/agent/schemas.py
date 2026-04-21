@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 
 
 class QueryAnalysis(BaseModel):
+    """Structured output for query analysis and sub-question decomposition (rewrite_query node)."""
+
     is_clear: bool
     sub_questions: list[str]
     clarification_needed: str | None = None
@@ -21,6 +23,8 @@ class QueryAnalysis(BaseModel):
 
 
 class RetrievedChunk(BaseModel):
+    """A single child chunk returned from hybrid dense+BM25 vector search, optionally reranked."""
+
     chunk_id: str
     text: str
     source_file: str
@@ -34,6 +38,8 @@ class RetrievedChunk(BaseModel):
 
 
 class ParentChunk(BaseModel):
+    """Parent context chunk expanded during answer generation to provide richer grounding."""
+
     parent_id: str
     text: str
     source_file: str
@@ -43,6 +49,8 @@ class ParentChunk(BaseModel):
 
 
 class ClaimVerification(BaseModel):
+    """NLI-based verdict for a single claim extracted from a generated answer."""
+
     claim: str
     verdict: Literal["supported", "unsupported", "contradicted"]
     evidence_chunk_id: str | None = None
@@ -50,6 +58,8 @@ class ClaimVerification(BaseModel):
 
 
 class GroundednessResult(BaseModel):
+    """Aggregate groundedness check: all claim verifications and the resulting confidence adjustment."""
+
     verifications: list[ClaimVerification]
     overall_grounded: bool
     confidence_adjustment: float
@@ -74,6 +84,8 @@ class QueryRewrite(BaseModel):
 
 
 class CollectionResponse(BaseModel):
+    """API response schema for a document collection."""
+
     id: str
     name: str
     description: str | None = None
@@ -84,6 +96,8 @@ class CollectionResponse(BaseModel):
 
 
 class CollectionCreateRequest(BaseModel):
+    """Request body for creating a new document collection."""
+
     name: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     description: str | None = None
     embedding_model: str | None = None
@@ -91,6 +105,8 @@ class CollectionCreateRequest(BaseModel):
 
 
 class DocumentResponse(BaseModel):
+    """API response schema for an ingested document."""
+
     id: str
     collection_id: str
     filename: str
@@ -114,6 +130,8 @@ class Citation(BaseModel):
 
 
 class SubAnswer(BaseModel):
+    """Answer produced by a single ResearchGraph execution for one sub-question."""
+
     sub_question: str
     answer: str
     citations: list[Citation]
@@ -134,6 +152,8 @@ class Passage(BaseModel):
 
 
 class ReasoningStep(BaseModel):
+    """Summary of one retrieval strategy step executed within the agent loop."""
+
     step_num: int
     strategy: str  # "initial_retrieval", "fallback_reranking", "query_decomposition"
     passages_found: int
@@ -154,6 +174,8 @@ class TraceResponse(BaseModel):
 
 
 class AnswerResponse(BaseModel):
+    """Complete generated answer with inline citations and confidence score."""
+
     id: str
     query_id: str
     answer_text: str
@@ -163,6 +185,8 @@ class AnswerResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    """Request body for the NDJSON streaming chat endpoint."""
+
     message: str = Field(min_length=1, max_length=2000)
     collection_ids: list[str] = Field(default_factory=list)
     llm_model: str = "qwen2.5:7b"
@@ -171,6 +195,8 @@ class ChatRequest(BaseModel):
 
 
 class ProviderResponse(BaseModel):
+    """API response schema for an LLM or embedding provider."""
+
     name: str
     type: str
     is_active: bool
@@ -179,10 +205,14 @@ class ProviderResponse(BaseModel):
 
 
 class ProviderConfigRequest(BaseModel):
+    """Request body for setting a provider API key (stored Fernet-encrypted)."""
+
     api_key: str
 
 
 class HealthServiceStatus(BaseModel):
+    """Health status of a single upstream service dependency (Qdrant, Ollama, SQLite)."""
+
     name: str
     status: Literal["ok", "error"]
     latency_ms: float | None = None
@@ -191,17 +221,23 @@ class HealthServiceStatus(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    """Aggregate health response. 'degraded' means at least one dependency is unhealthy."""
+
     status: Literal["healthy", "degraded", "starting"]
     services: list[HealthServiceStatus]
 
 
 class ErrorDetail(BaseModel):
+    """Machine-readable error detail embedded in all API error responses."""
+
     code: str
     message: str
     details: dict = {}
 
 
 class ErrorResponse(BaseModel):
+    """Envelope for all API error responses."""
+
     error: ErrorDetail
 
 
@@ -209,6 +245,8 @@ class ErrorResponse(BaseModel):
 
 
 class IngestionJobResponse(BaseModel):
+    """Status snapshot of an asynchronous document ingestion job (Rust worker pipeline)."""
+
     job_id: str
     document_id: str
     status: Literal[
@@ -228,6 +266,8 @@ class IngestionJobResponse(BaseModel):
 
 
 class ModelInfo(BaseModel):
+    """Metadata for a discoverable LLM or embedding model available through a provider."""
+
     name: str
     provider: str
     model_type: Literal["llm", "embed"]
@@ -237,15 +277,21 @@ class ModelInfo(BaseModel):
 
 
 class ProviderKeyRequest(BaseModel):
+    """Request body for updating a provider API key via the providers endpoint."""
+
     api_key: str
 
 
 class ProviderHealthSchema(BaseModel):
+    """Reachability check result for a single provider."""
+
     provider: str
     reachable: bool
 
 
 class ProviderDetailResponse(BaseModel):
+    """Full detail response for a provider including configuration and model count."""
+
     name: str
     is_active: bool = False
     has_key: bool = False
@@ -254,6 +300,8 @@ class ProviderDetailResponse(BaseModel):
 
 
 class SettingsResponse(BaseModel):
+    """API response schema for system settings (mirrors the subset exposed via the Settings API)."""
+
     default_llm_model: str
     default_embed_model: str
     confidence_threshold: int = Field(ge=0, le=100)
@@ -264,6 +312,8 @@ class SettingsResponse(BaseModel):
 
 
 class SettingsUpdateRequest(BaseModel):
+    """Partial-update request body for system settings. All fields are optional."""
+
     default_llm_model: str | None = None
     default_embed_model: str | None = None
     confidence_threshold: int | None = Field(None, ge=0, le=100)
@@ -274,6 +324,8 @@ class SettingsUpdateRequest(BaseModel):
 
 
 class StatsResponse(BaseModel):
+    """Aggregate system statistics across all collections, documents, and queries."""
+
     total_collections: int
     total_documents: int
     total_chunks: int
@@ -284,6 +336,8 @@ class StatsResponse(BaseModel):
 
 
 class QueryTraceResponse(BaseModel):
+    """Summary of a single query trace record from the query_traces table."""
+
     id: str
     session_id: str
     query: str
@@ -296,6 +350,8 @@ class QueryTraceResponse(BaseModel):
 
 
 class QueryTraceDetailResponse(QueryTraceResponse):
+    """Full query trace including retrieved chunks, reasoning steps, and strategy switches."""
+
     sub_questions: list[str] = []
     chunks_retrieved: list[dict] = []
     reasoning_steps: list[dict] = []
@@ -303,39 +359,55 @@ class QueryTraceDetailResponse(QueryTraceResponse):
 
 
 # --- NDJSON Event TypedDicts (Chat Stream) ---
+# Each TypedDict maps to one line of the NDJSON stream from POST /api/chat.
+# Consumers discriminate on the "type" field.
 
 
 class SessionEvent(TypedDict):
+    """Sent once at stream start when a session ID is assigned or restored."""
+
     type: Literal["session"]
     session_id: str
 
 
 class StatusEvent(TypedDict):
+    """Sent each time the agent transitions to a new processing node."""
+
     type: Literal["status"]
     node: str
 
 
 class ChunkEvent(TypedDict):
+    """Carries one incremental text fragment from the LLM output stream."""
+
     type: Literal["chunk"]
     text: str
 
 
 class CitationEvent(TypedDict):
+    """Sent once after streaming completes, carrying all resolved citations."""
+
     type: Literal["citation"]
     citations: list[dict]
 
 
 class MetaReasoningEvent(TypedDict):
+    """Sent when MetaReasoningGraph triggers a recovery attempt (low confidence)."""
+
     type: Literal["meta_reasoning"]
     strategies_attempted: list[str]
 
 
 class ConfidenceEvent(TypedDict):
+    """Carries the final computed confidence score (0–100 integer)."""
+
     type: Literal["confidence"]
     score: int
 
 
 class GroundednessEvent(TypedDict):
+    """Summarizes NLI-based claim verification: supported / unsupported / contradicted counts."""
+
     type: Literal["groundedness"]
     overall_grounded: bool
     supported: int
@@ -344,17 +416,23 @@ class GroundednessEvent(TypedDict):
 
 
 class DoneEvent(TypedDict):
+    """Sent as the last event when the agent has finished processing the request."""
+
     type: Literal["done"]
     latency_ms: int
     trace_id: str
 
 
 class ClarificationEvent(TypedDict):
+    """Sent when the agent needs additional information from the user before proceeding."""
+
     type: Literal["clarification"]
     question: str
 
 
 class ErrorEvent(TypedDict):
+    """Sent when an unrecoverable error occurs; stream terminates after this event."""
+
     type: Literal["error"]
     message: str
     code: str
@@ -365,11 +443,15 @@ class ErrorEvent(TypedDict):
 
 
 class CircuitBreakerSnapshot(BaseModel):
+    """Current state of a circuit breaker protecting an upstream service."""
+
     state: Literal["closed", "open", "unknown"]
     failure_count: int
 
 
 class MetricsBucket(BaseModel):
+    """Aggregated observability metrics for a single time window bucket."""
+
     timestamp: str
     query_count: int
     avg_latency_ms: int
@@ -380,6 +462,8 @@ class MetricsBucket(BaseModel):
 
 
 class MetricsResponse(BaseModel):
+    """Paginated metrics response: per-bucket aggregates + circuit breaker snapshots."""
+
     window: str
     bucket_size: str
     buckets: list[MetricsBucket]

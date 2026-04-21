@@ -26,7 +26,10 @@ impl HeadingTracker {
 
     /// Returns the deepest (most specific) heading text, or empty string.
     pub fn current_section(&self) -> String {
-        self.stack.last().map(|(_, t)| t.clone()).unwrap_or_default()
+        self.stack
+            .last()
+            .map(|(_, t)| t.clone())
+            .unwrap_or_default()
     }
 }
 

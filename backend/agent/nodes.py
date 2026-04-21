@@ -2,8 +2,6 @@
 
 All node functions are stateless and pure -- state is passed in and returned.
 Dependencies (LLM, reranker, DB) are injected, not imported globally.
-
-Wave 2 agents will replace the stub implementations with full logic.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: 2026-03-10
-**Status**: Draft
+**Status**: Active
 **Author**: Architecture Design Team
 **Source**: `docs/architecture-design.md` v2.0
 
