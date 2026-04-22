@@ -25,7 +25,7 @@
     "react-dropzone": "^14.0.0",
     "react-hook-form": "latest",
     "react-markdown": "^10.1.0",
-    "recharts": "^2.0.0",
+    "recharts": "^3.8.1",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.4.0",
