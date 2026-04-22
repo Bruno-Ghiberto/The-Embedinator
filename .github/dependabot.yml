@@ -5,9 +5,13 @@
 #     so Dependabot PRs against main cannot self-merge).
 #   * `groups` collapses routine patch/minor updates into a single PR per ecosystem and
 #     per week, replacing the 23-PR explosion that occurred on the first public-repo run.
-#   * `ignore` blocks major bumps that require explicit migration work (TypeScript 6,
-#     Vitest 4, lucide-react 1.x) and 0.x minor bumps in Cargo (0.x minors are breaking
-#     under Rust semver). These should be opened intentionally via dedicated spec work.
+#   * Groups are constrained to `update-types: [patch, minor]` so majors flow as
+#     individual PRs (including github-actions — previously the gap that let 14 action
+#     majors bundle into a single unreviewable PR #49).
+#   * `ignore` blocks major bumps on packages that require explicit migration work
+#     (TypeScript, Vitest + coverage, lucide-react, recharts, react-dropzone, @types/node,
+#     React/react-dom/Next) and 0.x minor bumps in Cargo (breaking under Rust semver).
+#     These should be opened intentionally via dedicated spec work.
 version: 2
 updates:
   # ---------------------------------------------------------------------------
@@ -63,8 +67,24 @@ updates:
       - dependency-name: "vitest"
         update-types:
           - "version-update:semver-major"
+      # @vitest/coverage-v8 tracks vitest major line — pin alongside vitest.
+      - dependency-name: "@vitest/coverage-v8"
+        update-types:
+          - "version-update:semver-major"
       # lucide-react 1.x renames and re-exports icons — migrate via spec.
       - dependency-name: "lucide-react"
+        update-types:
+          - "version-update:semver-major"
+      # recharts 3.x reworks component API (Tooltip, Cell props) — migrate via spec.
+      - dependency-name: "recharts"
+        update-types:
+          - "version-update:semver-major"
+      # react-dropzone 15.x — breaking changes in file-input API surface.
+      - dependency-name: "react-dropzone"
+        update-types:
+          - "version-update:semver-major"
+      # @types/node tracks Node runtime majors — pin to the runtime actually used.
+      - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
       # React majors are cross-cutting — keep pinned to the explicit target in package.json.
@@ -117,6 +137,12 @@ updates:
       - "ci"
     open-pull-requests-limit: 3
     groups:
+      # Group only patch + minor bumps. Majors flow as individual PRs so they can be
+      # reviewed one-at-a-time (action majors usually bump Node runtime or ESM, which
+      # needs verification against existing workflow steps — not safe to bundle).
       actions-all:
         patterns:
           - "*"
+        update-types:
+          - "patch"
+          - "minor"
