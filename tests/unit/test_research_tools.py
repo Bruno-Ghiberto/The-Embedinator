@@ -260,6 +260,7 @@ class TestFilterTools:
 class TestSemanticSearchAllCollections:
     @pytest.mark.asyncio
     async def test_calls_search_all_and_reranks(self, mock_deps):
+        """No allowlist in context → unscoped fallback to search_all_collections."""
         searcher, reranker, parent_store = mock_deps
         chunks = [_chunk(collection="col1"), _chunk(chunk_id="c2", collection="col2")]
         searcher.search_all_collections = AsyncMock(return_value=chunks)
@@ -272,3 +273,65 @@ class TestSemanticSearchAllCollections:
 
         searcher.search_all_collections.assert_awaited_once()
         reranker.rerank.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_scoped_fanout_calls_search_per_authorized_collection(self, mock_deps):
+        """spec-28 BUG-002 amendment: allowlist set → search() called once per UUID,
+        search_all_collections NEVER called."""
+        searcher, reranker, parent_store = mock_deps
+        uuid1 = "22923ab5-ea0d-4bea-8ef2-15bf0262674f"
+        uuid2 = "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
+        chunks_col1 = [_chunk(chunk_id="c1", collection=f"emb-{uuid1}")]
+        chunks_col2 = [_chunk(chunk_id="c2", collection=f"emb-{uuid2}")]
+
+        # search() returns different chunks per collection; search_all_collections must NOT be called
+        async def _search(query, collection, top_k=20, filters=None, embed_fn=None):
+            if collection == f"emb-{uuid1}":
+                return chunks_col1
+            if collection == f"emb-{uuid2}":
+                return chunks_col2
+            return []
+
+        searcher.search = AsyncMock(side_effect=_search)
+        searcher.search_all_collections = AsyncMock(return_value=[])
+        reranker.rerank = MagicMock(side_effect=lambda q, c, top_k: c)
+
+        tools = create_research_tools(searcher, reranker, parent_store)
+        tool = next(t for t in tools if t.name == "semantic_search_all_collections")
+
+        token = selected_collections_var.set([uuid1, uuid2])
+        try:
+            result = await tool.ainvoke({"query": "diámetro mínimo NAG-200", "top_k": 10})
+        finally:
+            selected_collections_var.reset(token)
+
+        # Exactly 2 search() calls — one per authorized UUID
+        assert searcher.search.await_count == 2, (
+            f"Expected 2 scoped search() calls, got {searcher.search.await_count}"
+        )
+        call_collections = {call.args[1] for call in searcher.search.await_args_list}
+        assert call_collections == {f"emb-{uuid1}", f"emb-{uuid2}"}
+        # search_all_collections must NEVER fire when allowlist is present
+        searcher.search_all_collections.assert_not_awaited()
+        # Both collection's chunks surfaced in result
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_unscoped_falls_through_to_search_all(self, mock_deps):
+        """spec-28 BUG-002 amendment: no allowlist in context → search_all_collections called,
+        search() NOT called (unscoped admin/dev fallback preserved)."""
+        searcher, reranker, parent_store = mock_deps
+        chunks = [_chunk(collection="col1")]
+        searcher.search_all_collections = AsyncMock(return_value=chunks)
+        searcher.search = AsyncMock(return_value=[])
+        reranker.rerank = MagicMock(side_effect=lambda q, c, top_k: c)
+
+        tools = create_research_tools(searcher, reranker, parent_store)
+        tool = next(t for t in tools if t.name == "semantic_search_all_collections")
+
+        # Do NOT set selected_collections_var — default is []
+        result = await tool.ainvoke({"query": "test", "top_k": 5})
+
+        searcher.search_all_collections.assert_awaited_once()
+        searcher.search.assert_not_awaited()
+        assert result == chunks
