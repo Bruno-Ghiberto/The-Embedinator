@@ -17,9 +17,9 @@ set -euo pipefail
 # 7 mandatory fields (grep patterns — checked with grep -q)
 # ---------------------------------------------------------------------------
 declare -a REQUIRED_PATTERNS=(
-  "^\*\*Severity\*\*:"                  # - **Severity**: ...
-  "^\*\*Layer\*\*:"                     # - **Layer**: ...
-  "^\*\*Discovered\*\*:"                # - **Discovered**: ...
+  "^-?\s*\*\*Severity\*\*:"             # - **Severity**: ... (per data-model.md §2)
+  "^-?\s*\*\*Layer\*\*:"                # - **Layer**: ...
+  "^-?\s*\*\*Discovered\*\*:"           # - **Discovered**: ...
   "^## Steps to Reproduce"              # ## Steps to Reproduce
   "^## Expected"                        # ## Expected
   "^## Actual"                          # ## Actual
@@ -75,8 +75,8 @@ while IFS= read -r -d '' bug_file; do
   fi
 
   # -- 3. F/D/P decision required for Blocker severity ----------------------
-  if grep -qE "^\*\*Severity\*\*:\s*Blocker" "$bug_file"; then
-    if ! grep -qE "^\*\*F/D/P decision\*\*:" "$bug_file"; then
+  if grep -qE "^-?\s*\*\*Severity\*\*:\s*Blocker" "$bug_file"; then
+    if ! grep -qE "^-?\s*\*\*F/D/P decision\*\*:" "$bug_file"; then
       echo "  ERROR: Severity is Blocker but '**F/D/P decision**:' field is missing"
       file_errors=$((file_errors + 1))
     fi
