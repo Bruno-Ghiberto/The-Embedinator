@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from langchain_core.tools import tool
 
+from backend.agent._request_context import selected_collections_var
 from backend.agent.schemas import ParentChunk, RetrievedChunk
 from backend.retrieval.reranker import Reranker
 from backend.retrieval.score_normalizer import normalize_scores
@@ -60,14 +61,37 @@ def create_research_tools(
         Returns:
             List of RetrievedChunk objects sorted by rerank score descending.
         """
-        # Resolve collection name: LLM may provide a slug/description instead of
-        # the actual Qdrant collection name (emb-{uuid}).  Try the provided name
-        # first; on failure, fall back to searching all collections.
-        qdrant_name = collection if collection.startswith("emb-") else None
+        # Resolve and AUTHORIZE the collection name.
+        # spec-28 BUG-002 fix: enforce the request-scope allowlist
+        # (selected_collections_var, bound in backend/api/chat.py from
+        # body.collection_ids). The LLM may pass:
+        #   - the proper Qdrant name "emb-{uuid}"  → strip prefix, check UUID
+        #   - the raw UUID (most common in practice) → check UUID directly
+        #   - some other string (hallucination)      → rejected; fail-closed
+        # The previous fallback to search_all_collections is REMOVED — it broke
+        # the user's API-level collection_ids contract and leaked cross-tenant
+        # chunks into user-visible citations (BUG-002, blast-radius: Blocker).
+        try:
+            authorized = selected_collections_var.get() or []
+        except LookupError:
+            authorized = []
+
+        if collection.startswith("emb-"):
+            uuid_part = collection[len("emb-"):]
+        else:
+            uuid_part = collection
+
+        if uuid_part in authorized:
+            qdrant_name = f"emb-{uuid_part}"
+        else:
+            # Unauthorized — fail closed. Empty result triggers the agent's
+            # confidence floor; no cross-collection data leaks to the user.
+            qdrant_name = None
+
         if qdrant_name:
             raw_chunks = await searcher.search(query, qdrant_name, top_k=top_k, filters=filters, embed_fn=embed_fn)
         else:
-            raw_chunks = await searcher.search_all_collections(query, top_k=top_k, embed_fn=embed_fn)
+            raw_chunks = []  # fail-closed: do NOT fall back to search_all_collections (BUG-002)
         if raw_chunks:
             raw_chunks = reranker.rerank(query, raw_chunks, top_k=top_k)
         return raw_chunks
