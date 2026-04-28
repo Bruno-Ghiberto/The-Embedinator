@@ -191,6 +191,101 @@ class TestToolsNode:
         assert result["tool_call_count"] == 0
 
 
+class TestRerankScoreUpdate:
+    """spec-28 BUG-006 regression tests — cross_encoder_rerank special-cased in dedup loop.
+
+    Before the fix, reranked chunks were deduplicated by (query, parent_id) against
+    their own pre-rerank selves, zeroing out citations on ~75% of queries.
+    After the fix, the rerank tool updates rerank_score in-place on existing new_chunks.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rerank_updates_score_on_existing_chunks(self):
+        """spec-28 BUG-006: search→rerank in same batch → 3 chunks survive, scores updated."""
+        chunk_a = _chunk(chunk_id="a", parent_id="p1", rerank_score=None)
+        chunk_b = _chunk(chunk_id="b", parent_id="p2", rerank_score=None)
+        chunk_c = _chunk(chunk_id="c", parent_id="p3", rerank_score=None)
+
+        reranked_a = _chunk(chunk_id="a", parent_id="p1", rerank_score=0.8)
+        reranked_b = _chunk(chunk_id="b", parent_id="p2", rerank_score=0.5)
+        reranked_c = _chunk(chunk_id="c", parent_id="p3", rerank_score=0.2)
+
+        mock_search = AsyncMock()
+        mock_search.name = "search_child_chunks"
+        mock_search.ainvoke = AsyncMock(return_value=[chunk_a, chunk_b, chunk_c])
+
+        mock_rerank = AsyncMock()
+        mock_rerank.name = "cross_encoder_rerank"
+        mock_rerank.ainvoke = AsyncMock(return_value=[reranked_a, reranked_b, reranked_c])
+
+        mock_ai_msg = MagicMock()
+        mock_ai_msg.tool_calls = [
+            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"},
+            {"name": "cross_encoder_rerank", "args": {"query": "test", "chunks": []}, "id": "call_2"},
+        ]
+
+        state = _make_state(messages=[mock_ai_msg])
+        config = {"configurable": {"tools": [mock_search, mock_rerank]}}
+        result = await tools_node(state, config=config)
+
+        # BUG-006: chunks must NOT be discarded as duplicates
+        assert len(result["retrieved_chunks"]) == 3, (
+            f"Expected 3 chunks (BUG-006: rerank was zeroing out all), got {len(result['retrieved_chunks'])}"
+        )
+        scores = {c.chunk_id: c.rerank_score for c in result["retrieved_chunks"]}
+        assert scores == {"a": 0.8, "b": 0.5, "c": 0.2}, f"Unexpected scores: {scores}"
+
+    @pytest.mark.asyncio
+    async def test_rerank_skipped_no_match_when_chunk_not_in_state(self):
+        """Rerank returns chunk 'z' not in search results → 'a' unchanged, 'z' silently skipped."""
+        chunk_a = _chunk(chunk_id="a", parent_id="p1", rerank_score=None)
+        chunk_z_reranked = _chunk(chunk_id="z", parent_id="p99", rerank_score=0.9)
+
+        mock_search = AsyncMock()
+        mock_search.name = "search_child_chunks"
+        mock_search.ainvoke = AsyncMock(return_value=[chunk_a])
+
+        mock_rerank = AsyncMock()
+        mock_rerank.name = "cross_encoder_rerank"
+        mock_rerank.ainvoke = AsyncMock(return_value=[chunk_z_reranked])
+
+        mock_ai_msg = MagicMock()
+        mock_ai_msg.tool_calls = [
+            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"},
+            {"name": "cross_encoder_rerank", "args": {"query": "test", "chunks": []}, "id": "call_2"},
+        ]
+
+        state = _make_state(messages=[mock_ai_msg])
+        config = {"configurable": {"tools": [mock_search, mock_rerank]}}
+        result = await tools_node(state, config=config)
+
+        assert len(result["retrieved_chunks"]) == 1
+        assert result["retrieved_chunks"][0].chunk_id == "a"
+        assert result["retrieved_chunks"][0].rerank_score is None  # not updated (no match)
+
+    @pytest.mark.asyncio
+    async def test_search_tool_dedup_unchanged_for_non_rerank_tools(self):
+        """Non-rerank tools still use dedup-by-(query, parent_id) — regression guard."""
+        chunk1 = _chunk(chunk_id="c1", parent_id="p1")
+        chunk2 = _chunk(chunk_id="c2", parent_id="p1")  # Same parent_id → deduped out
+
+        mock_tool = AsyncMock()
+        mock_tool.name = "search_child_chunks"
+        mock_tool.ainvoke = AsyncMock(return_value=[chunk1, chunk2])
+
+        mock_ai_msg = MagicMock()
+        mock_ai_msg.tool_calls = [
+            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"},
+        ]
+
+        state = _make_state(messages=[mock_ai_msg])
+        config = {"configurable": {"tools": [mock_tool]}}
+        result = await tools_node(state, config=config)
+
+        # Dedup by (query, parent_id) still removes the second chunk
+        assert len(result["retrieved_chunks"]) == 1
+
+
 class TestShouldCompressContext:
     @pytest.mark.asyncio
     async def test_no_compression_needed_with_small_context(self):
