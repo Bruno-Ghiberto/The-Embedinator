@@ -16,6 +16,7 @@ Design constraints:
 - out-of-scope and ambiguous pairs (authored_by: user) are evaluated separately:
   the expected answer is a decline / disambiguation, not a factual answer.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -169,16 +170,8 @@ def _write_quality_metrics(
     ]
 
     col_w = 23
-    header_row = (
-        "| Category     | Pairs | "
-        + " | ".join(f"{header_labels[m]:<{col_w}}" for m in metrics_order)
-        + " |"
-    )
-    sep_row = (
-        "|:-------------|:-----:|"
-        + ":".join(["-" * (col_w + 2)] * len(metrics_order))
-        + ":|"
-    )
+    header_row = "| Category     | Pairs | " + " | ".join(f"{header_labels[m]:<{col_w}}" for m in metrics_order) + " |"
+    sep_row = "|:-------------|:-----:|" + ":".join(["-" * (col_w + 2)] * len(metrics_order)) + ":|"
 
     table_rows: list[str] = []
     overall_scores: dict[str, list[float]] = defaultdict(list)
@@ -197,9 +190,7 @@ def _write_quality_metrics(
             else:
                 cell = str(val)
             cells.append(f"{cell:<{col_w}}")
-        table_rows.append(
-            f"| {cat_label:<12} | {count:^5} | " + " | ".join(cells) + " |"
-        )
+        table_rows.append(f"| {cat_label:<12} | {count:^5} | " + " | ".join(cells) + " |")
 
     # Overall row (average over categories that produced numeric scores)
     overall_cells: list[str] = []
@@ -210,9 +201,7 @@ def _write_quality_metrics(
         else:
             overall_cells.append(f"{'—':<{col_w}}")
     total_pairs = sum(pair_counts.values())
-    table_rows.append(
-        f"| **Overall**  | {total_pairs:^5} | " + " | ".join(overall_cells) + " |"
-    )
+    table_rows.append(f"| **Overall**  | {total_pairs:^5} | " + " | ".join(overall_cells) + " |")
 
     # --- Hypotheses section ---
     hyp_lines: list[str] = []
@@ -223,9 +212,7 @@ def _write_quality_metrics(
     # --- Failure inspection table ---
     fi_lines: list[str] = []
     if failure_inspection:
-        fi_lines.append(
-            "| Pair id | Metric | Score | Failure mode | Bug filed |"
-        )
+        fi_lines.append("| Pair id | Metric | Score | Failure mode | Bug filed |")
         fi_lines.append("|:--------|:-------|:------|:-------------|:----------|")
         for row in failure_inspection:
             fi_lines.append(
@@ -363,9 +350,7 @@ async def test_ragas_baseline(
         pair_counts[category] += 1
 
         if not question:
-            known_limitations.append(
-                f"{pair_id}: empty question_es — skipped."
-            )
+            known_limitations.append(f"{pair_id}: empty question_es — skipped.")
             continue
 
         # Each pair gets its own session to avoid cross-contamination.
@@ -383,9 +368,7 @@ async def test_ragas_baseline(
                 session_id=pair_session_id,
             )
         except Exception as exc:
-            known_limitations.append(
-                f"{pair_id} ({category}): backend query failed — {exc}. Skipped."
-            )
+            known_limitations.append(f"{pair_id} ({category}): backend query failed — {exc}. Skipped.")
             continue
 
         if expected in ("answer",) or category in _ANSWERABLE_CATEGORIES:
@@ -409,19 +392,14 @@ async def test_ragas_baseline(
 
         elif category in _DISAMBIGUATE_CATEGORIES:
             # ambiguous: note observed behavior for H4-adjacent analysis.
-            known_limitations.append(
-                f"{pair_id} (ambiguous): answer recorded for manual review — "
-                f"{answer[:120]!r}"
-            )
+            known_limitations.append(f"{pair_id} (ambiguous): answer recorded for manual review — {answer[:120]!r}")
 
     # --- Run RAGAS evaluation ---
     category_scores: dict[str, dict[str, float | str]] = {}
     failure_inspection: list[dict[str, str]] = []
 
     if not ragas_questions:
-        known_limitations.append(
-            "No answerable pairs could be evaluated (all errored or skipped)."
-        )
+        known_limitations.append("No answerable pairs could be evaluated (all errored or skipped).")
     else:
         dataset = Dataset.from_dict(
             {
@@ -440,6 +418,7 @@ async def test_ragas_baseline(
 
         if result is not None:
             import pandas as pd  # ragas transitively installs pandas
+
             scores_df = pd.DataFrame(result.scores)
             scores_df["pair_id"] = ragas_pair_ids
             scores_df["category"] = ragas_categories

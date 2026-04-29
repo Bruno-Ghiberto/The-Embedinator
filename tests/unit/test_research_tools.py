@@ -187,10 +187,12 @@ class TestSearchChildChunksScope:
 
         token = selected_collections_var.set(["22923ab5-ea0d-4bea-8ef2-15bf0262674f"])
         try:
-            await search_tool.ainvoke({
-                "query": "diámetro mínimo NAG-200",
-                "collection": "22923ab5-ea0d-4bea-8ef2-15bf0262674f",
-            })
+            await search_tool.ainvoke(
+                {
+                    "query": "diámetro mínimo NAG-200",
+                    "collection": "22923ab5-ea0d-4bea-8ef2-15bf0262674f",
+                }
+            )
         finally:
             selected_collections_var.reset(token)
 
@@ -216,9 +218,7 @@ class TestSearchChildChunksScope:
         finally:
             selected_collections_var.reset(token)
 
-        searcher.search.assert_awaited_once_with(
-            "test", f"emb-{uuid}", top_k=20, filters=None, embed_fn=None
-        )
+        searcher.search.assert_awaited_once_with("test", f"emb-{uuid}", top_k=20, filters=None, embed_fn=None)
         searcher.search_all_collections.assert_not_awaited()
 
 
@@ -306,9 +306,7 @@ class TestSemanticSearchAllCollections:
             selected_collections_var.reset(token)
 
         # Exactly 2 search() calls — one per authorized UUID
-        assert searcher.search.await_count == 2, (
-            f"Expected 2 scoped search() calls, got {searcher.search.await_count}"
-        )
+        assert searcher.search.await_count == 2, f"Expected 2 scoped search() calls, got {searcher.search.await_count}"
         call_collections = {call.args[1] for call in searcher.search.await_args_list}
         assert call_collections == {f"emb-{uuid1}", f"emb-{uuid2}"}
         # search_all_collections must NEVER fire when allowlist is present

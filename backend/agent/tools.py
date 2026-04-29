@@ -80,7 +80,7 @@ def create_research_tools(
             authorized = []
 
         if collection.startswith("emb-"):
-            uuid_part = collection[len("emb-"):]
+            uuid_part = collection[len("emb-") :]
         else:
             uuid_part = collection
 

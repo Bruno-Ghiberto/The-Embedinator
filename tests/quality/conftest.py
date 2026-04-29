@@ -8,6 +8,7 @@ Design principles:
 - Session dir is hard-coded to 2026-04-24-bug-hunt per session-directory-contract.md.
   Do NOT derive from $(date) — that resolves to today's date and would miss the fixture file.
 """
+
 from __future__ import annotations
 
 import os
@@ -91,10 +92,7 @@ def golden_dataset() -> list[dict]:
     # All scaffold pairs must have expected_behavior: answer
     non_answer = [d["id"] for d in scaffold_pairs if d.get("expected_behavior") != "answer"]
     if non_answer:
-        pytest.fail(
-            f"Scaffold-reviewed pairs must have expected_behavior='answer'. "
-            f"Violations: {non_answer}."
-        )
+        pytest.fail(f"Scaffold-reviewed pairs must have expected_behavior='answer'. Violations: {non_answer}.")
 
     # follow-up pairs must reference a valid earlier Q id
     all_ids = [d["id"] for d in data]
@@ -114,8 +112,7 @@ def golden_dataset() -> list[dict]:
         else:
             if pair.get("follow_up_of") is not None:
                 pytest.fail(
-                    f"Non-follow-up pair {pair['id']} must have follow_up_of=null, "
-                    f"got {pair['follow_up_of']!r}."
+                    f"Non-follow-up pair {pair['id']} must have follow_up_of=null, got {pair['follow_up_of']!r}."
                 )
 
     return data
