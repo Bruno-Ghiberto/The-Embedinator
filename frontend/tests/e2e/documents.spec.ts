@@ -12,8 +12,11 @@
  */
 
 import { test, expect } from "@playwright/test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
-const BACKEND = "http://localhost:8000";
+const BACKEND = "";
 const COLLECTION_ID = "col-e2e-docs";
 
 test.describe("Documents page — file upload validation and progress", () => {
@@ -47,17 +50,20 @@ test.describe("Documents page — file upload validation and progress", () => {
       },
     );
 
-    // 50 MB + 1 byte exceeds UPLOAD_CONSTRAINTS.maxSizeBytes (50 * 1024 * 1024)
-    const bigBuffer = Buffer.alloc(50 * 1024 * 1024 + 1);
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "large.pdf",
-      mimeType: "application/pdf",
-      buffer: bigBuffer,
-    });
+    // 50 MB + 1 byte exceeds UPLOAD_CONSTRAINTS.maxSizeBytes (50 * 1024 * 1024).
+    // Playwright's setInputFiles rejects in-memory buffers > 50 MB, so write
+    // the oversized file to disk and pass the path instead.
+    const tmpPath = path.join(os.tmpdir(), `large-e2e-${Date.now()}.pdf`);
+    fs.writeFileSync(tmpPath, Buffer.alloc(50 * 1024 * 1024 + 1));
+    try {
+      await page.locator('input[type="file"]').setInputFiles(tmpPath);
+    } finally {
+      fs.unlinkSync(tmpPath);
+    }
 
     // Error message contains "50 MB"
-    await expect(page.getByRole("alert")).toBeVisible({ timeout: 3000 });
-    await expect(page.getByRole("alert")).toContainText("50 MB");
+    await expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('p[role="alert"]')).toContainText("50 MB");
 
     // No network call was made to the ingest endpoint
     expect(ingestCalled).toBe(false);
@@ -84,8 +90,8 @@ test.describe("Documents page — file upload validation and progress", () => {
     });
 
     // Extension error
-    await expect(page.getByRole("alert")).toBeVisible({ timeout: 3000 });
-    await expect(page.getByRole("alert")).toContainText("unsupported file type");
+    await expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('p[role="alert"]')).toContainText("unsupported file type");
 
     // No network call
     expect(ingestCalled).toBe(false);
@@ -150,7 +156,9 @@ test.describe("Documents page — file upload validation and progress", () => {
     // "Uploading…" spinner text appears first
     await expect(page.getByText("Uploading…")).toBeVisible({ timeout: 3000 });
 
-    // JobStatus component shows "Completed" once polling returns completed
-    await expect(page.getByText("Completed")).toBeVisible({ timeout: 10000 });
+    // IngestionProgress shows "Complete!" briefly, then fires onComplete().
+    // DocumentUploader transitions status → 'done' and renders the stable
+    // "Done" badge. Check the stable end-state to avoid a timing race.
+    await expect(page.getByText("Done")).toBeVisible({ timeout: 10000 });
   });
 });

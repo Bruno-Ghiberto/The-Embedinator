@@ -12,7 +12,7 @@
 
 import { test, expect } from "@playwright/test";
 
-const BACKEND = "http://localhost:8000";
+const BACKEND = "";
 
 const DEFAULT_SETTINGS = {
   default_llm_model: "qwen2.5:7b",
@@ -57,14 +57,9 @@ test.describe("Settings page", () => {
     });
 
     await page.goto("/settings");
-    // Wait for form to load (React Hook Form async defaultValues)
-    await page.waitForSelector('form[aria-label="Settings form"]');
-    await page.waitForFunction(
-      () =>
-        !(document.querySelector("#confidence_threshold") as HTMLInputElement)
-          ?.disabled,
-      { timeout: 5000 },
-    );
+    // Settings page uses a tabbed UI (spec-22). Wait for the tab list to render.
+    // Default active tab is "providers" — no form selector available at page root.
+    await page.waitForSelector('[role="tablist"]');
   });
 
   test('saving settings shows "Settings saved" toast', async ({ page }) => {
@@ -87,17 +82,26 @@ test.describe("Settings page", () => {
       }
     });
 
+    // confidence_threshold lives in the "Inference" tab — navigate there first
+    await page.getByRole("tab", { name: /Inference/i }).click();
+    await page.waitForFunction(
+      () =>
+        !(document.querySelector("#confidence_threshold") as HTMLInputElement)
+          ?.disabled,
+      { timeout: 5000 },
+    );
+
     // Change confidence_threshold to 75
     await page.fill("#confidence_threshold", "75");
 
-    // Submit the form
-    await page.getByRole("button", { name: /Save Settings/i }).click();
+    // Submit the Inference form
+    await page.getByRole("button", { name: /Save Inference/i }).click();
 
     // PUT was called
     await expect.poll(() => putCalled, { timeout: 3000 }).toBe(true);
 
-    // Toast with "Settings saved" is visible
-    await expect(page.getByText("Settings saved")).toBeVisible({ timeout: 3000 });
+    // Toast with "Settings saved successfully" is visible
+    await expect(page.getByText("Settings saved successfully")).toBeVisible({ timeout: 3000 });
   });
 
   test("settings persist across page reload (GET returns updated value)", async ({
@@ -122,13 +126,25 @@ test.describe("Settings page", () => {
       }
     });
 
+    // confidence_threshold lives in the "Inference" tab — navigate there first
+    await page.getByRole("tab", { name: /Inference/i }).click();
+    await page.waitForFunction(
+      () =>
+        !(document.querySelector("#confidence_threshold") as HTMLInputElement)
+          ?.disabled,
+      { timeout: 5000 },
+    );
+
     await page.fill("#confidence_threshold", "75");
-    await page.getByRole("button", { name: /Save Settings/i }).click();
-    await expect(page.getByText("Settings saved")).toBeVisible({ timeout: 3000 });
+    await page.getByRole("button", { name: /Save Inference/i }).click();
+    await expect(page.getByText("Settings saved successfully")).toBeVisible({ timeout: 3000 });
 
     // Reload the page
     await page.reload();
-    await page.waitForSelector('form[aria-label="Settings form"]');
+    await page.waitForSelector('[role="tablist"]');
+
+    // Navigate to Inference tab again after reload
+    await page.getByRole("tab", { name: /Inference/i }).click();
     await page.waitForFunction(
       () =>
         !(document.querySelector("#confidence_threshold") as HTMLInputElement)
@@ -157,24 +173,17 @@ test.describe("Settings page", () => {
       },
     );
 
-    // Find the provider section and key input
-    // ProviderHub renders providers; look for the openai provider
+    // Providers tab is default. ProviderHub renders one card per provider.
     await page.waitForSelector('text="openai"');
 
-    // Find the API key input for openai provider
-    const keyInput = page.locator('input[type="password"]').first();
-    if (await keyInput.isVisible()) {
+    // ProviderHub uses aria-labels on key input and save button.
+    const keyInput = page.locator('[aria-label="API key input for openai"]');
+    if (await keyInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await keyInput.fill("sk-test-key-e2e");
-      // Find and click save/set key button near the provider
-      const saveBtn = page
-        .locator('button:near(input[type="password"])')
-        .first();
-      if (await saveBtn.isVisible()) {
-        await saveBtn.click();
-        await expect
-          .poll(() => putKeyCalled, { timeout: 3000 })
-          .toBe(true);
-      }
+      await page.locator('[aria-label="Save API key for openai"]').click();
+      await expect
+        .poll(() => putKeyCalled, { timeout: 3000 })
+        .toBe(true);
     }
   });
 

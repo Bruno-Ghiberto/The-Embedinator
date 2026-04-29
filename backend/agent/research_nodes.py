@@ -373,23 +373,50 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 )
                 continue
 
-            # --- Deduplication (US4) ---
+            # --- Deduplication (US4) + rerank score-update (BUG-006 fix) ---
             tc = tool_calls[i]
             tool_args = tc["args"]
             if isinstance(result, list):
-                before_count = len(new_chunks)
-                for chunk in result:
-                    if isinstance(chunk, RetrievedChunk):
-                        key = dedup_key(
-                            tool_args.get("query", state["sub_question"]),
-                            chunk.parent_id,
-                        )
-                        if key not in updated_keys:
-                            updated_keys.add(key)
-                            new_chunks.append(chunk)
-                deduped_count = len(new_chunks) - before_count
-                original_new_count = len([c for c in result if isinstance(c, RetrievedChunk)])
-                log.info("agent_dedup_filtered", tool=tool_name, original=original_new_count, kept=deduped_count)
+                if tool_name == "cross_encoder_rerank":
+                    # spec-28 BUG-006: rerank reorders existing chunks; it does NOT
+                    # introduce new ones. Treating reranked output via dedup-by-(query,
+                    # parent_id) caused 100% of chunks to be discarded as "duplicates"
+                    # of themselves from the prior search call. Instead, update the
+                    # rerank_score on the matching chunk (by chunk_id) in new_chunks.
+                    reranked_count = 0
+                    skipped_count = 0
+                    for reranked in result:
+                        if isinstance(reranked, RetrievedChunk):
+                            matched = False
+                            for existing in new_chunks:
+                                if existing.chunk_id == reranked.chunk_id:
+                                    existing.rerank_score = reranked.rerank_score
+                                    reranked_count += 1
+                                    matched = True
+                                    break
+                            if not matched:
+                                skipped_count += 1
+                    log.info(
+                        "agent_rerank_score_applied",
+                        tool=tool_name,
+                        reranked=reranked_count,
+                        skipped_no_match=skipped_count,
+                        total_results=len([c for c in result if isinstance(c, RetrievedChunk)]),
+                    )
+                else:
+                    before_count = len(new_chunks)
+                    for chunk in result:
+                        if isinstance(chunk, RetrievedChunk):
+                            key = dedup_key(
+                                tool_args.get("query", state["sub_question"]),
+                                chunk.parent_id,
+                            )
+                            if key not in updated_keys:
+                                updated_keys.add(key)
+                                new_chunks.append(chunk)
+                    deduped_count = len(new_chunks) - before_count
+                    original_new_count = len([c for c in result if isinstance(c, RetrievedChunk)])
+                    log.info("agent_dedup_filtered", tool=tool_name, original=original_new_count, kept=deduped_count)
 
             tool_messages.append(
                 ToolMessage(

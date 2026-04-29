@@ -3,6 +3,31 @@ name = "the-embedinator-backend"
 description = "Backend for The Embedinator (CI config only — deps in requirements.txt)"
 requires-python = ">=3.14"
 
+[project.optional-dependencies]
+# Evaluation-only extras — NOT installed by default, NOT in requirements.txt.
+# Install with: pip install -e ".[quality]"
+# Used exclusively by tests/quality/test_ragas_baseline.py (Wave 3 run, never in production).
+quality = [
+    # ragas pinned to latest 0.2.x — API validated via context7 (class-based metrics,
+    # llm_factory, llm= kwarg). 0.3.x and 0.4.x are major bumps; upgrade only after
+    # verifying API compatibility with test_ragas_baseline.py.
+    "ragas==0.2.15",
+    # datasets: Dataset.from_dict() API is stable across versions; floor at 2.18.
+    "datasets>=2.18",
+    # openai: code written against 1.x patterns (OpenAI(base_url=...) constructor).
+    # 2.x is a new major with potential breaking changes — cap below 2.0.
+    "openai>=1.0,<2.0",
+    "pyyaml>=6.0",
+]
+
+[tool.coverage.run]
+# Exclude evaluation-only quality harness from coverage accounting.
+# The RAGAS test requires a live backend + real corpus + LLM calls; it is not
+# a unit/integration test and must not skew the >=80% backend coverage threshold.
+omit = [
+    "tests/quality/*",
+]
+
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 python_version = "3.14"

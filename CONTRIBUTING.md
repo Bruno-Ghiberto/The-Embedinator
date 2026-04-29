@@ -61,6 +61,27 @@ make dev-backend    # Python backend with hot reload on :8000
 make dev-frontend   # Next.js frontend with hot reload on :3000
 ```
 
+### Backend Source Changes Inside the Docker Stack
+
+If you are using the Docker-based stack (`./embedinator.sh` or `make up`) and you
+edit any Python source under `backend/`, you **must rebuild the backend image** to
+pick up your changes:
+
+```bash
+./scripts/dev-rebuild-backend.sh
+```
+
+`docker compose restart backend` is **not** sufficient — `Dockerfile.backend` does
+not bind-mount `backend/`, so the source code is baked into the image at build
+time. Running `restart` recreates the container from the existing (stale) image
+and silently keeps serving the old binaries. This cost a meaningful amount of
+spec-28 debugging time before it was caught (see BUG-014 in
+`docs/E2E/2026-04-24-bug-hunt/bugs-raw/`).
+
+If you want true hot-reload while developing the backend, use the Native
+Development path above (`make dev-backend` runs uvicorn outside Docker with
+`--reload`).
+
 ### Useful Makefile Targets
 
 | Target | Description |

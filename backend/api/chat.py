@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
+from backend.agent._request_context import selected_collections_var
 from backend.agent.conversation_graph import build_conversation_graph
 from backend.agent.schemas import ChatRequest
 from backend.config import settings
@@ -135,6 +136,13 @@ async def chat(body: ChatRequest, request: Request):
                 + "\n"
             )
             return
+
+        # spec-28 BUG-002 fix: bind authorized collections for tool-call validation.
+        # selected_collections_var is consumed by search_child_chunks in
+        # backend/agent/tools.py to enforce the user's collection_ids filter.
+        # Contextvars propagate to asyncio tasks spawned from this request context,
+        # so LangGraph sub-tasks (research subgraph tool calls) inherit this value.
+        selected_collections_var.set(list(body.collection_ids))
 
         # 1. Session event (BEFORE astream)
         yield json.dumps({"type": "session", "session_id": session_id}) + "\n"

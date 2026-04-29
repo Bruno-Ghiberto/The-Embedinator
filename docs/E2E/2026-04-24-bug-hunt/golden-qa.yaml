@@ -1,0 +1,355 @@
+# golden-qa.yaml — spec-28 RAGAS quality baseline dataset
+# Session: 2026-04-24-bug-hunt
+# Authoring method: pdftotext + grep extraction from 18 NAG PDFs in docs/Collection-Docs/
+#   Tool: pdftotext (poppler-utils); grep for key terms; reference answers verified
+#   against extracted text passages. All 17 scaffold-reviewed pairs authored by A2,
+#   Wave 2 Session 3. User to review, edit as needed, and accept before Wave 3 run.
+# Reviewer: A2 Wave 2 (scaffold-reviewed); user acceptance pending (T035).
+#
+# Distribution (scaffold-reviewed only, per FR-014 + FR-019):
+#   factoid: 10  (Q-001 to Q-010)
+#   analytical: 4  (Q-011 to Q-014)
+#   follow-up: 3  (Q-015 to Q-017)
+#
+# Remaining 3 pairs (Q-018 to Q-020) are user-authored in the Live Block:
+#   out-of-scope: 2  (authored_by: user)
+#   ambiguous: 1    (authored_by: user)
+# DO NOT stub or create Q-018/Q-019/Q-020 here.
+#
+# Schema: data-model.md §1 (authoritative).
+# Validation: scripts/validate-golden-qa.py (written by A7 Wave 4).
+
+# ---------------------------------------------------------------------------
+# FACTOID — 10 pairs (Q-001 to Q-010)
+# Single-article answers; test retrieval precision on explicit section references.
+# ---------------------------------------------------------------------------
+
+- id: Q-001
+  category: factoid
+  question_es: "¿Cuál es el objeto del Reglamento Técnico NAG-200?"
+  reference_answer_es: >
+    Según NAG-200 §1.1, el Reglamento Técnico NAG-200 establece los requisitos
+    mínimos para el diseño, construcción, pruebas y habilitación de las
+    instalaciones internas domiciliarias de gas natural (GN) o gas licuado de
+    petróleo (GLP) distribuido por redes, así como sus condiciones mínimas de
+    seguridad y conservación.
+  source_doc: "NAG-200.pdf"
+  source_section: "§1.1"
+  notes: >
+    Pregunta de alcance mínimo sobre el objeto de la norma principal del corpus;
+    evalúa recuperación de la definición canónica del Reglamento.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-002
+  category: factoid
+  question_es: "¿A qué instalaciones se aplica obligatoriamente la norma NAG-200 en la República Argentina?"
+  reference_answer_es: >
+    Según NAG-200 §1.2.1, el Reglamento es de aplicación obligatoria en todo el
+    territorio de la República Argentina para todas las instalaciones internas
+    domiciliarias que operen a una presión que no supere los 28 mbar y que se
+    abastezcan desde redes de distribución de GN o GLP que operen a baja o media
+    presión.
+  source_doc: "NAG-200.pdf"
+  source_section: "§1.2"
+  notes: >
+    Pregunta de alcance y presión máxima de operación; establece el contexto
+    para las preguntas de seguimiento Q-015.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-003
+  category: factoid
+  question_es: "¿Quién está habilitado para ejecutar, ampliar o reparar una instalación interna de gas domiciliaria según NAG-200?"
+  reference_answer_es: >
+    Según NAG-200 §1.3, toda instalación contemplada en el Reglamento Técnico
+    sólo puede ser ejecutada, ampliada, reparada o modificada por un Instalador
+    Matriculado.
+  source_doc: "NAG-200.pdf"
+  source_section: "§1.3"
+  notes: >
+    Pregunta sobre habilitación profesional; respuesta factual única y directa
+    extraída del cuerpo normativo.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-004
+  category: factoid
+  question_es: "¿Cuál es el rango de presión de entrada para los reguladores de presión domiciliarios según NAG-235?"
+  reference_answer_es: >
+    Según NAG-235 §1.1, los reguladores deben estar diseñados para trabajar en un
+    rango de presión de entrada de 0,5 bar a 4 bar para gas natural (GN), y de
+    0,5 bar a 2 bar para gas licuado de petróleo (GLP).
+  source_doc: "NAG-235.pdf"
+  source_section: "§1.1"
+  notes: >
+    Pregunta numérica precisa sobre valores técnicos de NAG-235; establece el
+    contexto para la pregunta de seguimiento Q-016.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-005
+  category: factoid
+  question_es: "¿Cuál es la presión nominal de salida que deben alcanzar los reguladores domiciliarios para gas natural y GLP según NAG-235?"
+  reference_answer_es: >
+    Según NAG-235 §1.2, la presión nominal de salida debe ser de 0,019 bar
+    (19 mbar) para gas natural (GN), y de 0,028 bar (28 mbar) para gas licuado
+    de petróleo (GLP).
+  source_doc: "NAG-235.pdf"
+  source_section: "§1.2"
+  notes: >
+    Pregunta numérica con distinción GN/GLP; prueba si el modelo puede recuperar
+    valores específicos de una tabla de requisitos técnicos.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-006
+  category: factoid
+  question_es: "¿En qué consiste la prueba de hermeticidad de una instalación domiciliaria de gas según NAG-226?"
+  reference_answer_es: >
+    Según NAG-226 §5, la prueba de hermeticidad consiste en cerrar todas las
+    válvulas de paso a los artefactos y verificar durante 15 minutos que el
+    totalizador del medidor no registre pasaje de gas. Si se evidencia pasaje de
+    gas, se clasifica como «Defecto Principal» y corresponde el corte inmediato
+    del suministro.
+  source_doc: "NAG-226.pdf"
+  source_section: "§5"
+  notes: >
+    Pregunta de procedimiento; establece el contexto para la pregunta de
+    seguimiento Q-017. Evalúa si el modelo recupera el detalle del tiempo
+    (15 minutos) y la consecuencia (Defecto Principal).
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-007
+  category: factoid
+  question_es: "¿A qué tipo de dispositivos se aplica la norma NAG-204 y cuál es su objeto?"
+  reference_answer_es: >
+    Según NAG-204 §1, la norma se aplica al aparato eléctrico para la detección
+    de monóxido de carbono en locales de uso doméstico. Su objeto es definir los
+    requisitos generales de construcción, indicadores y alarmas, señales de fallo,
+    etiquetado e instrucciones, y los métodos de ensayo y funcionamiento que deben
+    cumplir estos dispositivos.
+  source_doc: "NAG-204.pdf"
+  source_section: "§1"
+  notes: >
+    Pregunta sobre objeto de norma de seguridad crítica (detectores de CO);
+    evalúa identificación correcta del alcance dispositivo-norma.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-008
+  category: factoid
+  question_es: "¿Cuál es el objeto de la norma NAG-215 sobre las rejillas de ventilación permanente?"
+  reference_answer_es: >
+    Según NAG-215 §1, la norma establece las características que deben cumplir las
+    rejillas de ventilación permanentes, definiendo criterios de aceptación,
+    requisitos mínimos y métodos de ensayo, con el fin de garantizar la seguridad
+    en su empleo en instalaciones de gas domiciliarias, comerciales e industriales.
+  source_doc: "NAG-215.pdf"
+  source_section: "§1"
+  notes: >
+    Pregunta sobre objeto de norma de componente específico; evalúa recuperación
+    de definición en un documento corto del corpus.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-009
+  category: factoid
+  question_es: "¿Cuál es el objeto de la norma NAG-214 respecto a los elementos sellantes de roscas para cañerías domiciliarias?"
+  reference_answer_es: >
+    Según NAG-214 §2, la norma tiene por objeto definir las características de
+    resistencia, sellabilidad, procedimientos de ensayo y marcado que deben reunir
+    los elementos sellantes de roscas, fraguantes o no fraguantes, utilizados en
+    cañerías domiciliarias conductoras de gas a baja presión.
+  source_doc: "NAG-214.pdf"
+  source_section: "§2"
+  notes: >
+    Pregunta sobre objeto de norma de materiales auxiliares; el modelo debe
+    distinguir entre elementos fraguantes y no fraguantes como detalle clave.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-010
+  category: factoid
+  question_es: "¿A qué tipo de reparaciones se aplica la norma NAG-203 y en qué régimen fue aprobada?"
+  reference_answer_es: >
+    Según NAG-203 §1 y §2, la norma se aplica a la reparación de pérdidas en
+    uniones roscadas de instalaciones domiciliarias de gas mediante resina sellante.
+    Fue aprobada en período de introducción controlada, lo que implica condiciones
+    específicas de supervisión y documentación por parte del aplicador y del
+    organismo de control (OC) establecidas en el texto normativo.
+  source_doc: "NAG-203.pdf"
+  source_section: "§1"
+  notes: >
+    Pregunta sobre alcance de norma reciente (2024) que formaliza una práctica de
+    reparación antes no regulada; el detalle «introducción controlada» es clave.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+# ---------------------------------------------------------------------------
+# ANALYTICAL — 4 pairs (Q-011 to Q-014)
+# Require razonamiento a través de múltiples pasajes o documentos cruzados.
+# Hipótesis H3 (citation cross-reference grounding) — evalúa si el modelo
+# puede articular relaciones explícitas entre normas del mismo corpus.
+# ---------------------------------------------------------------------------
+
+- id: Q-011
+  category: analytical
+  question_es: "¿Cómo se articulan los requisitos de presión de NAG-235 con el diseño de la cañería interna definido en NAG-200?"
+  reference_answer_es: >
+    NAG-200 §1.2.1 establece que la instalación interna debe operar a una presión
+    máxima de 28 mbar. Esta cifra es coherente con la presión nominal de salida
+    para GLP fijada en NAG-235 §1.2 (28 mbar) y con la de GN (19 mbar).
+    NAG-200 §1.6 cita explícitamente a NAG-235 como norma de referencia obligatoria.
+    El regulador domiciliario normalizado por NAG-235 garantiza que la instalación
+    interna —dimensionada según los procedimientos de cálculo de NAG-200 §4.6—
+    opere siempre dentro del rango de presión de trabajo para el que fue calculada,
+    conectando el régimen de media presión de la red de distribución con los
+    artefactos de baja presión.
+  source_doc: "NAG-235.pdf,NAG-200.pdf"
+  source_section: "§1.1, §1.2, §1.2.1, §1.6, §4.6"
+  notes: >
+    Pregunta de razonamiento cruzado H3; el modelo debe citar tanto NAG-235 como
+    NAG-200 y articular la relación de presión entre ambas normas.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-012
+  category: analytical
+  question_es: "¿Cómo complementa el procedimiento de revisión técnica de NAG-226 a los requisitos de instalación definidos en NAG-200?"
+  reference_answer_es: >
+    NAG-200 establece los requisitos mínimos para la ejecución de nuevas
+    instalaciones y modificaciones. NAG-226, por su parte, define el procedimiento
+    de verificación periódica de instalaciones existentes, evaluando si mantienen
+    las condiciones de seguridad originalmente exigidas. NAG-226 §4 indica
+    explícitamente que la normalización de las irregularidades detectadas durante
+    la revisión técnica debe realizarse conforme a NAG-200 última edición. De este
+    modo, NAG-200 opera como estándar de construcción y NAG-226 como estándar de
+    control y rehabilitación en servicio, articulados en una cadena de seguridad
+    continua que cubre el ciclo completo de vida de la instalación domiciliaria.
+  source_doc: "NAG-226.pdf,NAG-200.pdf"
+  source_section: "§4, §5"
+  notes: >
+    Pregunta que requiere identificar la relación explícita NAG-226 §4 → NAG-200
+    como referencia correctiva; prueba capacidad de razonamiento ciclo de vida.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-013
+  category: analytical
+  question_es: "¿De qué manera integra NAG-200 los requisitos de los elementos sellantes de roscas definidos en NAG-214?"
+  reference_answer_es: >
+    NAG-200 §1.6 incluye a NAG-214 como norma de referencia obligatoria. En la
+    sección de prolongaciones internas, NAG-200 establece que las piezas sujetas
+    a movimiento deben conectarse con pasta aprobada según NAG-214 o cinta de
+    politetrafluoretileno (Teflón). Adicionalmente, NAG-200 §4.3 especifica que
+    los elementos sellantes de roscas utilizados en la cañería interna deben ser
+    aprobados conforme a NAG-214. Así, NAG-214 provee las especificaciones de
+    producto (resistencia, sellabilidad, ensayos y marcado), mientras que NAG-200
+    prescribe cuándo y dónde utilizarlos dentro de la instalación.
+  source_doc: "NAG-214.pdf,NAG-200.pdf"
+  source_section: "§1.6, §4.3"
+  notes: >
+    Pregunta cruzada H3 sobre integración normativa materiales-instalación; el
+    modelo debe citar correctamente §1.6 y §4.3 de NAG-200, además de NAG-214 §2.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+- id: Q-014
+  category: analytical
+  question_es: "¿Cómo se relacionan los requisitos de los detectores de monóxido de carbono de NAG-204 con el procedimiento de revisión técnica de NAG-226?"
+  reference_answer_es: >
+    NAG-226 §8 incorpora la detección de monóxido de carbono en ambiente como
+    verificación obligatoria de la revisión técnica, clasificando los resultados
+    en correcto, defecto principal o defecto secundario según los niveles
+    detectados. Los dispositivos de detección utilizados deben cumplir con los
+    requisitos constructivos, funcionales y de ensayo establecidos en NAG-204.
+    De esta forma, NAG-204 define el instrumento de medición (su construcción,
+    alarmas, señales de fallo y métodos de ensayo) y NAG-226 prescribe su uso y
+    los criterios de aceptación durante el control periódico de instalaciones
+    existentes, conformando una cadena normativa integrada de seguridad por CO.
+  source_doc: "NAG-204.pdf,NAG-226.pdf"
+  source_section: "§8, §1"
+  notes: >
+    Pregunta cruzada H3 sobre seguridad por CO; el modelo debe articular NAG-204
+    (instrumento) con NAG-226 §8 (procedimiento de aplicación).
+  authored_by: "scaffold-reviewed"
+  follow_up_of: null
+  expected_behavior: "answer"
+
+# ---------------------------------------------------------------------------
+# FOLLOW-UP — 3 pairs (Q-015 to Q-017)
+# Requieren contexto de turno previo (continuidad de sesión).
+# Cada par referencia una Q anterior que establece el contexto necesario.
+# ---------------------------------------------------------------------------
+
+- id: Q-015
+  category: follow-up
+  question_es: "¿Comprende también las reparaciones y modificaciones de instalaciones ya existentes?"
+  reference_answer_es: >
+    Sí. Según NAG-200 §1.2.2, el Reglamento comprende tanto las instalaciones
+    nuevas como las reparaciones o modificaciones de instalaciones domiciliarias
+    existentes, incluyendo el agregado, cambio de ubicación, retiro o reemplazo
+    de artefactos. Para modificaciones sobre instalaciones aprobadas con
+    normativas anteriores, la aplicación del Reglamento se circunscribe
+    exclusivamente a la parte de la instalación efectivamente modificada.
+  source_doc: "NAG-200.pdf"
+  source_section: "§1.2.2"
+  notes: >
+    Pregunta de continuidad que depende del contexto de Q-002 (alcance de NAG-200);
+    el pronombre implícito «también» requiere que el modelo sepa que se habla de
+    NAG-200. Prueba si el agente mantiene el hilo de la conversación.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: "Q-002"
+  expected_behavior: "answer"
+
+- id: Q-016
+  category: follow-up
+  question_es: "¿Y cuál es la presión nominal de salida que deben garantizar esos reguladores?"
+  reference_answer_es: >
+    Según NAG-235 §1.2, la presión nominal de salida de esos reguladores
+    domiciliarios debe ser de 0,019 bar (19 mbar) para gas natural (GN) y de
+    0,028 bar (28 mbar) para gas licuado de petróleo (GLP).
+  source_doc: "NAG-235.pdf"
+  source_section: "§1.2"
+  notes: >
+    Pregunta de seguimiento de Q-004 (rango de presión de entrada de NAG-235);
+    «esos reguladores» alude a los reguladores domiciliarios establecidos en Q-004.
+    Prueba continuidad en preguntas sobre el mismo documento.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: "Q-004"
+  expected_behavior: "answer"
+
+- id: Q-017
+  category: follow-up
+  question_es: "¿Y qué acción debe tomarse si durante esa prueba se detecta pasaje de gas?"
+  reference_answer_es: >
+    Según NAG-226 §5, la evidencia de pasaje de gas durante la prueba de
+    hermeticidad constituye un «Defecto Principal», lo que obliga al corte
+    inmediato del suministro de la instalación. Adicionalmente, cuando las
+    características del medidor o de la instalación no permitan realizar la prueba
+    a través del medidor, la Prestadora debe emplear otros métodos y dispositivos
+    que posibiliten la verificación de la hermeticidad.
+  source_doc: "NAG-226.pdf"
+  source_section: "§5"
+  notes: >
+    Pregunta de seguimiento de Q-006 (prueba de hermeticidad NAG-226); «esa prueba»
+    referencia la prueba de hermeticidad. Evalúa recuperación de la consecuencia
+    normativa ante un resultado negativo en la prueba ya descripta.
+  authored_by: "scaffold-reviewed"
+  follow_up_of: "Q-006"
+  expected_behavior: "answer"
