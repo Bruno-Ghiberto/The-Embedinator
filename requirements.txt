@@ -10,7 +10,7 @@ pydantic>=2.0
 pydantic-settings>=2.0
 
 # Database
-aiosqlite>=0.20
+aiosqlite>=0.22.1
 
 # Vector database
 qdrant-client>=1.17.1
