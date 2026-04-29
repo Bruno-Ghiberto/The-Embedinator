@@ -134,7 +134,59 @@ async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) 
             pruned += 1
         except Exception as e:
             logger.warning("storage_checkpoint_prune_failed", thread_id=tid, error=str(e))
+
+    # spec-28 BUG-014 layer 1: reclaim freelist pages after pruning. Without this,
+    # DELETEs leave pages on the freelist forever (auto_vacuum=NONE by default).
+    # The 91% freelist ratio + ungraceful shutdown during freelist-page reuse
+    # write was the corruption fingerprint that produced BUG-013.
+    if pruned > 0:
+        try:
+            await checkpointer.conn.commit()
+            await checkpointer.conn.execute("VACUUM")
+            logger.info("storage_checkpoint_vacuumed", pruned_threads=pruned)
+        except Exception as e:
+            logger.warning(
+                "storage_checkpoint_vacuum_failed",
+                pruned_threads=pruned,
+                error=type(e).__name__,
+                detail=str(e)[:200],
+            )
     return pruned
+
+
+async def _check_checkpoint_integrity(checkpointer, logger) -> bool:
+    # spec-28 BUG-014 layer 2: surface checkpoints.db corruption at startup,
+    # before the first /api/chat request hits a corrupt page write and the
+    # exception escapes into a SERVICE_UNAVAILABLE response (BUG-013).
+    # Warn-only; recovery procedure is documented in
+    # docs/E2E/2026-04-24-bug-hunt/bugs-raw/BUG-013-chat-service-unavailable.md
+    try:
+        async with checkpointer.conn.execute("PRAGMA integrity_check") as cursor:
+            rows = await cursor.fetchall()
+    except Exception as e:
+        logger.warning(
+            "storage_checkpoint_integrity_check_failed",
+            error=type(e).__name__,
+            detail=str(e)[:200],
+        )
+        return False
+
+    if not rows:
+        logger.warning("storage_checkpoint_integrity_no_result")
+        return False
+
+    if rows[0][0] == "ok" and len(rows) == 1:
+        logger.info("storage_checkpoint_integrity_ok")
+        return True
+
+    issues = [r[0] for r in rows]
+    logger.warning(
+        "storage_checkpoint_integrity_failed",
+        first_issue=issues[0],
+        total_issues=len(issues),
+        recovery_runbook="docs/E2E/2026-04-24-bug-hunt/bugs-raw/BUG-013-chat-service-unavailable.md#resolution",
+    )
+    return False
 
 
 def _validate_model_support(model: str, supported: list[str]) -> None:
@@ -212,6 +264,7 @@ async def lifespan(app: FastAPI):
     checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
     checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
+    await _check_checkpoint_integrity(checkpointer, logger)
     pruned = await _prune_old_checkpoint_threads(checkpointer, settings.checkpoint_max_threads, logger)
     if pruned > 0:
         logger.info(
