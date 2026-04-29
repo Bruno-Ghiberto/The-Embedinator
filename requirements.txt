@@ -52,7 +52,7 @@ langgraph-checkpoint-sqlite>=2.0
 tiktoken>=0.8
 
 # Linting
-ruff>=0.9
+ruff>=0.15.12
 
 # Type checking and security auditing (CI dev-deps)
 # Note: pydantic.mypy plugin auto-activates via pyproject.toml [tool.mypy].plugins
