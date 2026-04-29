@@ -629,3 +629,23 @@ All-services.log contains every structured JSON log event exactly twice. Likely 
 - Symptom: every chat request ends in SERVICE_UNAVAILABLE; exception escapes chat.py except-handler with no log capture
 - 4 hypotheses documented; investigation outside Live Block scope
 - D decision: deferred to v1.1; blocks RAGAS Wave 3 — Wave 3 cannot proceed until BUG-013 fix
+
+## 2026-04-29 — Session 5: BUG-013 D→F resolved (no source change, operational fix)
+
+- Plan: `docs/PROMPTS/spec-28-E2E-v01/28-session-5-bug013-debug.md` (4 hypotheses + verification gate)
+- **All 4 hypotheses REFUTED.** True root cause: `data/checkpoints.db` corrupted — multiple double-referenced freelist pages. 91% of the 366 MB file was deleted-but-unreclaimed freelist space. `graph.astream()`'s per-node checkpoint write hit corrupted pages → `DatabaseError: database disk image is malformed` → exception escapes chat.py:376 → user-facing `SERVICE_UNAVAILABLE`.
+- **Critical orthogonal infrastructure finding**: backend container does NOT volume-mount `backend/`. Pre-rebuild image was 2026-04-14, predating spec-28 fixes (97bbe98 + 7c4203e + 6d8b27a, all 2026-04-28). `docker compose restart` doesn't pick up source. Live Block live-verify at trace `b95d971d` (15:14 UTC, "clean done event") was running the OLD image — that's why structlog "appeared silent post-restart" (H1 mis-attribution: that was actually the rebuild gap, not a logger bug). Filed as BUG-014.
+- Recovery procedure: `docker compose stop backend` → `sqlite3 ... "VACUUM INTO 'salvage';"` → `REINDEX` → swap files → `docker compose start backend`. Salvage was 33 MB (10× smaller), `integrity_check: ok`, all 102 threads / 1,870 checkpoints / 9,962 writes recovered.
+- 3-query smoke (post-recovery, 12:51 UTC):
+  - Q1 factoid `diametro minimo NAG-200` (trace `0b11f219`): done @ 10.9s, 1 collection, 8 passages
+  - Q2 analytical Spanish (trace `9f022983`): done @ 38.4s, 1 collection, 5 passages
+  - Q3 OOS English (trace `1ca71b56`): done @ 28.6s, 1 collection, 5 passages, graceful decline
+  - Zero SERVICE_UNAVAILABLE / DatabaseError / cross_encoder_rerank ValidationError / retrieval_unscoped_fanout in logs
+  - BUG-002 amendment verified e2e for the first time on real /api/chat traffic: each trace queried exactly 1 collection
+- Files changed: none in `backend/**`. Operational only:
+  - `data/checkpoints.db` — replaced with salvage (clean)
+  - `data/checkpoints.db.corrupt-2026-04-29` — renamed corrupt original (escape hatch)
+  - `data/checkpoints.db.corrupt-2026-04-29.bak` — full forensic copy
+- New bug filed: BUG-014 (prune-without-vacuum + rebuild-on-source-change DX gap) — captures the underlying risk so BUG-013 doesn't recur after the next ungraceful shutdown.
+- **Wave 3 (RAGAS) UNBLOCKED.** Session 6 (Q-018/Q-019/Q-020 user-authored golden pairs + RAGAS run) is ready to start.
+- SACRED files: `git diff develop -- Makefile embedinator.sh embedinator.ps1` = 0 lines.
