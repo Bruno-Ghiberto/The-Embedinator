@@ -2,9 +2,13 @@
 
 import logging
 import logging as stdlib_logging
+import os
 import sys
 import tempfile
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from enum import StrEnum
 from pathlib import Path
 
 import aiosqlite
@@ -135,18 +139,36 @@ async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) 
         except Exception as e:
             logger.warning("storage_checkpoint_prune_failed", thread_id=tid, error=str(e))
 
-    # spec-28 BUG-014 layer 1: reclaim freelist pages after pruning. Without this,
-    # DELETEs leave pages on the freelist forever (auto_vacuum=NONE by default).
-    # The 91% freelist ratio + ungraceful shutdown during freelist-page reuse
-    # write was the corruption fingerprint that produced BUG-013.
+    # spec-28 BUG-014 layer 1 + spec-029 R1: reclaim freelist pages after pruning.
+    # With auto_vacuum=INCREMENTAL (set by _migrate_checkpoint_auto_vacuum at startup),
+    # each PRAGMA incremental_vacuum call reclaims one page from the freelist.
+    # In WAL journal mode (used by AsyncSqliteSaver) a single call only reclaims one
+    # page, so we loop until freelist_count == 0 — same end-state as the old VACUUM.
     if pruned > 0:
         try:
             await checkpointer.conn.commit()
-            await checkpointer.conn.execute("VACUUM")
-            logger.info("storage_checkpoint_vacuumed", pruned_threads=pruned)
+            # Best-effort: capture freelist count before reclaim for the log.
+            try:
+                async with checkpointer.conn.execute("PRAGMA freelist_count") as _cur:
+                    (_freelist_before,) = await _cur.fetchone()
+                freelist_pages_reclaimed: int | None = _freelist_before
+            except Exception:
+                freelist_pages_reclaimed = None
+            # Loop until all freelist pages are reclaimed (WAL mode: one page per call).
+            for _ in range(freelist_pages_reclaimed or 0):
+                await checkpointer.conn.execute("PRAGMA incremental_vacuum")
+                async with checkpointer.conn.execute("PRAGMA freelist_count") as _cur:
+                    (_remaining,) = await _cur.fetchone()
+                if _remaining == 0:
+                    break
+            logger.info(
+                "storage_checkpoint_incremental_vacuumed",
+                pruned_threads=pruned,
+                freelist_pages_reclaimed=freelist_pages_reclaimed,
+            )
         except Exception as e:
             logger.warning(
-                "storage_checkpoint_vacuum_failed",
+                "storage_checkpoint_incremental_vacuum_failed",
                 pruned_threads=pruned,
                 error=type(e).__name__,
                 detail=str(e)[:200],
@@ -187,6 +209,273 @@ async def _check_checkpoint_integrity(checkpointer, logger) -> bool:
         recovery_runbook="docs/E2E/2026-04-24-bug-hunt/bugs-raw/BUG-013-chat-service-unavailable.md#resolution",
     )
     return False
+
+
+async def _migrate_checkpoint_auto_vacuum(path: str, logger) -> bool:
+    """Idempotent: ensure auto_vacuum=INCREMENTAL on the SQLite DB at path.
+
+    Behaviour matrix (PRAGMA auto_vacuum × PRAGMA page_count):
+
+      auto_vacuum  page_count   action                               return
+      ───────────  ──────────   ─────────────────────────────────    ──────
+      2 (INCR)     any          no-op; log DEBUG                     False
+      0 (NONE)     0            PRAGMA auto_vacuum=2 only            True
+      0 (NONE)     >0           PRAGMA auto_vacuum=2; VACUUM         True
+      1 (FULL)     any          no-op; log WARNING                   False
+
+    For a non-existent path: aiosqlite creates the file, sets auto_vacuum=2,
+    returns True. The caller's subsequent AsyncSqliteSaver.setup() then creates
+    the schema on a DB that will auto-track freelist pages.
+
+    Side effects: opens raw aiosqlite connection, runs PRAGMAs, closes.
+    No exceptions are caught — caller must handle.
+
+    Logs (structured):
+      INFO  storage_checkpoint_auto_vacuum_already_set     when no-op (mode=2)
+      INFO  storage_checkpoint_auto_vacuum_migrating       before VACUUM (mode=0, page_count>0)
+      INFO  storage_checkpoint_auto_vacuum_migrated        after VACUUM, with elapsed_ms (int)
+      WARN  storage_checkpoint_auto_vacuum_unexpected_mode if mode=FULL (informational)
+    """
+    async with aiosqlite.connect(path) as conn:
+        async with conn.execute("PRAGMA auto_vacuum") as cur:
+            (mode,) = await cur.fetchone()
+        async with conn.execute("PRAGMA page_count") as cur:
+            (page_count,) = await cur.fetchone()
+
+        if mode == 2:
+            # Already INCREMENTAL — idempotent no-op.
+            logger.info("storage_checkpoint_auto_vacuum_already_set", path=path, current_mode=mode)
+            return False
+
+        if mode == 1:
+            # FULL mode — out of scope to migrate; log warning and bail.
+            logger.warning("storage_checkpoint_auto_vacuum_unexpected_mode", path=path, mode=mode)
+            return False
+
+        # mode == 0 (NONE): migrate to INCREMENTAL.
+        await conn.execute("PRAGMA auto_vacuum = 2")
+
+        if page_count > 0:
+            # Existing DB — must VACUUM to physically rewrite with the new mode.
+            logger.info(
+                "storage_checkpoint_auto_vacuum_migrating",
+                path=path,
+                prior_mode=mode,
+                page_count=page_count,
+            )
+            t0 = time.perf_counter()
+            await conn.execute("VACUUM")
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            logger.info(
+                "storage_checkpoint_auto_vacuum_migrated",
+                path=path,
+                prior_mode=mode,
+                elapsed_ms=elapsed_ms,
+            )
+        # For page_count==0 (fresh/empty file), PRAGMA auto_vacuum=2 is sufficient.
+        # VACUUM on an empty file is a no-op and adds latency for no gain.
+        await conn.commit()
+
+    return True
+
+
+class RecoveryResult(StrEnum):
+    """Result of ``_recover_checkpoint_db``.
+
+    StrEnum (Python 3.11+) so values serialise cleanly in structlog event dicts
+    and compare equal to plain strings in tests — ``assert result == "recovered"``
+    works without ``.value`` boilerplate.
+    """
+
+    SKIPPED = "skipped"  # path missing OR DB passes integrity_check
+    RECOVERED = "recovered"  # salvage succeeded; file swapped
+    FRESH_FALLBACK = "fresh_fallback"  # salvage failed; original archived; path absent
+    REFUSED_WAL = "refused_wal"  # -wal sibling present; refused to act
+
+
+async def _recover_checkpoint_db(path: str, logger) -> RecoveryResult:
+    """Pre-connection integrity check + opt-in auto-recovery.
+
+    PRECONDITION: caller has already verified ``settings.checkpoint_auto_recover``
+    is True before invoking this function.  This helper does NOT read settings;
+    it is testable in isolation.  The lifespan gates the call.
+
+    Behaviour:
+      1. If path does not exist → log INFO, return SKIPPED.
+      2. If ``<path>-wal`` exists → log ERROR, return REFUSED_WAL, leave all files untouched.
+         (WAL check is BEFORE open to avoid SQLite modifying/consuming the WAL
+         during connection open/close — an open() call on a WAL-mode DB with a
+         live WAL file can destroy the evidence before we can refuse.)
+      3. Open raw aiosqlite, run ``PRAGMA integrity_check``, close connection.
+         If result == [('ok',)] → log INFO, return SKIPPED.
+      4. Otherwise run salvage sequence:
+         a. salvage_path = path + ".salvage"; unlink if exists (defensive).
+         b. Open raw aiosqlite on ``path``, execute ``VACUUM INTO '<salvage_path>'``, close.
+         c. Open raw aiosqlite on ``salvage_path``, execute REINDEX then
+            ``PRAGMA integrity_check``, close.
+         d. If salvage integrity == [('ok',)]:
+              - archive original: ``os.replace(path, archive_path)`` (archive-first, NFR-002)
+              - cleanup -shm/-wal siblings (best-effort)
+              - ``os.replace(salvage_path, path)``
+              - log INFO, return RECOVERED
+            Else (salvage also corrupt, or VACUUM INTO raised):
+              - archive original (best-effort)
+              - delete salvage (best-effort)
+              - cleanup siblings
+              - leave ``path`` absent
+              - log ERROR, return FRESH_FALLBACK
+
+    Edge cases handled per design §8:
+    - Salvage path collision: unconditional unlink before use.
+    - Archive path collision: microsecond-precision timestamp; collision loop up to 100 iterations.
+    - -shm/-wal cleanup after any file swap (best-effort, wrapped in try/except FileNotFoundError).
+    - All aiosqlite connections use ``async with`` — no connection leaks on exception.
+    - OSError/PermissionError during file ops → escalate to FRESH_FALLBACK with clear log.
+    """
+    import sqlite3 as _sqlite3
+
+    # ------------------------------------------------------------------
+    # Step 1: fresh install — nothing to check.
+    # ------------------------------------------------------------------
+    if not os.path.exists(path):
+        logger.info("storage_checkpoint_recovery_skipped_path_missing", path=path)
+        return RecoveryResult.SKIPPED
+
+    # ------------------------------------------------------------------
+    # Step 2: refuse to act if a -wal sibling exists BEFORE opening the DB.
+    # Must check WAL before any aiosqlite.connect() call — opening a WAL-mode
+    # DB with a live WAL file causes SQLite to modify/consume the WAL during
+    # connection open/close, destroying the evidence. The REFUSED_WAL contract
+    # is: "leave all files untouched; let the operator resolve manually."
+    # ------------------------------------------------------------------
+    wal_path = path + "-wal"
+    if os.path.exists(wal_path):
+        logger.error(
+            "storage_checkpoint_recovery_refused_wal_present",
+            path=path,
+            wal_path=wal_path,
+            runbook="docs/E2E/2026-04-24-bug-hunt/bugs-raw/BUG-013-chat-service-unavailable.md#resolution",
+        )
+        return RecoveryResult.REFUSED_WAL
+
+    # ------------------------------------------------------------------
+    # Step 3: integrity check (no WAL sibling → safe to open).
+    # ------------------------------------------------------------------
+    try:
+        async with aiosqlite.connect(path) as conn:
+            async with conn.execute("PRAGMA integrity_check") as cur:
+                rows = await cur.fetchall()
+    except Exception:
+        rows = []  # treat unreadable DB as corrupt — fall through to recovery
+
+    if rows and rows[0][0] == "ok" and len(rows) == 1:
+        logger.info("storage_checkpoint_recovery_skipped_integrity_ok", path=path)
+        return RecoveryResult.SKIPPED
+
+    # ------------------------------------------------------------------
+    # Step 4: salvage sequence.
+    # ------------------------------------------------------------------
+    t0 = time.perf_counter()
+    salvage_path = path + ".salvage"
+
+    # Defensive: remove stale salvage from a prior failed attempt.
+    try:
+        os.unlink(salvage_path)
+    except FileNotFoundError:
+        pass
+
+    salvage_ok = False
+    vacuum_into_failed = False
+    vacuum_into_exc_name: str = ""
+
+    try:
+        # 4a (continued): VACUUM INTO to produce a cleaned copy.
+        async with aiosqlite.connect(path) as conn:
+            await conn.execute(f"VACUUM INTO '{salvage_path}'")
+
+        # 4b (continued): verify salvage integrity.
+        async with aiosqlite.connect(salvage_path) as conn:
+            await conn.execute("REINDEX")
+            async with conn.execute("PRAGMA integrity_check") as cur:
+                salvage_rows = await cur.fetchall()
+
+        salvage_ok = bool(salvage_rows) and salvage_rows[0][0] == "ok" and len(salvage_rows) == 1
+
+    except Exception as exc:
+        vacuum_into_failed = True
+        vacuum_into_exc_name = type(exc).__name__
+
+    # ------------------------------------------------------------------
+    # Build archive path (microsecond-precision timestamp, collision-safe).
+    # ------------------------------------------------------------------
+    def _make_archive_path() -> str:
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+        candidate = f"{path}.corrupt-{ts}"
+        if not os.path.exists(candidate):
+            return candidate
+        for i in range(1, 101):
+            alt = f"{candidate}_{i}"
+            if not os.path.exists(alt):
+                return alt
+        raise RuntimeError(f"Could not find a unique archive path after 100 attempts: {candidate}")
+
+    def _cleanup_siblings(base: str) -> None:
+        """Best-effort removal of -shm and -wal siblings."""
+        for suffix in ("-shm", "-wal"):
+            try:
+                os.unlink(base + suffix)
+            except FileNotFoundError:
+                pass
+
+    if salvage_ok:
+        # ------------------------------------------------------------------
+        # RECOVERED path.
+        # ------------------------------------------------------------------
+        archive_path = _make_archive_path()
+        salvage_size = os.path.getsize(salvage_path)
+        # Archive-first (NFR-002): original is safe before any swap.
+        os.replace(path, archive_path)
+        _cleanup_siblings(path)
+        os.replace(salvage_path, path)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.info(
+            "storage_checkpoint_auto_recovered",
+            path=path,
+            archive_path=archive_path,
+            salvage_size_bytes=salvage_size,
+            elapsed_ms=elapsed_ms,
+        )
+        return RecoveryResult.RECOVERED
+    else:
+        # ------------------------------------------------------------------
+        # FRESH_FALLBACK path — salvage failed or VACUUM INTO raised.
+        # ------------------------------------------------------------------
+        reason = f"vacuum_into_failed:{vacuum_into_exc_name}" if vacuum_into_failed else "salvage_corrupt"
+
+        # Archive original (best-effort — on read-only FS this may fail).
+        try:
+            archive_path = _make_archive_path()
+            os.replace(path, archive_path)
+        except (OSError, PermissionError) as exc:
+            archive_path = f"<archive failed: {type(exc).__name__}>"
+
+        # Clean up the failed salvage (best-effort).
+        try:
+            os.unlink(salvage_path)
+        except FileNotFoundError:
+            pass
+
+        _cleanup_siblings(path)
+
+        logger.error(
+            "storage_checkpoint_fresh_db_fallback",
+            path=path,
+            archive_path=archive_path,
+            reason=reason,
+            data_loss=True,
+            impact="data loss — checkpoint database reset, prior chat history unrecoverable",
+        )
+        return RecoveryResult.FRESH_FALLBACK
 
 
 def _validate_model_support(model: str, supported: list[str]) -> None:
@@ -261,6 +550,20 @@ async def lifespan(app: FastAPI):
 
     # LangGraph checkpointer — separate DB for checkpoint state
     checkpoint_path = settings.sqlite_path.replace("embedinator.db", "checkpoints.db")
+
+    # spec-029 R2 (gated): opt-in auto-recovery BEFORE opening connection.
+    # Must run BEFORE R1 so that FRESH_FALLBACK (path absent) flows into R1's
+    # auto_vacuum setup on the new empty file.
+    if settings.checkpoint_auto_recover:
+        _recovery_result = await _recover_checkpoint_db(checkpoint_path, logger)
+        logger.info("storage_checkpoint_recovery_result", result=_recovery_result)
+
+    # spec-029 R1 (unconditional): ensure auto_vacuum=INCREMENTAL before connection.
+    # R1 MUST run after R2 — FRESH_FALLBACK leaves path missing; R1 creates the
+    # file with auto_vacuum=INCREMENTAL so AsyncSqliteSaver.setup() builds the
+    # schema on a DB that will never accumulate unbounded freelist pages.
+    await _migrate_checkpoint_auto_vacuum(checkpoint_path, logger)
+
     checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpoint_path)
     checkpointer = await checkpointer_cm.__aenter__()
     await checkpointer.setup()
