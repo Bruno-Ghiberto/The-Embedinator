@@ -2,9 +2,13 @@
 
 import logging
 import logging as stdlib_logging
+import os
 import sys
 import tempfile
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from enum import StrEnum
 from pathlib import Path
 
 import aiosqlite
@@ -135,18 +139,36 @@ async def _prune_old_checkpoint_threads(checkpointer, max_threads: int, logger) 
         except Exception as e:
             logger.warning("storage_checkpoint_prune_failed", thread_id=tid, error=str(e))
 
-    # spec-28 BUG-014 layer 1: reclaim freelist pages after pruning. Without this,
-    # DELETEs leave pages on the freelist forever (auto_vacuum=NONE by default).
-    # The 91% freelist ratio + ungraceful shutdown during freelist-page reuse
-    # write was the corruption fingerprint that produced BUG-013.
+    # spec-28 BUG-014 layer 1 + spec-029 R1: reclaim freelist pages after pruning.
+    # With auto_vacuum=INCREMENTAL (set by _migrate_checkpoint_auto_vacuum at startup),
+    # each PRAGMA incremental_vacuum call reclaims one page from the freelist.
+    # In WAL journal mode (used by AsyncSqliteSaver) a single call only reclaims one
+    # page, so we loop until freelist_count == 0 — same end-state as the old VACUUM.
     if pruned > 0:
         try:
             await checkpointer.conn.commit()
-            await checkpointer.conn.execute("VACUUM")
-            logger.info("storage_checkpoint_vacuumed", pruned_threads=pruned)
+            # Best-effort: capture freelist count before reclaim for the log.
+            try:
+                async with checkpointer.conn.execute("PRAGMA freelist_count") as _cur:
+                    (_freelist_before,) = await _cur.fetchone()
+                freelist_pages_reclaimed: int | None = _freelist_before
+            except Exception:
+                freelist_pages_reclaimed = None
+            # Loop until all freelist pages are reclaimed (WAL mode: one page per call).
+            for _ in range(freelist_pages_reclaimed or 0):
+                await checkpointer.conn.execute("PRAGMA incremental_vacuum")
+                async with checkpointer.conn.execute("PRAGMA freelist_count") as _cur:
+                    (_remaining,) = await _cur.fetchone()
+                if _remaining == 0:
+                    break
+            logger.info(
+                "storage_checkpoint_incremental_vacuumed",
+                pruned_threads=pruned,
+                freelist_pages_reclaimed=freelist_pages_reclaimed,
+            )
         except Exception as e:
             logger.warning(
-                "storage_checkpoint_vacuum_failed",
+                "storage_checkpoint_incremental_vacuum_failed",
                 pruned_threads=pruned,
                 error=type(e).__name__,
                 detail=str(e)[:200],
@@ -187,6 +209,74 @@ async def _check_checkpoint_integrity(checkpointer, logger) -> bool:
         recovery_runbook="docs/E2E/2026-04-24-bug-hunt/bugs-raw/BUG-013-chat-service-unavailable.md#resolution",
     )
     return False
+
+
+async def _migrate_checkpoint_auto_vacuum(path: str, logger) -> bool:
+    """Idempotent: ensure auto_vacuum=INCREMENTAL on the SQLite DB at path.
+
+    Behaviour matrix (PRAGMA auto_vacuum × PRAGMA page_count):
+
+      auto_vacuum  page_count   action                               return
+      ───────────  ──────────   ─────────────────────────────────    ──────
+      2 (INCR)     any          no-op; log DEBUG                     False
+      0 (NONE)     0            PRAGMA auto_vacuum=2 only            True
+      0 (NONE)     >0           PRAGMA auto_vacuum=2; VACUUM         True
+      1 (FULL)     any          no-op; log WARNING                   False
+
+    For a non-existent path: aiosqlite creates the file, sets auto_vacuum=2,
+    returns True. The caller's subsequent AsyncSqliteSaver.setup() then creates
+    the schema on a DB that will auto-track freelist pages.
+
+    Side effects: opens raw aiosqlite connection, runs PRAGMAs, closes.
+    No exceptions are caught — caller must handle.
+
+    Logs (structured):
+      INFO  storage_checkpoint_auto_vacuum_already_set     when no-op (mode=2)
+      INFO  storage_checkpoint_auto_vacuum_migrating       before VACUUM (mode=0, page_count>0)
+      INFO  storage_checkpoint_auto_vacuum_migrated        after VACUUM, with elapsed_ms (int)
+      WARN  storage_checkpoint_auto_vacuum_unexpected_mode if mode=FULL (informational)
+    """
+    async with aiosqlite.connect(path) as conn:
+        async with conn.execute("PRAGMA auto_vacuum") as cur:
+            (mode,) = await cur.fetchone()
+        async with conn.execute("PRAGMA page_count") as cur:
+            (page_count,) = await cur.fetchone()
+
+        if mode == 2:
+            # Already INCREMENTAL — idempotent no-op.
+            logger.info("storage_checkpoint_auto_vacuum_already_set", path=path, current_mode=mode)
+            return False
+
+        if mode == 1:
+            # FULL mode — out of scope to migrate; log warning and bail.
+            logger.warning("storage_checkpoint_auto_vacuum_unexpected_mode", path=path, mode=mode)
+            return False
+
+        # mode == 0 (NONE): migrate to INCREMENTAL.
+        await conn.execute("PRAGMA auto_vacuum = 2")
+
+        if page_count > 0:
+            # Existing DB — must VACUUM to physically rewrite with the new mode.
+            logger.info(
+                "storage_checkpoint_auto_vacuum_migrating",
+                path=path,
+                prior_mode=mode,
+                page_count=page_count,
+            )
+            t0 = time.perf_counter()
+            await conn.execute("VACUUM")
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            logger.info(
+                "storage_checkpoint_auto_vacuum_migrated",
+                path=path,
+                prior_mode=mode,
+                elapsed_ms=elapsed_ms,
+            )
+        # For page_count==0 (fresh/empty file), PRAGMA auto_vacuum=2 is sufficient.
+        # VACUUM on an empty file is a no-op and adds latency for no gain.
+        await conn.commit()
+
+    return True
 
 
 def _validate_model_support(model: str, supported: list[str]) -> None:
