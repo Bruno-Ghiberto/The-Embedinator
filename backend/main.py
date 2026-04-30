@@ -472,6 +472,8 @@ async def _recover_checkpoint_db(path: str, logger) -> RecoveryResult:
             path=path,
             archive_path=archive_path,
             reason=reason,
+            data_loss=True,
+            impact="data loss — checkpoint database reset, prior chat history unrecoverable",
         )
         return RecoveryResult.FRESH_FALLBACK
 

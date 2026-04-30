@@ -494,3 +494,14 @@ async def test_recovery_fresh_fallback_when_salvage_fails(tmp_path):
     assert "storage_checkpoint_fresh_db_fallback" in error_events, (
         f"storage_checkpoint_fresh_db_fallback ERROR log not found in: {error_events}"
     )
+
+    # FR-043: ERROR log must contain the literal phrase "data loss" so operators
+    # can grep-alert on checkpoint resets. data_loss=True is the machine flag,
+    # impact=... carries the human-readable phrase.
+    fresh_call = next(c for c in logger.error.call_args_list if c.args[0] == "storage_checkpoint_fresh_db_fallback")
+    assert fresh_call.kwargs.get("data_loss") is True, (
+        f"FR-043: data_loss=True flag missing from FRESH_FALLBACK log kwargs: {fresh_call.kwargs}"
+    )
+    assert "data loss" in fresh_call.kwargs.get("impact", ""), (
+        f"FR-043: literal phrase 'data loss' missing from impact field: {fresh_call.kwargs.get('impact')!r}"
+    )
