@@ -7,16 +7,21 @@ Extended in spec-029 to cover:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiosqlite
 import pytest
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
+from tests.conftest import make_corrupt_sqlite_file
+
 from backend.main import (
+    RecoveryResult,
     _check_checkpoint_integrity,
     _migrate_checkpoint_auto_vacuum,
     _prune_old_checkpoint_threads,
+    _recover_checkpoint_db,
 )
 
 
@@ -321,3 +326,171 @@ async def test_migrate_auto_vacuum_logs_elapsed_ms(tmp_path):
     elapsed = info_calls["storage_checkpoint_auto_vacuum_migrated"].get("elapsed_ms")
     assert isinstance(elapsed, int), f"elapsed_ms must be an int, got {type(elapsed).__name__}"
     assert elapsed >= 0, f"elapsed_ms must be non-negative, got {elapsed}"
+
+
+# ---------------------------------------------------------------------------
+# _recover_checkpoint_db
+# ---------------------------------------------------------------------------
+
+
+async def test_recovery_skipped_clean_db(tmp_path):
+    """FR-038: clean DB passes integrity_check → SKIPPED, no files modified.
+
+    _recover_checkpoint_db is settings-agnostic; the lifespan gates the call.
+    Calling it on a healthy DB must always return SKIPPED regardless of any
+    CHECKPOINT_AUTO_RECOVER flag.
+    """
+    import aiosqlite as _aio
+    import sqlite3 as _sqlite3
+
+    logger = MagicMock()
+    db_path = tmp_path / "checkpoints.db"
+
+    # Create a valid (non-corrupt) DB.
+    conn = _sqlite3.connect(str(db_path))
+    conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+    conn.execute("INSERT INTO t VALUES (1)")
+    conn.commit()
+    conn.close()
+
+    result = await _recover_checkpoint_db(str(db_path), logger)
+
+    assert result == RecoveryResult.SKIPPED
+    # DB file is untouched — no archive created.
+    archive_files = list(tmp_path.glob("*.corrupt-*"))
+    assert len(archive_files) == 0, f"No archive should be created for clean DB, got: {archive_files}"
+    # No error log emitted.
+    logger.error.assert_not_called()
+
+
+async def test_recovery_skipped_path_missing(tmp_path):
+    """FR: missing path (fresh install) → SKIPPED immediately, no side effects.
+
+    The helper does NOT create the file — that is R1's job.
+    """
+    logger = MagicMock()
+    db_path = tmp_path / "checkpoints.db"
+    # Path intentionally does not exist.
+    assert not db_path.exists()
+
+    result = await _recover_checkpoint_db(str(db_path), logger)
+
+    assert result == RecoveryResult.SKIPPED
+    assert not db_path.exists(), "Helper must not create the file on missing-path path"
+    logger.error.assert_not_called()
+
+    info_events = [c.args[0] for c in logger.info.call_args_list]
+    assert "storage_checkpoint_recovery_skipped_path_missing" in info_events
+
+
+async def test_recovery_recovered_archives_original(tmp_path):
+    """FR-041/FR-042: corrupt DB, no WAL → RECOVERED; original archived; recovered file passes integrity_check."""
+    logger = MagicMock()
+    corrupt_path = make_corrupt_sqlite_file(tmp_path)
+    assert not (tmp_path / "checkpoints.db-wal").exists(), "with_wal=False must leave no -wal sibling"
+
+    result = await _recover_checkpoint_db(str(corrupt_path), logger)
+
+    assert result == RecoveryResult.RECOVERED, f"Expected RECOVERED, got {result!r}"
+
+    # Original must be archived with .corrupt- prefix.
+    archive_files = list(tmp_path.glob("checkpoints.db.corrupt-*"))
+    assert len(archive_files) == 1, f"Expected exactly 1 archive, got: {archive_files}"
+
+    # Recovered file at the original path must pass integrity_check.
+    import sqlite3 as _sqlite3
+
+    chk = _sqlite3.connect(str(corrupt_path))
+    integrity = chk.execute("PRAGMA integrity_check").fetchone()
+    chk.close()
+    assert integrity == ("ok",), f"Recovered file must pass integrity_check, got {integrity!r}"
+
+    # INFO log with storage_checkpoint_auto_recovered must be emitted.
+    info_events = [c.args[0] for c in logger.info.call_args_list]
+    assert "storage_checkpoint_auto_recovered" in info_events, (
+        f"storage_checkpoint_auto_recovered INFO log not found in: {info_events}"
+    )
+
+
+async def test_recovery_refused_when_wal_present(tmp_path):
+    """FR-040: corrupt DB + -wal sibling → REFUSED_WAL; no files modified; ERROR log emitted."""
+    logger = MagicMock()
+    corrupt_path = make_corrupt_sqlite_file(tmp_path, with_wal=True)
+    wal_path = Path(str(corrupt_path) + "-wal")
+    assert wal_path.exists(), "with_wal=True must create -wal sibling"
+
+    result = await _recover_checkpoint_db(str(corrupt_path), logger)
+
+    assert result == RecoveryResult.REFUSED_WAL, f"Expected REFUSED_WAL, got {result!r}"
+
+    # No archive created — files must be untouched.
+    archive_files = list(tmp_path.glob("*.corrupt-*"))
+    assert len(archive_files) == 0, f"No archive should be created for REFUSED_WAL, got: {archive_files}"
+
+    # -wal sibling must still exist (not cleaned up).
+    assert wal_path.exists(), "WAL file must remain after REFUSED_WAL"
+
+    # ERROR log with storage_checkpoint_recovery_refused_wal_present must be emitted.
+    error_events = [c.args[0] for c in logger.error.call_args_list]
+    assert "storage_checkpoint_recovery_refused_wal_present" in error_events, (
+        f"storage_checkpoint_recovery_refused_wal_present ERROR log not found in: {error_events}"
+    )
+
+
+async def test_recovery_fresh_fallback_when_salvage_fails(tmp_path):
+    """FR-043: corrupt DB, VACUUM INTO raises (salvage failure) → FRESH_FALLBACK.
+
+    The FRESH_FALLBACK path is triggered when VACUUM INTO itself fails (disk full,
+    permission denied, etc.) or when the salvage file also fails integrity_check.
+
+    We test the VACUUM-INTO-raises variant using a mock at the aiosqlite.connect
+    boundary. The mock is scoped to this test only and documented in the task
+    (ADR-29-6 / design §7 FRESH_FALLBACK boundary decision): authentic
+    double-corruption (corrupt the already-corrupt salvage) is brittle and
+    version-sensitive; mocking VACUUM INTO raises is faster and more deterministic.
+    """
+    logger = MagicMock()
+    corrupt_path = make_corrupt_sqlite_file(tmp_path)
+    original_path_str = str(corrupt_path)
+
+    # Patch aiosqlite.connect so that when it is called with the salvage path,
+    # the context manager raises sqlite3.OperationalError on VACUUM INTO.
+    import sqlite3 as _sqlite3
+
+    _real_connect = aiosqlite.connect
+
+    class _FakeSalvageConn:
+        """Fake connection that raises on any execute call (simulates VACUUM INTO failure)."""
+
+        async def execute(self, sql, *args, **kwargs):
+            raise _sqlite3.OperationalError("disk I/O error: simulated VACUUM INTO failure")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    def _mock_connect(path, **kwargs):
+        """Return real connection for the original corrupt path; fake for the salvage path."""
+        if path.endswith(".salvage"):
+            return _FakeSalvageConn()
+        return _real_connect(path, **kwargs)
+
+    with patch("aiosqlite.connect", side_effect=_mock_connect):
+        result = await _recover_checkpoint_db(original_path_str, logger)
+
+    assert result == RecoveryResult.FRESH_FALLBACK, f"Expected FRESH_FALLBACK, got {result!r}"
+
+    # Original must be archived (archive-first guarantee, NFR-002).
+    archive_files = list(tmp_path.glob("checkpoints.db.corrupt-*"))
+    assert len(archive_files) == 1, f"Expected exactly 1 archive file, got: {archive_files}"
+
+    # The original path must no longer exist (fresh empty DB will be created by R1 + setup()).
+    assert not corrupt_path.exists(), "Original path must be absent after FRESH_FALLBACK so R1 can create a fresh DB"
+
+    # ERROR log with storage_checkpoint_fresh_db_fallback must be emitted.
+    error_events = [c.args[0] for c in logger.error.call_args_list]
+    assert "storage_checkpoint_fresh_db_fallback" in error_events, (
+        f"storage_checkpoint_fresh_db_fallback ERROR log not found in: {error_events}"
+    )

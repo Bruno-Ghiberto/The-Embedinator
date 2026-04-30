@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     checkpoint_max_threads: int = (
         100  # spec-26 DISK-001: cap LangGraph checkpoints.db growth; prune oldest threads on startup. Set 0 to disable.
     )
+    checkpoint_auto_recover: bool = Field(
+        default=False,
+        alias="CHECKPOINT_AUTO_RECOVER",
+    )  # spec-029 R2: opt-in startup auto-recovery for corrupt checkpoints.db. Enabled in dev via docker-compose.dev.yml.
 
     # Ingestion
     upload_dir: str = "data/uploads"
