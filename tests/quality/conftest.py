@@ -14,11 +14,10 @@ from __future__ import annotations
 import os
 from collections import Counter
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Iterator
 
 import httpx
 import pytest
-import pytest_asyncio
 import yaml
 
 # ---------------------------------------------------------------------------
@@ -123,14 +122,18 @@ def golden_dataset() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-@pytest_asyncio.fixture
-async def backend_client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    """AsyncClient pointing at http://localhost:8000 with 60 s timeout.
+@pytest.fixture
+def backend_client() -> Iterator[httpx.Client]:
+    """Sync httpx Client pointing at http://localhost:8000 with 60 s timeout.
 
     Analytical questions can take 30 s+ end-to-end on the local GPU stack.
-    Must be used as an async context manager (pytest-asyncio manages lifecycle).
+
+    NOTE: sync (not AsyncClient) deliberately. ragas auto-applies nest_asyncio,
+    which patches the asyncio event-loop policy and breaks sniffio's async-library
+    detection inside httpx.AsyncClient. Since this test runs queries sequentially
+    (no parallelism benefit), sync is the correct choice.
     """
-    async with httpx.AsyncClient(
+    with httpx.Client(
         base_url=_BACKEND_BASE_URL,
         timeout=_REQUEST_TIMEOUT,
     ) as client:
@@ -152,19 +155,20 @@ def ragas_metrics() -> list:
     Judge LLM configuration (RAGAS_JUDGE env var):
         "local" (default) → Ollama at http://localhost:11434, model from
                              EMBEDINATOR_DEFAULT_LLM_MODEL (default: qwen2.5:7b).
-        Any other value   → TODO (A6 Wave 3): implement provider-specific wiring.
+        Any other value   → TODO: implement provider-specific wiring.
                              Falls back to local Ollama with a warning.
 
     Note: self-bias risk — using the same local model as the backend judge means
     the model evaluates its own answers. Document this risk in quality-metrics.md
-    Reproduction section (see data-model.md §4). Use RAGAS_JUDGE=openrouter:<model>
-    for a neutral cloud judge in follow-up runs.
+    Reproduction section. Use RAGAS_JUDGE=openrouter:<model> for a neutral cloud
+    judge in follow-up runs.
 
-    ragas, openai imports are lazy so this module can be imported without [quality]
-    extras installed. They will be resolved at fixture call time (Wave 3).
+    All ragas / langchain imports are lazy so this module can be imported without
+    [quality] extras installed (import smoke check must pass).
     """
-    # Lazy imports — not available in default install; installed via pip install -e ".[quality]"
-    from openai import OpenAI  # type: ignore[import]
+    # Lazy imports — not available in default install; installed via pip install ragas etc.
+    from langchain_ollama import OllamaEmbeddings  # type: ignore[import]
+    from ragas.embeddings import LangchainEmbeddingsWrapper  # type: ignore[import]
     from ragas.llms import llm_factory  # type: ignore[import]
     from ragas.metrics import (  # type: ignore[import]
         AnswerRelevancy,
@@ -176,31 +180,38 @@ def ragas_metrics() -> list:
     judge_spec = os.environ.get("RAGAS_JUDGE", "local")
     ollama_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
     default_model = os.environ.get("EMBEDINATOR_DEFAULT_LLM_MODEL", "qwen2.5:7b")
+    embed_model = os.environ.get(
+        "EMBEDINATOR_DEFAULT_EMBEDDING_MODEL", "nomic-embed-text"
+    )
 
-    if judge_spec == "local":
-        client = OpenAI(
-            api_key="ollama",  # Ollama does not require a real key
-            base_url=f"{ollama_base}/v1",
-        )
-        evaluator_llm = llm_factory(default_model, provider="openai", client=client)
-    else:
-        # Non-local judge spec (e.g. "openrouter:anthropic/claude-sonnet-4-6").
-        # TODO (A6 Wave 3): parse judge_spec, resolve API key from env, wire provider.
+    if judge_spec != "local":
         import warnings
 
         warnings.warn(
-            f"RAGAS_JUDGE={judge_spec!r} is set but provider-specific wiring is not yet "
-            f"implemented. Falling back to local Ollama ({default_model}). "
-            f"Implement provider wiring in Wave 3 (A6) for a neutral cloud judge.",
+            f"RAGAS_JUDGE={judge_spec!r} is set but provider-specific wiring is not "
+            f"yet implemented. Falling back to local Ollama ({default_model}). "
+            f"Implement provider wiring in a follow-up run for a neutral cloud judge.",
             stacklevel=2,
         )
-        client = OpenAI(api_key="ollama", base_url=f"{ollama_base}/v1")
-        evaluator_llm = llm_factory(default_model, provider="openai", client=client)
+
+    # llm_factory builds a langchain_openai.ChatOpenAI internally; OPENAI_API_KEY
+    # must be set (Ollama ignores the value but the OpenAI SDK requires SOMETHING).
+    os.environ.setdefault("OPENAI_API_KEY", "ollama")
+    evaluator_llm = llm_factory(
+        model=default_model,
+        base_url=f"{ollama_base}/v1",
+    )
+
+    # AnswerRelevancy needs an embedder; ragas's embedding_factory only supports
+    # OpenAI proper, so wire OllamaEmbeddings through LangchainEmbeddingsWrapper.
+    evaluator_embeddings = LangchainEmbeddingsWrapper(
+        OllamaEmbeddings(base_url=ollama_base, model=embed_model)
+    )
 
     return [
         ContextPrecision(llm=evaluator_llm),
         ContextRecall(llm=evaluator_llm),
-        AnswerRelevancy(llm=evaluator_llm),
+        AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings),
         Faithfulness(llm=evaluator_llm),
     ]
 
