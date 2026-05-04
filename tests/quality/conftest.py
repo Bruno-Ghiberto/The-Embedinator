@@ -180,9 +180,7 @@ def ragas_metrics() -> list:
     judge_spec = os.environ.get("RAGAS_JUDGE", "local")
     ollama_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
     default_model = os.environ.get("EMBEDINATOR_DEFAULT_LLM_MODEL", "qwen2.5:7b")
-    embed_model = os.environ.get(
-        "EMBEDINATOR_DEFAULT_EMBEDDING_MODEL", "nomic-embed-text"
-    )
+    embed_model = os.environ.get("EMBEDINATOR_DEFAULT_EMBEDDING_MODEL", "nomic-embed-text")
 
     if judge_spec != "local":
         import warnings
@@ -204,9 +202,7 @@ def ragas_metrics() -> list:
 
     # AnswerRelevancy needs an embedder; ragas's embedding_factory only supports
     # OpenAI proper, so wire OllamaEmbeddings through LangchainEmbeddingsWrapper.
-    evaluator_embeddings = LangchainEmbeddingsWrapper(
-        OllamaEmbeddings(base_url=ollama_base, model=embed_model)
-    )
+    evaluator_embeddings = LangchainEmbeddingsWrapper(OllamaEmbeddings(base_url=ollama_base, model=embed_model))
 
     return [
         ContextPrecision(llm=evaluator_llm),
