@@ -63,6 +63,12 @@ _DECLINE_PHRASES = [
     "no está disponible",
 ]
 
+# Spec-28 NAG (Argentine gas regulatory) corpus collection. Multi-collection
+# pollution would make RAGAS retrieve unrelated documents (e.g. ARCA tax PDFs)
+# and tank Faithfulness/Precision for reasons unrelated to the system.
+# Override via RAGAS_COLLECTION_ID env var.
+_DEFAULT_NAG_COLLECTION_ID = "22923ab5-ea0d-4bea-8ef2-15bf0262674f"
+
 
 # ---------------------------------------------------------------------------
 # NDJSON stream parsing
@@ -82,10 +88,11 @@ async def _stream_chat(
 
     On error event, raises RuntimeError with the error payload.
     """
+    collection_id = os.environ.get("RAGAS_COLLECTION_ID", _DEFAULT_NAG_COLLECTION_ID)
     request_body = {
         "message": question,
         "session_id": session_id,
-        "collection_ids": [],  # use all available collections
+        "collection_ids": [collection_id],
     }
 
     answer_parts: list[str] = []
