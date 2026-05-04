@@ -353,3 +353,95 @@
   authored_by: "scaffold-reviewed"
   follow_up_of: "Q-006"
   expected_behavior: "answer"
+
+# ---------------------------------------------------------------------------
+# OUT-OF-SCOPE — 2 pairs (Q-018, Q-019)
+# Should elicit graceful decline, not hallucination. User-authored per FR-019.
+# ---------------------------------------------------------------------------
+
+- id: Q-018
+  category: out-of-scope
+  question_es: "¿Cuál es la sección mínima del cable de cobre para el circuito eléctrico que alimenta el termotanque domiciliario?"
+  reference_answer_es: >
+    Esta información no se encuentra en los documentos del corpus. Las normas
+    NAG-200 a NAG-254 regulan exclusivamente el diseño, construcción, pruebas
+    y habilitación de instalaciones internas domiciliarias de gas natural y
+    GLP, incluyendo las distancias mínimas entre cañerías de gas y otros
+    elementos del edificio. La especificación de secciones de conductores
+    eléctricos para circuitos domiciliarios corresponde a la reglamentación
+    de la Asociación Electrotécnica Argentina (AEA 90364), que está fuera
+    del alcance de la normativa NAG.
+  source_doc: null
+  source_section: null
+  notes: >
+    Pregunta de adyacencia técnica: el termotanque ES un artefacto cubierto
+    por NAG-200, pero su circuito eléctrico de alimentación está regulado
+    por AEA 90364, no por NAG. El sistema debe declinar sin alucinar una
+    sección de cable basada en NAG. Trampa típica: el modelo puede mezclar
+    la cláusula de "distancias mínimas a circuitos eléctricos" de NAG-200
+    con la especificación de sección, que es de competencia exclusiva de AEA.
+  authored_by: "user"
+  follow_up_of: null
+  expected_behavior: "decline"
+
+- id: Q-019
+  category: out-of-scope
+  question_es: "¿Cuáles son las modificaciones introducidas por ENARGAS durante 2024 al texto de la NAG-200?"
+  reference_answer_es: >
+    No tengo información sobre modificaciones posteriores a la versión de la
+    NAG-200 incluida en este corpus. El sistema solo tiene acceso al texto
+    vigente de las normas NAG-200, NAG-203, NAG-204, NAG-205, NAG-213,
+    NAG-214, NAG-215, NAG-222, NAG-226, NAG-235, NAG-240, NAG-250, NAG-251,
+    NAG-254, NAG-E207, NAG-E208, NAG-E209 y NAG-E210 cargadas en la
+    colección. Cualquier resolución, disposición o circular emitida por
+    ENARGAS con posterioridad a la fecha de carga del corpus está fuera del
+    alcance de los documentos disponibles.
+  source_doc: null
+  source_section: null
+  notes: >
+    Pregunta de cierre temporal: el corpus es estático y no contiene
+    resoluciones ni circulares emitidas con posterioridad a su fecha de carga.
+    El modelo puede haber visto en su entrenamiento alguna actualización
+    regulatoria pero NO debe responder usándola: la única verdad operativa es
+    lo que está indexado en la colección. Distinto ángulo de falla a Q-018:
+    aquí la trampa es la desactualización temporal, no la adyacencia regulatoria.
+  authored_by: "user"
+  follow_up_of: null
+  expected_behavior: "decline"
+
+# ---------------------------------------------------------------------------
+# AMBIGUOUS — 1 pair (Q-020)
+# Genuine interpretation options; tests uncertainty handling. User-authored per FR-019.
+# ---------------------------------------------------------------------------
+
+- id: Q-020
+  category: ambiguous
+  question_es: "¿Cuál es el diámetro mínimo permitido según la NAG-200?"
+  reference_answer_es: >
+    La pregunta admite múltiples interpretaciones legítimas dentro del alcance
+    de la NAG-200; el sistema debe pedir clarificación antes de responder. Las
+    interpretaciones posibles incluyen al menos: (a) Diámetro de la cañería
+    de la instalación interna (NAG-200 §4.6 — Dimensionamiento de la cañería
+    interna), que depende del tipo de gas, régimen de presión, longitud
+    equivalente y demanda total simultánea; (b) Diámetro de la cañería de
+    prolongación (NAG-200 §2.5 — Dimensionamiento de la prolongación), que
+    conecta el sistema de regulación con la cañería interna y se calcula con
+    sus propios criterios; (c) Diámetro del conducto de evacuación de los
+    productos de la combustión (NAG-200 §6 — Capítulo 6, conducto individual
+    o colectivo según tipo de artefacto y sistema de tiraje). Una respuesta
+    directa sin desambiguación corre el riesgo de aplicar la tabla incorrecta
+    al caso real del usuario.
+  source_doc: "NAG-200.pdf"
+  source_section: "§2.5, §4.6, §6"
+  notes: >
+    Pregunta auténticamente ambigua: la frase "diámetro mínimo" se refiere a
+    al menos tres dimensiones distintas reglamentadas por NAG-200, cada una
+    con criterios de cálculo diferentes (cañería interna, cañería de
+    prolongación, conducto de evacuación). El sistema debe reconocer la
+    polisemia y solicitar al usuario que precise. Una respuesta unívoca
+    aplicada al caso equivocado puede inducir un error de seguridad real
+    (por ejemplo, dimensionar el conducto de evacuación con la tabla de la
+    cañería interna).
+  authored_by: "user"
+  follow_up_of: null
+  expected_behavior: "disambiguate"
