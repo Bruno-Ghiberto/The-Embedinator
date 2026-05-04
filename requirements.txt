@@ -59,4 +59,4 @@ ruff>=0.15.12
 # when pydantic is installed (see line above). No separate `pydantic[mypy]` extra needed
 # (deprecated in pydantic 2.x).
 mypy>=1.11
-pip-audit>=2.9
+pip-audit>=2.10.0
