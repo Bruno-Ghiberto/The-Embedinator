@@ -1,6 +1,6 @@
 """RAGAS quality baseline evaluation — spec-28 US4.
 
-Single async test that:
+One async test that:
   1. Iterates over the golden Q&A dataset.
   2. Issues each answerable question to the live backend chat endpoint (NDJSON stream).
   3. Collects answer text, retrieved contexts (from citation events), and reference answers.
@@ -19,7 +19,6 @@ Design constraints:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import uuid
@@ -30,7 +29,7 @@ from typing import Any
 
 import httpx
 import pytest
-import pytest_asyncio
+import pytest_asyncio  # noqa: F401  — registers @pytest.mark.asyncio
 
 # SESSION_DIR is imported from conftest via fixtures, but we need it here for the
 # output path. Re-derive it using the same hard-coded constant.
@@ -63,14 +62,20 @@ _DECLINE_PHRASES = [
     "no está disponible",
 ]
 
+# Spec-28 NAG (Argentine gas regulatory) corpus collection. Multi-collection
+# pollution would make RAGAS retrieve unrelated documents (e.g. ARCA tax PDFs)
+# and tank Faithfulness/Precision for reasons unrelated to the system.
+# Override via RAGAS_COLLECTION_ID env var.
+_DEFAULT_NAG_COLLECTION_ID = "22923ab5-ea0d-4bea-8ef2-15bf0262674f"
+
 
 # ---------------------------------------------------------------------------
 # NDJSON stream parsing
 # ---------------------------------------------------------------------------
 
 
-async def _stream_chat(
-    client: httpx.AsyncClient,
+def _stream_chat(
+    client: httpx.Client,
     question: str,
     session_id: str,
 ) -> tuple[str, list[str]]:
@@ -82,22 +87,23 @@ async def _stream_chat(
 
     On error event, raises RuntimeError with the error payload.
     """
+    collection_id = os.environ.get("RAGAS_COLLECTION_ID", _DEFAULT_NAG_COLLECTION_ID)
     request_body = {
         "message": question,
         "session_id": session_id,
-        "collection_ids": [],  # use all available collections
+        "collection_ids": [collection_id],
     }
 
     answer_parts: list[str] = []
     contexts: list[str] = []
 
-    async with client.stream(
+    with client.stream(
         "POST",
         "/api/chat",
         json=request_body,
     ) as response:
         response.raise_for_status()
-        async for raw_line in response.aiter_lines():
+        for raw_line in response.iter_lines():
             line = raw_line.strip()
             if not line:
                 continue
@@ -283,7 +289,7 @@ for review.
 @pytest.mark.asyncio
 async def test_ragas_baseline(
     golden_dataset: list[dict],
-    backend_client: httpx.AsyncClient,
+    backend_client: httpx.Client,
     ragas_metrics: list,
     session_id: str,
 ) -> None:
@@ -299,9 +305,21 @@ async def test_ragas_baseline(
     NOTE: This test requires the backend stack to be running (docker compose up).
     Run only via: zsh scripts/run-tests-external.sh -n spec28-ragas tests/quality/...
     """
+    # SKIP gate — RAGAS 0.2.15 is incompatible with Python 3.14 (asyncio.wait_for
+    # raises "Timeout should be used inside a task" via nest_asyncio's run_until_complete).
+    # See docs/E2E/2026-04-24-bug-hunt/quality-metrics.md §Known limitations §1.
+    # Override with RUN_RAGAS_FORCE=1 once the upstream fix or version bump lands.
+    if not os.environ.get("RUN_RAGAS_FORCE"):
+        pytest.skip(
+            "RAGAS 0.2.15 + Python 3.14 incompatibility — coroutines never awaited "
+            "(asyncio.timeout requires a running task). See quality-metrics.md "
+            "§Known limitations §1. Set RUN_RAGAS_FORCE=1 to attempt anyway."
+        )
+
     # Lazy imports — require pip install -e ".[quality]"
     from datasets import Dataset  # type: ignore[import]
     from ragas import evaluate as ragas_evaluate  # type: ignore[import]
+    from ragas.run_config import RunConfig  # type: ignore[import]
 
     import subprocess
     import time
@@ -362,7 +380,7 @@ async def test_ragas_baseline(
             pair_session_id = f"ragas-{session_id}-{follow_up_of}"
 
         try:
-            answer, contexts = await _stream_chat(
+            answer, contexts = _stream_chat(
                 client=backend_client,
                 question=question,
                 session_id=pair_session_id,
@@ -411,7 +429,16 @@ async def test_ragas_baseline(
         )
 
         try:
-            result = ragas_evaluate(dataset=dataset, metrics=ragas_metrics)
+            # max_workers=1 + raise_exceptions=True surfaces job-level errors instead of
+            # silently returning NaN. Long timeout because qwen2.5:7b on local Ollama is slow
+            # at structured-output prompts (8-15 s per metric per question).
+            run_config = RunConfig(max_workers=1, timeout=180)
+            result = ragas_evaluate(
+                dataset=dataset,
+                metrics=ragas_metrics,
+                run_config=run_config,
+                raise_exceptions=True,
+            )
         except Exception as exc:
             known_limitations.append(f"RAGAS evaluate() failed: {exc}. Scores not available.")
             result = None
