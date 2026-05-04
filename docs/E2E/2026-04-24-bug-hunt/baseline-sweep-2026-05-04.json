@@ -1,0 +1,258 @@
+{
+  "ts": "2026-05-04T12:38:35-0300",
+  "collection_id": "22923ab5-ea0d-4bea-8ef2-15bf0262674f",
+  "summary_by_category": {
+    "factoid": {
+      "total": 10,
+      "answered": 2,
+      "declined": 8,
+      "errored": 0
+    },
+    "analytical": {
+      "total": 4,
+      "answered": 1,
+      "declined": 3,
+      "errored": 0
+    },
+    "follow-up": {
+      "total": 3,
+      "answered": 0,
+      "declined": 3,
+      "errored": 0
+    },
+    "out-of-scope": {
+      "total": 2,
+      "answered": 0,
+      "declined": 2,
+      "errored": 0
+    },
+    "ambiguous": {
+      "total": 1,
+      "answered": 1,
+      "declined": 0,
+      "errored": 0
+    }
+  },
+  "results": [
+    {
+      "q_id": "Q-001",
+      "answer_chars": 234,
+      "answer_first_200": "The passages provided do not explicitly state the object or purpose of the NAG-200 regulation. Therefore, based on the given information, it is not possible to determine what the Reglamento Técnico NA",
+      "citation_count": 5,
+      "declined": false,
+      "elapsed_s": 28.4,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-002",
+      "answer_chars": 379,
+      "answer_first_200": "I searched 1 collection(s) and found 20 passage(s), but none were sufficiently relevant to answer: \"¿A qué instalaciones se aplica obligatoriamente la norma NAG-200 en la República Argentina?\". The do",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 11.3,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-003",
+      "answer_chars": 401,
+      "answer_first_200": "I searched 1 collection(s) and found 5 passage(s), but none were sufficiently relevant to answer: \"¿Quién está habilitado para ejecutar, ampliar o reparar una instalación interna de gas domiciliaria s",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 23.3,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-004",
+      "answer_chars": 387,
+      "answer_first_200": "I searched 1 collection(s) and found 4 passage(s), but none were sufficiently relevant to answer: \"¿Cuál es el rango de presión de entrada para los reguladores de presión domiciliarios según NAG-235?\"",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 27.8,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-005",
+      "answer_chars": 411,
+      "answer_first_200": "I searched 1 collection(s) and found 8 passage(s), but none were sufficiently relevant to answer: \"¿Cuál es la presión nominal de salida que deben alcanzar los reguladores domiciliarios para gas natur",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 22.0,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-006",
+      "answer_chars": 384,
+      "answer_first_200": "I searched 1 collection(s) and found 13 passage(s), but none were sufficiently relevant to answer: \"¿En qué consiste la prueba de hermeticidad de una instalación domiciliaria de gas según NAG-226?\". T",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 29.8,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-007",
+      "answer_chars": 363,
+      "answer_first_200": "I searched 1 collection(s) and found 10 passage(s), but none were sufficiently relevant to answer: \"¿A qué tipo de dispositivos se aplica la norma NAG-204 y cuál es su objeto?\". The documents may not ",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 12.3,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-008",
+      "answer_chars": 371,
+      "answer_first_200": "I searched 1 collection(s) and found 4 passage(s), but none were sufficiently relevant to answer: \"¿Cuál es el objeto de la norma NAG-215 sobre las rejillas de ventilación permanente?\". The documents ",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 34.1,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-009",
+      "answer_chars": 346,
+      "answer_first_200": "Los pasajes proporcionados no contienen información específica sobre el objeto de la norma NAG-214 respecto a los elementos sellantes de roscas para cañerías domiciliarias. El documento [NAG-214] no e",
+      "citation_count": 5,
+      "declined": false,
+      "elapsed_s": 33.6,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-010",
+      "answer_chars": 372,
+      "answer_first_200": "I searched 1 collection(s) and found 5 passage(s), but none were sufficiently relevant to answer: \"¿A qué tipo de reparaciones se aplica la norma NAG-203 y en qué régimen fue aprobada?\". The documents",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 29.9,
+      "error": null,
+      "category": "factoid",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-011",
+      "answer_chars": 399,
+      "answer_first_200": "I searched 1 collection(s) and found 5 passage(s), but none were sufficiently relevant to answer: \"¿Cómo se articulan los requisitos de presión de NAG-235 con el diseño de la cañería interna definido ",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 12.8,
+      "error": null,
+      "category": "analytical",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-012",
+      "answer_chars": 406,
+      "answer_first_200": "I searched 1 collection(s) and found 5 passage(s), but none were sufficiently relevant to answer: \"¿Cómo complementa el procedimiento de revisión técnica de NAG-226 a los requisitos de instalación def",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 32.6,
+      "error": null,
+      "category": "analytical",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-013",
+      "answer_chars": 490,
+      "answer_first_200": "NAG-200 integra los requisitos de los elementos sellantes de roscas definidos en NAG-214 al requerir que estos elementos sellantes deben estar debidamente aprobados según la NAG-214. Específicamente, ",
+      "citation_count": 5,
+      "declined": false,
+      "elapsed_s": 33.3,
+      "error": null,
+      "category": "analytical",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-014",
+      "answer_chars": 427,
+      "answer_first_200": "I searched 1 collection(s) and found 11 passage(s), but none were sufficiently relevant to answer: \"¿Cómo se relacionan los requisitos de los detectores de monóxido de carbono de NAG-204 con el proced",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 53.2,
+      "error": null,
+      "category": "analytical",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-015",
+      "answer_chars": 371,
+      "answer_first_200": "I searched 1 collection(s) and found 4 passage(s), but none were sufficiently relevant to answer: \"¿Comprende también las reparaciones y modificaciones de instalaciones ya existentes?\". The documents ",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 28.7,
+      "error": null,
+      "category": "follow-up",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-016",
+      "answer_chars": 365,
+      "answer_first_200": "I searched 1 collection(s) and found 4 passage(s), but none were sufficiently relevant to answer: \"¿Y cuál es la presión nominal de salida que deben garantizar esos reguladores?\". The documents may no",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 30.4,
+      "error": null,
+      "category": "follow-up",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-017",
+      "answer_chars": 361,
+      "answer_first_200": "I searched 1 collection(s) and found 5 passage(s), but none were sufficiently relevant to answer: \"¿Y qué acción debe tomarse si durante esa prueba se detecta pasaje de gas?\". The documents may not co",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 28.9,
+      "error": null,
+      "category": "follow-up",
+      "expected_behavior": "answer"
+    },
+    {
+      "q_id": "Q-018",
+      "answer_chars": 401,
+      "answer_first_200": "I searched 1 collection(s) and found 4 passage(s), but none were sufficiently relevant to answer: \"¿Cuál es la sección mínima del cable de cobre para el circuito eléctrico que alimenta el termotanque ",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 32.0,
+      "error": null,
+      "category": "out-of-scope",
+      "expected_behavior": "decline"
+    },
+    {
+      "q_id": "Q-019",
+      "answer_chars": 380,
+      "answer_first_200": "I searched 1 collection(s) and found 10 passage(s), but none were sufficiently relevant to answer: \"¿Cuáles son las modificaciones introducidas por ENARGAS durante 2024 al texto de la NAG-200?\". The d",
+      "citation_count": 0,
+      "declined": true,
+      "elapsed_s": 10.9,
+      "error": null,
+      "category": "out-of-scope",
+      "expected_behavior": "decline"
+    },
+    {
+      "q_id": "Q-020",
+      "answer_chars": 728,
+      "answer_first_200": "Los cálculos realizados siguiendo las fórmulas proporcionadas en el pasaje [1] determinan un diámetro nominal de 51 mm (2’'), adoptado para el tramo A-B. Sin embargo, este no es directamente indicado ",
+      "citation_count": 5,
+      "declined": false,
+      "elapsed_s": 34.7,
+      "error": null,
+      "category": "ambiguous",
+      "expected_behavior": "disambiguate"
+    }
+  ]
+}
