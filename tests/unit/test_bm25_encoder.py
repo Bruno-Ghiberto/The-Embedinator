@@ -81,9 +81,7 @@ def test_encode_is_deterministic_across_calls() -> None:
 
 def test_encode_indices_are_unique() -> None:
     """No duplicate indices in output (collisions merged with TF summed)."""
-    sv = encode(
-        "objeto reglamento tecnico nag alcance instalacion domiciliaria gas natural"
-    )
+    sv = encode("objeto reglamento tecnico nag alcance instalacion domiciliaria gas natural")
     assert len(sv.indices) == len(set(sv.indices))
 
 
