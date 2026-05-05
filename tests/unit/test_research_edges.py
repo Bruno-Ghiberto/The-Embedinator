@@ -58,6 +58,54 @@ class TestShouldContinueLoop:
         state = _make_state(confidence_score=0.3, _no_new_tools=True)
         assert should_continue_loop(state) == "exhausted"
 
+    def test_sufficient_when_iterations_exhausted_with_chunks(self):
+        """When budget exhausts but chunks were retrieved, route to collect_answer
+        so the LLM can synthesize a grounded response from what's available
+        rather than emitting a mechanical decline."""
+        from backend.agent.schemas import RetrievedChunk
+
+        chunk = RetrievedChunk(
+            chunk_id="c1",
+            text="some content",
+            source_file="doc.pdf",
+            page=1,
+            breadcrumb="",
+            parent_id="p1",
+            collection="col1",
+            dense_score=0.5,
+            sparse_score=0.0,
+            rerank_score=None,
+        )
+        state = _make_state(
+            confidence_score=0.3,
+            iteration_count=10,
+            retrieved_chunks=[chunk],
+        )
+        assert should_continue_loop(state) == "sufficient"
+
+    def test_sufficient_when_tool_calls_exhausted_with_chunks(self):
+        """Same as above for tool_call_count budget exhaustion."""
+        from backend.agent.schemas import RetrievedChunk
+
+        chunk = RetrievedChunk(
+            chunk_id="c1",
+            text="content",
+            source_file="doc.pdf",
+            page=1,
+            breadcrumb="",
+            parent_id="p1",
+            collection="col1",
+            dense_score=0.5,
+            sparse_score=0.0,
+            rerank_score=None,
+        )
+        state = _make_state(
+            confidence_score=0.3,
+            tool_call_count=8,
+            retrieved_chunks=[chunk],
+        )
+        assert should_continue_loop(state) == "sufficient"
+
     def test_confidence_checked_first_then_budget(self):
         """F1: Even if budget is exhausted, confidence >= threshold -> sufficient"""
         state = _make_state(

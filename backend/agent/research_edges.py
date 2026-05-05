@@ -59,7 +59,27 @@ def should_continue_loop(state: ResearchState) -> str:
             return "exhausted"
 
     # 3. Budget exhaustion
+    # When iterations or tool-call budgets are exhausted, prefer to let the LLM
+    # synthesize an answer from whatever chunks were retrieved rather than emit
+    # a mechanical decline. The previous behavior routed straight to
+    # `fallback_response`, which generated "found N passages but none were
+    # sufficiently relevant" without ever showing the LLM the chunks. That
+    # blocked answers for queries where retrieval surfaced the canonical
+    # passage but its rerank score (e.g. ms-marco scoring Spanish content) kept
+    # confidence below the threshold throughout the loop. Only fall back when
+    # nothing was retrieved at all.
     if state["iteration_count"] >= settings.max_iterations or state["tool_call_count"] >= settings.max_tool_calls:
+        if state.get("retrieved_chunks"):
+            logger.info(
+                "agent_loop_exit_exhausted_with_chunks",
+                iteration_count=state["iteration_count"],
+                tool_call_count=state["tool_call_count"],
+                confidence=confidence,
+                chunk_count=len(state["retrieved_chunks"]),
+                routing="sufficient",
+                session_id=state["session_id"],
+            )
+            return "sufficient"
         logger.info(
             "agent_loop_exit_exhausted",
             iteration_count=state["iteration_count"],
