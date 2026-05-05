@@ -15,6 +15,7 @@ from backend.errors import CircuitOpenError
 from backend.ingestion.chunker import ChunkSplitter
 from backend.ingestion.embedder import BatchEmbedder
 from backend.ingestion.incremental import IncrementalChecker
+from backend.retrieval.bm25_encoder import encode as encode_bm25
 from backend.storage.qdrant_client import QdrantClientWrapper
 from backend.storage.sqlite_db import SQLiteDB
 
@@ -212,10 +213,22 @@ class IngestionPipeline:
                         continue
 
                     parent = child_info["parent"]
+                    # Encode raw_text (no breadcrumb prefix) for BM25 sparse — must
+                    # use the same surface form the user query is encoded against.
+                    sparse = encode_bm25(child_info["raw_text"])
+                    vector: dict = {"dense": embedding}
+                    if sparse.indices:
+                        from qdrant_client.models import SparseVector as QdrantSparseVector
+
+                        vector["sparse"] = QdrantSparseVector(
+                            indices=sparse.indices,
+                            values=sparse.values,
+                        )
+
                     points.append(
                         {
                             "id": child_info["point_id"],
-                            "vector": {"dense": embedding},
+                            "vector": vector,
                             "payload": {
                                 "parent_id": parent.chunk_id,
                                 "source_file": parent.source_file,
