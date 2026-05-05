@@ -14,12 +14,17 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     FieldCondition,
     Filter,
+    Fusion,
+    FusionQuery,
     MatchValue,
+    Prefetch,
+    SparseVector as QdrantSparseVector,
 )
 
 from backend.agent.schemas import RetrievedChunk
 from backend.config import Settings
 from backend.errors import QdrantConnectionError
+from backend.retrieval.bm25_encoder import encode as encode_bm25
 
 logger = structlog.get_logger().bind(component=__name__)
 
@@ -139,16 +144,51 @@ class HybridSearcher:
             # Build optional filter
             query_filter = self._build_filter(filters)
 
-            # Dense-only search — sparse prefetch requires pre-encoded sparse vectors
-            # which are not available at query time (BM25 encoding not implemented).
-            results = await self.client.query_points(
-                collection_name=collection,
-                query=dense_vector,
-                using="dense",
-                limit=top_k,
-                with_payload=True,
-                query_filter=query_filter,
-            )
+            # Encode query for BM25 sparse retrieval (server applies IDF).
+            # Empty sparse (no surviving tokens after Spanish-aware filter) falls
+            # back to dense-only — Qdrant rejects empty sparse query vectors.
+            sparse = encode_bm25(query)
+
+            if sparse.indices:
+                # Hybrid: dense + BM25 prefetch + RRF fusion.
+                # Each prefetch returns top (2 * top_k) candidates so RRF has
+                # enough overlap to fuse meaningfully without doubling cost.
+                prefetch_limit = max(top_k * 2, 20)
+                results = await self.client.query_points(
+                    collection_name=collection,
+                    prefetch=[
+                        Prefetch(
+                            query=dense_vector,
+                            using="dense",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                        Prefetch(
+                            query=QdrantSparseVector(
+                                indices=sparse.indices,
+                                values=sparse.values,
+                            ),
+                            using="sparse",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                    ],
+                    query=FusionQuery(fusion=Fusion.RRF),
+                    limit=top_k,
+                    with_payload=True,
+                )
+                fusion_mode = "hybrid_rrf"
+            else:
+                # Fallback: dense-only when query has no BM25-eligible tokens.
+                results = await self.client.query_points(
+                    collection_name=collection,
+                    query=dense_vector,
+                    using="dense",
+                    limit=top_k,
+                    with_payload=True,
+                    query_filter=query_filter,
+                )
+                fusion_mode = "dense_only"
 
             # Extract points from QueryResponse
             points = results.points if hasattr(results, "points") else results
@@ -161,6 +201,8 @@ class HybridSearcher:
                 collection=collection,
                 query_length=len(query),
                 results=len(chunks),
+                fusion_mode=fusion_mode,
+                sparse_terms=len(sparse.indices),
             )
             return chunks
 
