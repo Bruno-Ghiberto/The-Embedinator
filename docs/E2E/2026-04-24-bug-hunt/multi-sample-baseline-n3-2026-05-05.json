@@ -1,0 +1,811 @@
+{
+  "ts": "2026-05-05T17:41:13.146883+00:00",
+  "collection_id": "61b0dd9f-05b9-4bed-a502-fae360bc65ed",
+  "n_runs": 3,
+  "results_per_question": [
+    {
+      "q_id": "Q-001",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 16.8,
+          "error": null,
+          "answer_first_200": "El objeto del Reglamento Técnico NAG-200 es establecer los requisitos mínimos para el diseño, construcción, pruebas y habilitación de las instalaciones internas domiciliarias de gas natural (GN) o gas"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 39.2,
+          "error": null,
+          "answer_first_200": "El objeto del Reglamento Técnico NAG-200 es establecer los requisitos mínimos para el diseño, construcción, pruebas y habilitación de las instalaciones internas domiciliarias de gas natural (GN) o gas"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 32.5,
+          "error": null,
+          "answer_first_200": "El objeto del Reglamento Técnico NAG-200 es establecer los requisitos mínimos para el diseño, construcción, pruebas y habilitación de las instalaciones internas domiciliarias de gas natural (GN) o gas"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 29.5,
+      "stddev_elapsed_s": 11.4974
+    },
+    {
+      "q_id": "Q-002",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 14.1,
+          "error": null,
+          "answer_first_200": "La norma NAG-200 se aplica de manera obligatoria a todas las instalaciones internas domiciliarias en el ámbito de la República Argentina, que operen a una presión que no supere los 28 mbar y se abaste"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 35.4,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], la norma NAG-200 se aplica obligatoriamente a \"todas las instalaciones internas domiciliarias, que operen a una presión que no supere los 28 mbar, y que se abastezcan desde redes "
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 13.9,
+          "error": null,
+          "answer_first_200": "Según la información proporcionada en el pasaje [1], la norma NAG-200 se aplica obligatoriamente a \"todas las instalaciones internas domiciliarias, que operen a una presión que no supere los 28 mbar, "
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 21.1,
+      "stddev_elapsed_s": 12.3557
+    },
+    {
+      "q_id": "Q-003",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 16.8,
+          "error": null,
+          "answer_first_200": "Según el Reglamento técnico NAG-200, es el Instalador Matriculado quien está habilitado para realizar la proyección, ejecución y reparación de una instalación interna de gas domiciliaria. [3]\n\nAdemás,"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 36.3,
+          "error": null,
+          "answer_first_200": "Según el Reglamento técnico NAG-200, es el Instalador Matriculado (IM) quien está habilitado para realizar la instalación, ampliación y reparación de una instalación interna domiciliaria de gas. Esto "
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 33.4,
+          "error": null,
+          "answer_first_200": "Según el Reglamento técnico NAG-200, la tarea de proyectar, ejecutar, modificar o reparar una instalación interna domiciliaria de gas debe ser realizada bajo la dirección y supervisión de un Instalado"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 28.8,
+      "stddev_elapsed_s": 10.5216
+    },
+    {
+      "q_id": "Q-004",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 12.5,
+          "error": null,
+          "answer_first_200": "Según la norma NAG-235, el rango de presión de entrada para los reguladores de presión domiciliarios (GN) es de 0,5 bar hasta 4 bar. Para los reguladores de gas licuado del petróleo (GLP), el rango de"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 31.7,
+          "error": null,
+          "answer_first_200": "Según la norma NAG-235, el rango de presión de entrada para los reguladores de presión domicilearios es:\n\n1. Para gas natural (GN): 0,5 bar hasta 4 bar.\n2. Para gas licuado del petróleo (GLP): 0,5 bar"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 29.9,
+          "error": null,
+          "answer_first_200": "Según el documento NAG-235, el rango de presión de entrada para los reguladores de presión domiciliarios es:\n\nPara GN: 0,5 bar hasta 4 bar. \nPara GLP: 0,5 bar hasta 2 bar.\n\nEsto se puede ver clarament"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 24.7,
+      "stddev_elapsed_s": 10.6038
+    },
+    {
+      "q_id": "Q-005",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 4,
+          "declined": true,
+          "elapsed_s": 22.4,
+          "error": null,
+          "answer_first_200": "Según NAG-235 [1], no se especifica directamente una presión nominal de salida mínima, sino que el foco está en la determinación del caudal de salida nominal mínimo. Para el gas natural (GN), este val"
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 20.0,
+          "error": null,
+          "answer_first_200": "Según el pasaje [2], la presión de salida mínima admisible para reguladores de gas natural (GN) y gas licuado de petróleo (GLP) es de 11 mbar:\n\n\"Presión de salida mínima admisible (mbar). 11  23\" [NAG"
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 21.2,
+          "error": null,
+          "answer_first_200": "Según NAG-235 [NAG-235.pdf], la presión de salida mínima admisible para ambos gases (GN y GLP) es de 11 mbar [2]."
+        }
+      ],
+      "answered_count": 2,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 0.6667,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 21.2,
+      "stddev_elapsed_s": 1.2
+    },
+    {
+      "q_id": "Q-006",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 34.8,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], en los casos donde por las características de la instalación no se pueda efectuar la prueba de hermeticidad a través del medidor, como es el tramo comprendido entre el sistema de "
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 34.4,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], la prueba de hermeticidad de una instalación domiciliaria de gas se realiza cerrando todas las válvulas de paso a los artefactos, y comprobando durante 15 minutos que el totalizad"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 33.3,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], en los casos que por las características de la instalación no se pueda efectuar la prueba de hermeticidad a través del medidor, la Prestadora debe realizarla utilizando otros méto"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 34.2,
+      "stddev_elapsed_s": 0.7767
+    },
+    {
+      "q_id": "Q-007",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 35.0,
+          "error": null,
+          "answer_first_200": "La norma NAG-204 Año 2016 se refiere al ensayo del nivel sonoro para un aparato específico. Su objeto es establecer el requisito de funcionamiento en términos del nivel acústico mínimo que debe alcanz"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 32.3,
+          "error": null,
+          "answer_first_200": "La norma NAG-204 Año 2016 se refiere al ensayo de nivel sonoro para un aparato específico. Su objeto es establecer el requisito de funcionamiento, en particular, que el nivel acústico debe ser como mí"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 29.8,
+          "error": null,
+          "answer_first_200": "La norma NAG-204 Año 2016 se refiere al ensayo de nivel sonoro para un aparato específico. Su objeto es establecer el requisito mínimo del nivel acústico que debe medir como mínimo 85 dB (A) a 1 m cua"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 32.4,
+      "stddev_elapsed_s": 2.6006
+    },
+    {
+      "q_id": "Q-008",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 31.7,
+          "error": null,
+          "answer_first_200": "El objeto de la norma NAG-215 sobre las rejillas de ventilación permanente es:\n\n\"Rejillas de ventilación permanente para instalaciones internas de gas\" [N4]\n\nEsta cita directa del documento NAG-215 de"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 31.2,
+          "error": null,
+          "answer_first_200": "El objeto de la norma NAG-215 sobre las rejillas de ventilación permanente es:\n\n\"Rejillas de ventilación permanente para instalaciones internas de gas\" [4, NAG-215.pdf] \n\nEsta cita directa del documen"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 31.3,
+          "error": null,
+          "answer_first_200": "Según el segundo párrafo del segundo extracto [2], el objeto de la norma NAG-215 es:\n\n\"Rejillas de ventilación permanente para instalaciones internas de gas\" [NAG-215.pdf (2)]."
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 31.4,
+      "stddev_elapsed_s": 0.2646
+    },
+    {
+      "q_id": "Q-009",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 47.3,
+          "error": null,
+          "answer_first_200": "El objeto de la norma NAG-214 es aprobar elementos sellantes de roscas para cañerías domiciliarias. Esto se desprende directamente del título y contenido del documento NAG-214 [1]."
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 35.0,
+          "error": null,
+          "answer_first_200": "La norma NAG-214 se refiere al \"Aprobación de elementos sellantes de roscas para cañerías domiciliarias\". Específicamente, el documento establece los requisitos necesarios para la aprobación de estos "
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 36.9,
+          "error": null,
+          "answer_first_200": "El objeto de la norma NAG-214 es aprobar elementos sellantes de roscas para cañerías domiciliarias. Específicamente, el pasaje [1] indica que se trata de \"NORMA PARA LA APROBACIÓN DE ELEMENTOS SELLANT"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 39.7,
+      "stddev_elapsed_s": 6.6214
+    },
+    {
+      "q_id": "Q-010",
+      "category": "factoid",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 31.8,
+          "error": null,
+          "answer_first_200": "La norma NAG-203 Año 2024 se aplica a las condiciones mínimas de seguridad, confiabilidad, conservación y uniformidad de requisitos técnicos para la reparación de pérdidas en uniones roscadas, específ"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 32.2,
+          "error": null,
+          "answer_first_200": "La norma NAG-203 Año 2024 se aplica a la reparación de pérdidas en uniones roscadas para instalaciones internas que distribuyen gas natural (GN) o gas licuado de petróleo (GLP) en estado gaseoso, util"
+        },
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 31.0,
+          "error": null,
+          "answer_first_200": "La norma NAG-203 Año 2024 se aplica para establecer las condiciones mínimas de seguridad, confiabilidad, conservación y uniformidad de requisitos técnicos para la reparación de pérdidas en uniones ros"
+        }
+      ],
+      "answered_count": 1,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 0.3333,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 31.7,
+      "stddev_elapsed_s": 0.611
+    },
+    {
+      "q_id": "Q-011",
+      "category": "analytical",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 56.8,
+          "error": null,
+          "answer_first_200": "Los pasajes proporcionados no contienen información directamente relacionada con cómo los requisitos de presión definidos en NAG-235 se articulan con el diseño de la cañería interna definido en NAG-20"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 42.4,
+          "error": null,
+          "answer_first_200": "Los pasajes proporcionados no contienen información directamente relacionada con cómo se articulan los requisitos de presión de NAG-235 con el diseño de la cañería interna definido en NAG-200. Los pas"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 35.3,
+          "error": null,
+          "answer_first_200": "No hay información directa en las pasajes proporcionados que articule los requisitos de presión de NAG-235 con el diseño de la cañería interna definido en NAG-200. Los pasajes se centran principalment"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 44.8,
+      "stddev_elapsed_s": 10.9546
+    },
+    {
+      "q_id": "Q-012",
+      "category": "analytical",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 37.2,
+          "error": null,
+          "answer_first_200": "Según la Norma Argentina para Gas (NAG) [4], después de realizar la revisión técnica según NAG-226, el resultado debe documentarse en un formulario específico. Este documento describe cualquier defect"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 39.5,
+          "error": null,
+          "answer_first_200": "Según la NAG-200 última edición, se debe seguir un proceso para normalizar las irregularidades descritas en el Formulario RT/RS resultante de la revisión técnica según NAG-226. Esto incluye actividade"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 34.7,
+          "error": null,
+          "answer_first_200": "El procedimiento de revisión técnica de NAG-226 establece un marco para verificar las condiciones de seguridad de las instalaciones internas domiciliarias de gas, pero complementa estos requisitos con"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 37.1,
+      "stddev_elapsed_s": 2.4007
+    },
+    {
+      "q_id": "Q-013",
+      "category": "analytical",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 37.2,
+          "error": null,
+          "answer_first_200": "NAG-200 integra los requisitos de los elementos sellantes de roscas definidos en NAG-214 al mencionar que \"Los elementos sellantes deben estar debidamente aprobados según la NAG-214. Para uniones remo"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 37.0,
+          "error": null,
+          "answer_first_200": "NAG-200 incluye los requisitos para los elementos sellantes de roscas definidos en NAG-214, especificando que estos deben estar debidamente aprobados según la NAG-214 y ser \"semifraguantes\" o \"no frag"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 36.0,
+          "error": null,
+          "answer_first_200": "Según la información proporcionada en el pasaje [1], NAG-200 integra los requisitos de los elementos sellantes de roscas definidos en NAG-214 mediante la siguiente indicación:\n\n\"Los elementos sellante"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 36.7,
+      "stddev_elapsed_s": 0.6429
+    },
+    {
+      "q_id": "Q-014",
+      "category": "analytical",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 35.6,
+          "error": null,
+          "answer_first_200": "Los pasajes proporcionados no contienen información directa sobre cómo los requisitos de los detectores de monóxido de carbono de NAG-204 se relacionan con el procedimiento de revisión técnica de NAG-"
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 44.0,
+          "error": null,
+          "answer_first_200": "Los pasajes proporcionados no ofrecen información específica sobre cómo los requisitos de los detectores de monóxido de carbono definidos en NAG-204 se relacionan con el procedimiento de revisión técn"
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 24.9,
+          "error": null,
+          "answer_first_200": "No hay información en las pasajes proporcionados que establezcan cómo los requisitos de los detectores de monóxido de carbono de NAG-204 se relacionan específicamente con el procedimiento de revisión "
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 34.8,
+      "stddev_elapsed_s": 9.5731
+    },
+    {
+      "q_id": "Q-015",
+      "category": "follow-up",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 31.0,
+          "error": null,
+          "answer_first_200": "Sí, las reparaciones y modificaciones de instalaciones ya existentes son comprendidas según el pasaje [1]:\n\n\"Comprende las instalaciones nuevas y reparaciones o modificaciones de las instalaciones dom"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 24.0,
+          "error": null,
+          "answer_first_200": "Sí, según el pasaje [1], se comprenden \"las instalaciones nuevas y reparaciones o modificaciones de las instalaciones domiciliarias existentes, incluyendo el agregado, cambio de ubicación, retiro o re"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 30.9,
+          "error": null,
+          "answer_first_200": "Sí, según el pasaje [1], se comprenden \"las reparaciones o modificaciones de las instalaciones domiciliarias existentes, incluyendo el agregado, cambio de ubicación, retiro o reemplazo de artefactos\"."
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 28.6,
+      "stddev_elapsed_s": 4.0129
+    },
+    {
+      "q_id": "Q-016",
+      "category": "follow-up",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 50.4,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], la presión nominal de salida que deben garantizar los reguladores depende del tipo de gas:\n\n- Para gases naturales (GN): 0,019 bar (19 mbar).\n- Para gas licuado de petróleo (GLP):"
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 34.6,
+          "error": null,
+          "answer_first_200": "Según las especificaciones proporcionadas en los pasajes [1] y [3], la presión nominal de salida que deben garantizar los reguladores es:\n\nPara gas natural (GN): 0,019 bar (19 mbar). \nPara GLP: 0,028 "
+        },
+        {
+          "cits": 4,
+          "declined": false,
+          "elapsed_s": 30.9,
+          "error": null,
+          "answer_first_200": "Según las pasajes [1] y [4], los reguladores de presión deben garantizar una presión nominal de salida de:\n\n- Para el gas natural (GN): 0,019 bar (19 mbar).\n- Para el gas licuado de petróleo (GLP): 0,"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 38.6,
+      "stddev_elapsed_s": 10.3568
+    },
+    {
+      "q_id": "Q-017",
+      "category": "follow-up",
+      "expected_behavior": "answer",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 14.8,
+          "error": null,
+          "answer_first_200": "Según la información proporcionada en el pasaje [1], si se detecta un paso de gas durante la prueba, se debe considerar como \"Defecto Principal\" y clausurarse el artefacto correspondiente. \n\n[1] [NAG-"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 11.4,
+          "error": null,
+          "answer_first_200": "Según el pasaje [1], si se detecta un paso de gas durante la prueba, debe considerarse como \"Defecto Principal\" y clausurarse el artefacto correspondiente. \n\n[1] El detector portátil de fugas debe pas"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 30.9,
+          "error": null,
+          "answer_first_200": "Según la información proporcionada en el pasaje [2], si durante la prueba se detecta un pasaje de gas, esto debe considerarse como \"Defecto Principal\" y corresponde cortar el suministro. [N]2"
+        }
+      ],
+      "answered_count": 3,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 1.0,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 19.0,
+      "stddev_elapsed_s": 10.4165
+    },
+    {
+      "q_id": "Q-018",
+      "category": "out-of-scope",
+      "expected_behavior": "decline",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 40.6,
+          "error": null,
+          "answer_first_200": "None of the provided passages address the specific question about the minimum copper wire cross-sectional area for a home water heater circuit. The passages are primarily focused on different specific"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 28.7,
+          "error": null,
+          "answer_first_200": "No hay información disponible en las pasadas relevantes sobre la sección mínima del cable de cobre para el circuito eléctrico que alimenta un termotanque domiciliario. Los documentos proporcionados se"
+        },
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 30.2,
+          "error": null,
+          "answer_first_200": "Based on the provided passages, none of them address the specific question about the minimum copper wire cross-section for powering a domestic water heater. The passages cover various topics including"
+        }
+      ],
+      "answered_count": 1,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 0.3333,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 33.2,
+      "stddev_elapsed_s": 6.481
+    },
+    {
+      "q_id": "Q-019",
+      "category": "out-of-scope",
+      "expected_behavior": "decline",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 35.1,
+          "error": null,
+          "answer_first_200": "No hay información en los pasajes proporcionados sobre modificaciones específicas realizadas por ENARGAS a lo largo del año 2024 en el texto de la NAG-200. El único documento relacionado con ENARGAS e"
+        },
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 37.0,
+          "error": null,
+          "answer_first_200": "No hay pasajes que directamente mencionen las modificaciones introducidas por ENARGAS en 2024 al texto de la NAG-200. Los documentos presentados son referentes a la NAG-200 del año 2019 y a proponer o"
+        },
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 43.8,
+          "error": null,
+          "answer_first_200": "NO PASSAGE ADDRESSES THE SPECIFIC MODIFICATIONS INTRODUCED BY ENARGAS TO THE TEXT OF NAG-200 IN 2024. The provided passages do not contain any information about modifications or changes made by ENARGA"
+        }
+      ],
+      "answered_count": 1,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 0.3333,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 38.6,
+      "stddev_elapsed_s": 4.5742
+    },
+    {
+      "q_id": "Q-020",
+      "category": "ambiguous",
+      "expected_behavior": "disambiguate",
+      "runs": [
+        {
+          "cits": 5,
+          "declined": false,
+          "elapsed_s": 13.8,
+          "error": null,
+          "answer_first_200": "Según la NAG-200, el diámetro mínimo permitido puede variar dependiendo de factores como la potencia del artefacto y la altura y longitud del tramo horizontal. Sin embargo, en la tabla 6.1 de la norma"
+        },
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 15.0,
+          "error": null,
+          "answer_first_200": "Según la NAG-200, no se especifica un solo diámetro mínimo permitido de manera absoluta para todas las condiciones, ya que depende de factores como la altura del conducto y la longitud del tramo horiz"
+        },
+        {
+          "cits": 5,
+          "declined": true,
+          "elapsed_s": 14.3,
+          "error": null,
+          "answer_first_200": "Según la NAG-200, el diámetro mínimo permitido para un conducto de evacuación de gases depende tanto de la potencia del artefacto como de la altura y longitud del tramo horizontal. No se especifica un"
+        }
+      ],
+      "answered_count": 1,
+      "has_citations_count": 3,
+      "errored_count": 0,
+      "answer_rate": 0.3333,
+      "has_citations_rate": 1.0,
+      "mean_elapsed_s": 14.4,
+      "stddev_elapsed_s": 0.6028
+    }
+  ],
+  "aggregate_per_run": [
+    {
+      "run_idx": 0,
+      "answered": 16,
+      "has_cits": 20,
+      "total": 20,
+      "rate": 0.8,
+      "has_cits_rate": 1.0,
+      "elapsed_s": 615.7
+    },
+    {
+      "run_idx": 1,
+      "answered": 19,
+      "has_cits": 20,
+      "total": 20,
+      "rate": 0.95,
+      "has_cits_rate": 1.0,
+      "elapsed_s": 641.2
+    },
+    {
+      "run_idx": 2,
+      "answered": 16,
+      "has_cits": 20,
+      "total": 20,
+      "rate": 0.8,
+      "has_cits_rate": 1.0,
+      "elapsed_s": 605.2
+    }
+  ],
+  "summary_by_category": {
+    "ambiguous": {
+      "n_questions": 1,
+      "n_runs": 3,
+      "mean_rate": 0.3333,
+      "stddev_rate": 0.5774,
+      "mean_has_cits_rate": 1.0,
+      "stddev_has_cits_rate": 0.0,
+      "ci95_rate": [
+        0.0,
+        0.9867
+      ]
+    },
+    "analytical": {
+      "n_questions": 4,
+      "n_runs": 3,
+      "mean_rate": 1.0,
+      "stddev_rate": 0.0,
+      "mean_has_cits_rate": 1.0,
+      "stddev_has_cits_rate": 0.0,
+      "ci95_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "factoid": {
+      "n_questions": 10,
+      "n_runs": 3,
+      "mean_rate": 0.9,
+      "stddev_rate": 0.1,
+      "mean_has_cits_rate": 1.0,
+      "stddev_has_cits_rate": 0.0,
+      "ci95_rate": [
+        0.7868,
+        1.0
+      ]
+    },
+    "follow-up": {
+      "n_questions": 3,
+      "n_runs": 3,
+      "mean_rate": 1.0,
+      "stddev_rate": 0.0,
+      "mean_has_cits_rate": 1.0,
+      "stddev_has_cits_rate": 0.0,
+      "ci95_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "out-of-scope": {
+      "n_questions": 2,
+      "n_runs": 3,
+      "mean_rate": 0.3333,
+      "stddev_rate": 0.5774,
+      "mean_has_cits_rate": 1.0,
+      "stddev_has_cits_rate": 0.0,
+      "ci95_rate": [
+        0.0,
+        0.9867
+      ]
+    }
+  },
+  "overall": {
+    "n_questions": 20,
+    "n_runs": 3,
+    "mean_rate": 0.85,
+    "stddev_rate": 0.0866,
+    "ci95_rate": [
+      0.752,
+      0.948
+    ],
+    "mean_has_cits_rate": 1.0,
+    "stddev_has_cits_rate": 0.0,
+    "elapsed_s_total": 1862.2
+  }
+}
