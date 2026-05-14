@@ -216,8 +216,8 @@ class TestIngestEndpoint:
         """All 12 supported file types return 202."""
         for ext in SUPPORTED_FORMATS:
             mock_db.get_collection = AsyncMock(
-        return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
-    )
+                return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
+            )
             mock_db.create_document = AsyncMock()
             mock_db.create_ingestion_job = AsyncMock()
 
