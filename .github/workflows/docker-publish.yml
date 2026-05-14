@@ -125,7 +125,7 @@ jobs:
 
       # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Sign backend image by digest
         run: cosign sign --yes ${{ env.BACKEND_IMAGE }}@${{ steps.build-backend.outputs.digest }}
@@ -215,7 +215,7 @@ jobs:
 
       # ----- FR-010: cosign keyless sign (OIDC → Fulcio/Rekor) -----
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Sign frontend image by digest
         run: cosign sign --yes ${{ env.FRONTEND_IMAGE }}@${{ steps.build-frontend.outputs.digest }}
