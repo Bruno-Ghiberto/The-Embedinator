@@ -128,7 +128,7 @@ async def test_classify_intent_rag_query():
     """LLM returning rag_query intent should propagate correctly."""
     llm = _make_llm_mock('{"intent": "rag_query"}')
     state = _make_state(messages=[HumanMessage(content="Explain the privacy policy")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "rag_query"
 
 
@@ -137,7 +137,7 @@ async def test_classify_intent_collection_mgmt():
     """LLM returning collection_mgmt intent should propagate correctly."""
     llm = _make_llm_mock('{"intent": "collection_mgmt"}')
     state = _make_state(messages=[HumanMessage(content="Create a new collection")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "collection_mgmt"
 
 
@@ -146,7 +146,7 @@ async def test_classify_intent_ambiguous():
     """LLM returning ambiguous intent should propagate correctly."""
     llm = _make_llm_mock('{"intent": "ambiguous"}')
     state = _make_state(messages=[HumanMessage(content="What about that thing")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "ambiguous"
 
 
@@ -155,7 +155,7 @@ async def test_classify_intent_invalid_json_defaults_to_rag_query():
     """Malformed LLM JSON response should default to rag_query."""
     llm = _make_llm_mock("not valid json at all")
     state = _make_state(messages=[HumanMessage(content="Some query")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "rag_query"
 
 
@@ -165,7 +165,7 @@ async def test_classify_intent_llm_exception_defaults_to_rag_query():
     llm = AsyncMock()
     llm.ainvoke = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
     state = _make_state(messages=[HumanMessage(content="Some query")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "rag_query"
 
 
@@ -174,7 +174,7 @@ async def test_classify_intent_unknown_intent_defaults_to_rag_query():
     """LLM returning an unrecognized intent value should default to rag_query."""
     llm = _make_llm_mock('{"intent": "delete_everything"}')
     state = _make_state(messages=[HumanMessage(content="Some query")])
-    result = await classify_intent(state, llm=llm)
+    result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "rag_query"
 
 
@@ -217,7 +217,7 @@ async def test_rewrite_query_valid_structured_output():
     llm.with_structured_output = MagicMock(return_value=structured_llm)
 
     state = _make_state(messages=[HumanMessage(content="What is the refund policy?")])
-    result = await rewrite_query(state, llm=llm)
+    result = await rewrite_query(state, config={"configurable": {"llm": llm}})
 
     assert result["query_analysis"] is expected_analysis
     assert result["query_analysis"].is_clear is True
@@ -250,7 +250,7 @@ async def test_rewrite_query_first_attempt_fails_retries():
     llm.with_structured_output = MagicMock(return_value=structured_llm)
 
     state = _make_state(messages=[HumanMessage(content="Ambiguous query")])
-    result = await rewrite_query(state, llm=llm)
+    result = await rewrite_query(state, config={"configurable": {"llm": llm}})
 
     assert result["query_analysis"] is fallback_analysis
     assert call_count == 2  # first attempt + retry
@@ -267,7 +267,7 @@ async def test_rewrite_query_both_attempts_fail_returns_fallback():
 
     question = "Why does the system fail?"
     state = _make_state(messages=[HumanMessage(content=question)])
-    result = await rewrite_query(state, llm=llm)
+    result = await rewrite_query(state, config={"configurable": {"llm": llm}})
 
     qa = result["query_analysis"]
     assert isinstance(qa, QueryAnalysis)
@@ -291,7 +291,7 @@ async def test_rewrite_query_factoid_produces_single_sub_question():
     llm.with_structured_output = MagicMock(return_value=structured_llm)
 
     state = _make_state(messages=[HumanMessage(content="What is the capital of France?")])
-    result = await rewrite_query(state, llm=llm)
+    result = await rewrite_query(state, config={"configurable": {"llm": llm}})
 
     assert len(result["query_analysis"].sub_questions) == 1
 

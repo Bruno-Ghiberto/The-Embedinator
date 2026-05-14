@@ -166,6 +166,9 @@ def ragas_metrics() -> list:
     All ragas / langchain imports are lazy so this module can be imported without
     [quality] extras installed (import smoke check must pass).
     """
+    # Skip the test cleanly when [quality] extras are not installed (default CI runner).
+    pytest.importorskip("ragas", reason="install with: pip install -e '.[quality]'")
+
     # Lazy imports — not available in default install; installed via pip install ragas etc.
     from langchain_ollama import OllamaEmbeddings  # type: ignore[import]
     from ragas.embeddings import LangchainEmbeddingsWrapper  # type: ignore[import]
