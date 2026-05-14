@@ -56,10 +56,10 @@ def build_conversation_graph(
     graph.add_node("research", research_graph)
     graph.add_node("aggregate_answers", aggregate_answers)
     graph.add_node("summarize_history", summarize_history)
-    graph.add_node("format_response", format_response, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
+    graph.add_node("format_response", format_response, retry_policy=RetryPolicy(max_attempts=2, initial_interval=0.5))
 
     # Phase 2 stubs
-    graph.add_node("verify_groundedness", verify_groundedness, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
+    graph.add_node("verify_groundedness", verify_groundedness, retry_policy=RetryPolicy(max_attempts=2, initial_interval=0.5))
     graph.add_node("validate_citations", validate_citations)
 
     # Out-of-scope stub
