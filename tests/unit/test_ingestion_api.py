@@ -53,7 +53,9 @@ def app():
 
     # Mock app state
     mock_db = AsyncMock()
-    mock_db.get_collection = AsyncMock(return_value={"id": "col-test", "name": "Test"})
+    mock_db.get_collection = AsyncMock(
+        return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
+    )
     mock_db.create_document = AsyncMock()
     mock_db.create_ingestion_job = AsyncMock()
     mock_db.update_document = AsyncMock()
@@ -213,7 +215,9 @@ class TestIngestEndpoint:
     def test_all_supported_extensions_accepted(self, client, mock_db):
         """All 12 supported file types return 202."""
         for ext in SUPPORTED_FORMATS:
-            mock_db.get_collection = AsyncMock(return_value={"id": "col-test", "name": "Test"})
+            mock_db.get_collection = AsyncMock(
+        return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
+    )
             mock_db.create_document = AsyncMock()
             mock_db.create_ingestion_job = AsyncMock()
 
