@@ -11,7 +11,7 @@ quality = [
     # ragas pinned to latest 0.2.x — API validated via context7 (class-based metrics,
     # llm_factory, llm= kwarg). 0.3.x and 0.4.x are major bumps; upgrade only after
     # verifying API compatibility with test_ragas_baseline.py.
-    "ragas==0.2.15",
+    "ragas==0.4.3",
     # datasets: Dataset.from_dict() API is stable across versions; floor at 2.18.
     "datasets>=2.18",
     # openai: code written against 1.x patterns (OpenAI(base_url=...) constructor).
