@@ -49,14 +49,14 @@ description: "Task list for spec-30 E2E test v3 — single-round human-in-the-lo
 
 **⚠️ CRITICAL**: No user story scenario can be executed until this phase is complete. The hunt has no place to record findings without the session directory.
 
-- [ ] T010 Lead runs enforcement-banner preflight script from `specs/030-e2e-test-v3/plan.md` (tmux check, pane count, docker, branch, playbook exists) — abort hunt if ANY check fails
-- [ ] T011 Compute session date: `DATE=$(date -u +%Y-%m-%d)` — used for `docs/E2E/<DATE>-round-1-bug-hunt/` paths throughout
-- [ ] T012 Create session directory tree per `specs/030-e2e-test-v3/contracts/session-directory-contract.md`: `mkdir -p docs/E2E/${DATE}-round-1-bug-hunt/{bugs,public-evidence,logs,screenshots,traces}`
-- [ ] T013 Write session directory's `.gitignore` at `docs/E2E/${DATE}-round-1-bug-hunt/.gitignore` with: `logs/`, `screenshots/`, `traces/` (one per line) — enforces FR-022 tracked/untracked split
-- [ ] T014 Place `.gitkeep` in `docs/E2E/${DATE}-round-1-bug-hunt/bugs/` and `public-evidence/` so empty TRACKED dirs are committed
-- [ ] T015 Compute next free BUG ID by scanning prior hunt registries (spec-21/26/28 history); record value in `session-log.md` opening entry — start at BUG-024 unless higher IDs exist
-- [ ] T016 Initialize `docs/E2E/${DATE}-round-1-bug-hunt/session-log.md` with header per `contracts/session-directory-contract.md` Phase 0 step 5 (Session opened timestamp, Pilot, branch, develop HEAD SHA, spec/plan/playbook SHAs, next BUG ID, first `phase-transition` entry)
-- [ ] T017 Commit Phase 0 scaffolding: `git add docs/E2E/${DATE}-round-1-bug-hunt/ && git commit -m "chore(spec-30): open bug-hunt session directory"`
+- [X] T010 Lead runs enforcement-banner preflight script from `specs/030-e2e-test-v3/plan.md` (tmux check, pane count, docker, branch, playbook exists) — abort hunt if ANY check fails
+- [X] T011 Compute session date: `DATE=$(date -u +%Y-%m-%d)` — DATE=2026-05-15
+- [X] T012 Create session directory tree per `specs/030-e2e-test-v3/contracts/session-directory-contract.md` — bug-registrar-2 created `docs/E2E/2026-05-15-round-1-bug-hunt/{bugs,public-evidence,logs,screenshots,traces}`
+- [X] T013 Write session directory's `.gitignore` — bug-registrar-2 wrote 3 lines (`logs/`, `screenshots/`, `traces/`) to `docs/E2E/2026-05-15-round-1-bug-hunt/.gitignore`
+- [X] T014 Place `.gitkeep` in `bugs/` and `public-evidence/` — done by bug-registrar-2
+- [X] T015 Compute next free BUG ID — no prior `bugs-registry.json` found → NEXT=BUG-024 (default)
+- [X] T016 Initialize `session-log.md` with header — done by bug-registrar-2 in commit `e2141ce`; spec/plan/playbook SHAs were empty at first because `specs/030-e2e-test-v3/` was untracked; corrected via lead-authored errata append in commit `b71e2a6` referencing commit `09f5e40` (design artifacts)
+- [X] T017 Commit Phase 0 scaffolding — commit `e2141ce chore(spec-30): open bug-hunt session directory`; follow-ups `09f5e40 feat(spec-30): add hunt design artifacts` + `b71e2a6 chore(spec-30): record design artifact SHAs in session-log errata entry`
 
 **Checkpoint**: Session directory exists, session-log initialized, next BUG ID known, Phase 0 commit landed. Hunt Phase 1 (US1) can begin.
 
