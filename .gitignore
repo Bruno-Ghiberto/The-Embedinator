@@ -109,8 +109,8 @@ notes/
 # Deferred POC (archived on archive/frontend-v2-poc branch)
 frontend-v2/
 
-# Demo corpus (licensing pending — substitution planned before v1.0 launch)
-docs/Collection-Docs/
+# Demo corpus — RAG ingestion DATA, relocated under data/ (gitignored); licensing pending, substitution planned before v1.0 launch
+data/Collection-Docs/
 
 # Runtime / build artifacts
 /embedinator
