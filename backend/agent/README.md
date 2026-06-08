@@ -72,6 +72,5 @@ low-quality results:
 | `prompts.py`          | Prompt templates for all LLM-calling nodes        |
 | `tools.py`            | Closure-based research tool factory               |
 | `citations.py`        | Citation extraction and alignment scoring         |
-| `answer_generator.py` | Final answer formatting with citation markers     |
 | `nodes.py`            | 17 conversation node function implementations     |
 | `research_nodes.py`   | 6 research node functions                         |
