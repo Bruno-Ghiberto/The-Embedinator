@@ -30,7 +30,6 @@ Confirm Phase 1 modules are present and importable:
 from backend.agent.state import ConversationState, ResearchState
 from backend.agent.schemas import QueryAnalysis, Citation, SubAnswer
 from backend.agent.prompts import SYSTEM_PROMPT
-from backend.agent.retrieval import retrieve_passages
 from backend.agent.citations import build_citations
 from backend.agent.confidence import compute_confidence
 ```

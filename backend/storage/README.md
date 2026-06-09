@@ -68,14 +68,6 @@ Reads parent chunks from SQLite for the research graph. When the reranker
 selects child chunks, the parent store retrieves the full parent text to
 provide richer context to the LLM.
 
-### Other Files
-
-| File                 | Purpose                                         |
-|----------------------|-------------------------------------------------|
-| `chunker.py`         | Text chunking with token-based splitting        |
-| `document_parser.py` | File format detection and routing               |
-| `indexing.py`        | Collection indexing and management               |
-
 ## Encryption
 
 Cloud provider API keys are encrypted with Fernet (AES-128-CBC) before
