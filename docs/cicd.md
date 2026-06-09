@@ -198,12 +198,12 @@ Enforce in GitHub settings: `allow_squash_merge=true`, `allow_merge_commit=false
 `allow_rebase_merge=false` (currently documented policy; repository setting enforcement is a
 follow-up task).
 
-Reference: [ADR-0001](adr/0001-branch-protection.md), spec-27 Q5.
+Reference: [ADR-0001](Project_blueprints/adr/0001-branch-protection.md), spec-27 Q5.
 
 ## FAQ
 
 **Why is the repo public?**
-To unlock GitHub Free branch protection at zero cost. See [ADR-0001](adr/0001-branch-protection.md).
+To unlock GitHub Free branch protection at zero cost. See [ADR-0001](Project_blueprints/adr/0001-branch-protection.md).
 
 **Which merge mode?**
 Squash-merge only. See [§Merge strategy](#merge-strategy).
@@ -228,7 +228,7 @@ still passes; the coverage delta comment and SBOM attestation will simply be abs
 4. Update the Gate roster table in this file.
 
 **Where is the branch-protection ADR?**
-[`docs/adr/0001-branch-protection.md`](adr/0001-branch-protection.md).
+[`docs/Project_blueprints/adr/0001-branch-protection.md`](Project_blueprints/adr/0001-branch-protection.md).
 
 **What are the 5 non-blocking jobs and when do they become blocking?**
 backend-test, backend-type-check, backend-integration, frontend-lint, frontend-coverage. They
