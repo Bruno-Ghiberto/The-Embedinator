@@ -101,6 +101,12 @@ class SQLiteDB:
         self.db_path = db_path
         self.db: aiosqlite.Connection | None = None
 
+    @property
+    def _conn(self) -> aiosqlite.Connection:
+        """Return the open connection; raise AssertionError if not connected."""
+        assert self.db is not None, "SQLiteDB not connected — call connect() first"
+        return self.db
+
     async def connect(self) -> None:
         """Open connection, enable WAL + FKs, init schema."""
         try:
@@ -108,9 +114,9 @@ class SQLiteDB:
                 Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
             self.db = await aiosqlite.connect(self.db_path)
             self.db.row_factory = aiosqlite.Row
-            await self.db.execute("PRAGMA journal_mode=WAL")
-            await self.db.execute("PRAGMA foreign_keys=ON")
-            await self.db.execute("PRAGMA synchronous=NORMAL")
+            await self._conn.execute("PRAGMA journal_mode=WAL")
+            await self._conn.execute("PRAGMA foreign_keys=ON")
+            await self._conn.execute("PRAGMA synchronous=NORMAL")
             await self._init_schema()
             logger.info("storage_sqlite_connected", db_path=self.db_path)
         except aiosqlite.Error as e:
@@ -131,14 +137,14 @@ class SQLiteDB:
 
     async def _init_schema(self) -> None:
         """Create all 7 tables (idempotent). Uses IF NOT EXISTS."""
-        await self.db.executescript(_SCHEMA_SQL)
-        await self.db.commit()
+        await self._conn.executescript(_SCHEMA_SQL)
+        await self._conn.commit()
         await self._migrate_providers_columns()
         await self._migrate_query_traces_columns()
 
     async def _migrate_providers_columns(self) -> None:
         """Add missing columns to providers table if not present."""
-        cursor = await self.db.execute("PRAGMA table_info(providers)")
+        cursor = await self._conn.execute("PRAGMA table_info(providers)")
         columns = {row[1] for row in await cursor.fetchall()}
         for col, col_def in [
             ("api_key_encrypted", "TEXT"),
@@ -149,18 +155,18 @@ class SQLiteDB:
             ("config_json", "TEXT"),
         ]:
             if col not in columns:
-                await self.db.execute(f"ALTER TABLE providers ADD COLUMN {col} {col_def}")
-        await self.db.commit()
+                await self._conn.execute(f"ALTER TABLE providers ADD COLUMN {col} {col_def}")
+        await self._conn.commit()
 
     async def _migrate_query_traces_columns(self) -> None:
         """Add provider_name and stage_timings_json columns to query_traces if not present (idempotent)."""
-        cursor = await self.db.execute("PRAGMA table_info(query_traces)")
+        cursor = await self._conn.execute("PRAGMA table_info(query_traces)")
         columns = {row[1] for row in await cursor.fetchall()}
         if "provider_name" not in columns:
-            await self.db.execute("ALTER TABLE query_traces ADD COLUMN provider_name TEXT")
+            await self._conn.execute("ALTER TABLE query_traces ADD COLUMN provider_name TEXT")
         if "stage_timings_json" not in columns:
-            await self.db.execute("ALTER TABLE query_traces ADD COLUMN stage_timings_json TEXT")
-        await self.db.commit()
+            await self._conn.execute("ALTER TABLE query_traces ADD COLUMN stage_timings_json TEXT")
+        await self._conn.commit()
 
     # ── Collections ───────────────────────────────────────────────
 
@@ -174,16 +180,16 @@ class SQLiteDB:
         description: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO collections
                (id, name, description, embedding_model, chunk_profile, qdrant_collection_name, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (id, name, description, embedding_model, chunk_profile, qdrant_collection_name, now),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def get_collection(self, collection_id: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, name, description, embedding_model, chunk_profile,
                       qdrant_collection_name, created_at
                FROM collections WHERE id = ?""",
@@ -193,7 +199,7 @@ class SQLiteDB:
         return dict(row) if row else None
 
     async def get_collection_by_name(self, name: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, name, description, embedding_model, chunk_profile,
                       qdrant_collection_name, created_at
                FROM collections WHERE name = ?""",
@@ -203,7 +209,7 @@ class SQLiteDB:
         return dict(row) if row else None
 
     async def list_collections(self) -> list[dict]:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, name, description, embedding_model, chunk_profile,
                       qdrant_collection_name, created_at
                FROM collections ORDER BY created_at DESC"""
@@ -216,15 +222,15 @@ class SQLiteDB:
             return
         sets = ", ".join(f"{k} = ?" for k in kwargs)
         vals = list(kwargs.values()) + [collection_id]
-        await self.db.execute(
+        await self._conn.execute(
             f"UPDATE collections SET {sets} WHERE id = ?",  # noqa: S608
             vals,
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def delete_collection(self, collection_id: str) -> None:
-        await self.db.execute("DELETE FROM collections WHERE id = ?", (collection_id,))
-        await self.db.commit()
+        await self._conn.execute("DELETE FROM collections WHERE id = ?", (collection_id,))
+        await self._conn.commit()
 
     # ── Documents ─────────────────────────────────────────────────
 
@@ -238,16 +244,16 @@ class SQLiteDB:
         status: str = "pending",
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO documents
                (id, collection_id, filename, file_path, file_hash, status, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (id, collection_id, filename, file_path, file_hash, status, now),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def get_document(self, doc_id: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, collection_id, filename, file_path, file_hash,
                       status, chunk_count, created_at, ingested_at
                FROM documents WHERE id = ?""",
@@ -257,7 +263,7 @@ class SQLiteDB:
         return dict(row) if row else None
 
     async def get_document_by_hash(self, collection_id: str, file_hash: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, collection_id, filename, file_path, file_hash,
                       status, chunk_count, created_at, ingested_at
                FROM documents WHERE collection_id = ? AND file_hash = ?""",
@@ -267,7 +273,7 @@ class SQLiteDB:
         return dict(row) if row else None
 
     async def list_documents(self, collection_id: str) -> list[dict]:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, collection_id, filename, file_path, file_hash,
                       status, chunk_count, created_at, ingested_at
                FROM documents WHERE collection_id = ? ORDER BY created_at""",
@@ -281,15 +287,15 @@ class SQLiteDB:
             return
         sets = ", ".join(f"{k} = ?" for k in kwargs)
         vals = list(kwargs.values()) + [doc_id]
-        await self.db.execute(
+        await self._conn.execute(
             f"UPDATE documents SET {sets} WHERE id = ?",  # noqa: S608
             vals,
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def delete_document(self, doc_id: str) -> None:
-        await self.db.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
-        await self.db.commit()
+        await self._conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        await self._conn.commit()
 
     # ── Ingestion Jobs ────────────────────────────────────────────
 
@@ -300,15 +306,15 @@ class SQLiteDB:
         status: str = "started",
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO ingestion_jobs (id, document_id, status, started_at)
                VALUES (?, ?, ?, ?)""",
             (id, document_id, status, now),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def get_ingestion_job(self, job_id: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, document_id, status, started_at, finished_at,
                       error_msg, chunks_processed, chunks_skipped
                FROM ingestion_jobs WHERE id = ?""",
@@ -318,7 +324,7 @@ class SQLiteDB:
         return dict(row) if row else None
 
     async def list_ingestion_jobs(self, document_id: str) -> list[dict]:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, document_id, status, started_at, finished_at,
                       error_msg, chunks_processed, chunks_skipped
                FROM ingestion_jobs WHERE document_id = ? ORDER BY started_at""",
@@ -356,11 +362,11 @@ class SQLiteDB:
         if not updates:
             return
         params.append(job_id)
-        await self.db.execute(
+        await self._conn.execute(
             f"UPDATE ingestion_jobs SET {', '.join(updates)} WHERE id = ?",  # noqa: S608
             params,
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     # ── Parent Chunks ─────────────────────────────────────────────
 
@@ -373,15 +379,15 @@ class SQLiteDB:
         metadata_json: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO parent_chunks (id, collection_id, document_id, text, metadata_json, created_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
             (id, collection_id, document_id, text, metadata_json, now),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def get_parent_chunk(self, parent_id: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, collection_id, document_id, text, metadata_json, created_at
                FROM parent_chunks WHERE id = ?""",
             (parent_id,),
@@ -393,7 +399,7 @@ class SQLiteDB:
         if not parent_ids:
             return []
         placeholders = ",".join("?" for _ in parent_ids)
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             f"SELECT id, collection_id, document_id, text, metadata_json, created_at "  # noqa: S608
             f"FROM parent_chunks WHERE id IN ({placeholders})",
             parent_ids,
@@ -407,13 +413,13 @@ class SQLiteDB:
         document_id: str | None = None,
     ) -> list[dict]:
         if document_id:
-            cursor = await self.db.execute(
+            cursor = await self._conn.execute(
                 """SELECT id, collection_id, document_id, text, metadata_json, created_at
                    FROM parent_chunks WHERE collection_id = ? AND document_id = ?""",
                 (collection_id, document_id),
             )
         else:
-            cursor = await self.db.execute(
+            cursor = await self._conn.execute(
                 """SELECT id, collection_id, document_id, text, metadata_json, created_at
                    FROM parent_chunks WHERE collection_id = ?""",
                 (collection_id,),
@@ -422,8 +428,8 @@ class SQLiteDB:
         return [dict(r) for r in rows]
 
     async def delete_parent_chunks(self, document_id: str) -> None:
-        await self.db.execute("DELETE FROM parent_chunks WHERE document_id = ?", (document_id,))
-        await self.db.commit()
+        await self._conn.execute("DELETE FROM parent_chunks WHERE document_id = ?", (document_id,))
+        await self._conn.commit()
 
     # ── Query Traces ──────────────────────────────────────────────
 
@@ -446,7 +452,7 @@ class SQLiteDB:
         stage_timings_json: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO query_traces
                (id, session_id, query, sub_questions_json, collections_searched,
                 chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,
@@ -472,10 +478,10 @@ class SQLiteDB:
                 now,
             ),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def list_query_traces(self, session_id: str, limit: int = 100) -> list[dict]:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, session_id, query, sub_questions_json, collections_searched,
                       chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,
                       meta_reasoning_triggered, latency_ms, llm_model, embed_model,
@@ -513,7 +519,7 @@ class SQLiteDB:
             params.append(max_confidence)
         where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
         params.extend([limit, offset])
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             f"SELECT id, session_id, query, sub_questions_json, collections_searched,"  # noqa: S608
             f" chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,"
             f" meta_reasoning_triggered, latency_ms, llm_model, embed_model,"
@@ -526,7 +532,7 @@ class SQLiteDB:
 
     async def get_trace(self, trace_id: str) -> dict | None:
         """Get a single query trace by ID."""
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, session_id, query, sub_questions_json, collections_searched,
                       chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,
                       meta_reasoning_triggered, latency_ms, llm_model, embed_model,
@@ -557,7 +563,7 @@ class SQLiteDB:
         end_ts: str,
         limit: int = 1000,
     ) -> list[dict]:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT id, session_id, query, sub_questions_json, collections_searched,
                       chunks_retrieved_json, reasoning_steps_json, strategy_switches_json,
                       meta_reasoning_triggered, latency_ms, llm_model, embed_model,
@@ -572,25 +578,25 @@ class SQLiteDB:
     # ── Settings ──────────────────────────────────────────────────
 
     async def get_setting(self, key: str) -> str | None:
-        cursor = await self.db.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        cursor = await self._conn.execute("SELECT value FROM settings WHERE key = ?", (key,))
         row = await cursor.fetchone()
         return row["value"] if row else None
 
     async def set_setting(self, key: str, value: str) -> None:
-        await self.db.execute(
+        await self._conn.execute(
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
             (key, value),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def list_settings(self) -> dict[str, str]:
-        cursor = await self.db.execute("SELECT key, value FROM settings")
+        cursor = await self._conn.execute("SELECT key, value FROM settings")
         rows = await cursor.fetchall()
         return {r["key"]: r["value"] for r in rows}
 
     async def delete_setting(self, key: str) -> None:
-        await self.db.execute("DELETE FROM settings WHERE key = ?", (key,))
-        await self.db.commit()
+        await self._conn.execute("DELETE FROM settings WHERE key = ?", (key,))
+        await self._conn.commit()
 
     # ── Providers ─────────────────────────────────────────────────
 
@@ -601,15 +607,15 @@ class SQLiteDB:
         base_url: str | None = None,
         is_active: bool = True,
     ) -> None:
-        await self.db.execute(
+        await self._conn.execute(
             """INSERT INTO providers (name, api_key_encrypted, base_url, is_active)
                VALUES (?, ?, ?, ?)""",
             (name, api_key_encrypted, base_url, int(is_active)),
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def get_provider(self, name: str) -> dict | None:
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT name, api_key_encrypted, base_url, is_active, created_at
                FROM providers WHERE name = ?""",
             (name,),
@@ -622,7 +628,7 @@ class SQLiteDB:
         return result
 
     async def list_providers(self) -> list[dict]:
-        cursor = await self.db.execute("SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers")
+        cursor = await self._conn.execute("SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers")
         rows = await cursor.fetchall()
         results = []
         for r in rows:
@@ -652,19 +658,19 @@ class SQLiteDB:
         if not updates:
             return
         params.append(name)
-        await self.db.execute(
+        await self._conn.execute(
             f"UPDATE providers SET {', '.join(updates)} WHERE name = ?",  # noqa: S608
             params,
         )
-        await self.db.commit()
+        await self._conn.commit()
 
     async def delete_provider(self, name: str) -> None:
-        await self.db.execute("DELETE FROM providers WHERE name = ?", (name,))
-        await self.db.commit()
+        await self._conn.execute("DELETE FROM providers WHERE name = ?", (name,))
+        await self._conn.commit()
 
     async def get_active_provider(self) -> dict | None:
         """Return the first active provider, or None."""
-        cursor = await self.db.execute(
+        cursor = await self._conn.execute(
             """SELECT name, api_key_encrypted, base_url, is_active,
                       provider_type, config_json, created_at
                FROM providers WHERE is_active = 1 LIMIT 1"""
@@ -685,11 +691,11 @@ class SQLiteDB:
     ) -> None:
         """Insert or replace a provider record."""
         if is_active:
-            await self.db.execute("UPDATE providers SET is_active = 0 WHERE name != ?", (name,))
-        await self.db.execute(
+            await self._conn.execute("UPDATE providers SET is_active = 0 WHERE name != ?", (name,))
+        await self._conn.execute(
             """INSERT OR REPLACE INTO providers
                (name, provider_type, config_json, is_active)
                VALUES (?, ?, ?, ?)""",
             (name, provider_type, config_json, int(is_active)),
         )
-        await self.db.commit()
+        await self._conn.commit()

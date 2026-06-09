@@ -352,7 +352,9 @@ class IngestionPipeline:
 
     async def _read_worker_output(self, proc: subprocess.Popen) -> list[dict]:
         """Read NDJSON lines from worker stdout. Handles partial output (R4)."""
-        raw_chunks = []
+        raw_chunks: list[dict] = []
+        if proc.stdout is None:
+            return raw_chunks
         for line in proc.stdout:
             line = line.strip()
             if line:
@@ -377,6 +379,7 @@ class IngestionPipeline:
 
         # Delete Qdrant points by source_file payload filter
         try:
+            assert self.qdrant.client is not None, "Qdrant client not connected"
             await self.qdrant.client.delete(
                 collection_name=collection_name,
                 points_selector=Filter(

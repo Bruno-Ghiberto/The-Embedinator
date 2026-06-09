@@ -51,7 +51,7 @@ class IncrementalChecker:
         Returns (is_changed, old_document_id).
         If changed, the caller should delete old vectors and re-ingest (FR-005).
         """
-        cursor = await self.db.db.execute(
+        cursor = await self.db._conn.execute(
             "SELECT id, file_hash FROM documents WHERE collection_id = ? AND filename = ? AND file_hash != ? AND status = 'completed'",
             (collection_id, filename, new_hash),
         )
