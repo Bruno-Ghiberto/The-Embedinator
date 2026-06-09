@@ -38,7 +38,20 @@ follow_imports = "normal"
 exclude = ["^build/", "^dist/", "^\\.venv/", "^migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["langchain_ollama", "langchain_openai", "langchain_anthropic", "sentence_transformers", "tiktoken"]
+# langchain chat-model packages ship py.typed; their pydantic models expose
+# aliased fields (e.g. model/api_key/base_url, request_timeout) that the
+# pydantic.mypy plugin rejects as unexpected kwargs under init_forbid_extra,
+# even though they are valid at runtime. follow_imports=skip treats these
+# modules as Any consistently whether or not the package is installed —
+# avoiding local/CI skew and the warn_unused_ignores trap that a per-call
+# `# type: ignore[call-arg]` would hit in environments without langchain.
+module = ["langchain_ollama", "langchain_openai", "langchain_anthropic"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Genuinely stub-less third-party packages.
+module = ["sentence_transformers", "tiktoken"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]
