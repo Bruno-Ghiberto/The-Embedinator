@@ -43,7 +43,7 @@ langchain-core>=1.2.10
 # LangChain provider adapters (lazy-imported in registry.py)
 langchain-ollama>=0.3
 langchain-openai>=0.3
-langchain-anthropic>=0.3
+langchain-anthropic>=1.4.3
 
 # LangGraph checkpointing
 langgraph-checkpoint-sqlite>=2.0
