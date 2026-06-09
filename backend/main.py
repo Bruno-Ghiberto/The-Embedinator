@@ -79,7 +79,9 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
         override_map[module.strip()] = level_int
 
     # --- Per-component filter processor (T039) ---
-    def _filter_by_component(logger: Any, method_name: str, event_dict: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+    def _filter_by_component(
+        logger: Any, method_name: str, event_dict: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         """Drop events that fall below the per-component override level.
 
         Uses ``event_dict.get("component", "")`` because loggers are bound with

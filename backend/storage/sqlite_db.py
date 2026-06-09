@@ -628,7 +628,9 @@ class SQLiteDB:
         return result
 
     async def list_providers(self) -> list[dict]:
-        cursor = await self._conn.execute("SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers")
+        cursor = await self._conn.execute(
+            "SELECT name, api_key_encrypted, base_url, is_active, created_at FROM providers"
+        )
         rows = await cursor.fetchall()
         results = []
         for r in rows:
