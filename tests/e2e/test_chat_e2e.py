@@ -24,11 +24,11 @@ def _build_mock_graph(chunks: list[str] | None = None):
     graph = MagicMock()
     chunks = chunks or ["This is a test answer."]
 
-    async def mock_astream(state, *, stream_mode="messages", config=None):
+    async def mock_astream(state, *args, **kwargs):
         for text in chunks:
             msg = AIMessageChunk(content=text)
-            metadata = {"langgraph_node": "format_response"}
-            yield msg, metadata
+            metadata = {"langgraph_node": "collect_answer"}
+            yield {"type": "messages", "data": (msg, metadata)}
 
     graph.astream = mock_astream
 
@@ -42,7 +42,7 @@ def _build_mock_graph(chunks: list[str] | None = None):
         "stage_timings": {},
         "final_response": "This is a test answer.",
     }
-    graph.get_state = MagicMock(return_value=state_snapshot)
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
     return graph
 
 

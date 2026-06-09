@@ -64,7 +64,7 @@ def _build_graph(
     chunks = chunks or []
     nodes = nodes or ["query_rewrite", "research", "format_response"]
 
-    async def mock_astream(state, *, stream_mode="messages", config=None):
+    async def mock_astream(state, *args, **kwargs):
         if error is not None:
             raise error
 
@@ -77,19 +77,11 @@ def _build_graph(
 
             msg = AIMessageChunk(content=text)
             metadata = {"langgraph_node": current_node}
+            yield {"type": "messages", "data": (msg, metadata)}
 
-            if interrupt is not None and i == len(chunks) - 1:
-                metadata["__interrupt__"] = [FakeInterrupt(value=interrupt)]
-
-            yield msg, metadata
-
-        if interrupt is not None and not chunks:
-            msg = AIMessageChunk(content="")
-            metadata = {
-                "langgraph_node": "query_rewrite",
-                "__interrupt__": [FakeInterrupt(value=interrupt)],
-            }
-            yield msg, metadata
+        # Interrupt is delivered as an updates-type chunk
+        if interrupt is not None:
+            yield {"type": "updates", "data": {"__interrupt__": [FakeInterrupt(value=interrupt)]}}
 
     graph.astream = mock_astream
 
@@ -106,7 +98,7 @@ def _build_graph(
 
     state_snapshot = MagicMock()
     state_snapshot.values = default_final
-    graph.get_state = MagicMock(return_value=state_snapshot)
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
     return graph
 
 

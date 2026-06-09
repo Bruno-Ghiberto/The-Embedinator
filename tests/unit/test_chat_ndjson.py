@@ -72,20 +72,24 @@ def _build_mock_graph(
     interrupt: str | None = None,
     error: Exception | None = None,
 ):
-    """Build a mock graph that simulates astream(stream_mode='messages').
+    """Build a mock graph that simulates astream with stream_mode=['messages','updates'].
+
+    Yields StreamPart dicts matching the v2 contract:
+      {"type": "messages", "data": (AIMessageChunk, {"langgraph_node": <node>})}
+      {"type": "updates",  "data": {"__interrupt__": [FakeInterrupt(...)]}}
 
     Args:
-        chunks: List of text tokens to yield as AIMessageChunk.
+        chunks: List of text tokens to yield as AIMessageChunk from collect_answer node.
         nodes: List of node names to emit as status events.
         final_state: Dict for graph.get_state(config).values.
-        interrupt: If set, emit __interrupt__ metadata with this question.
+        interrupt: If set, emit an updates chunk with __interrupt__ data.
         error: If set, astream raises this exception.
     """
     graph = MagicMock()
     chunks = chunks or []
-    nodes = nodes or ["query_rewrite", "research", "format_response"]
+    nodes = nodes or ["query_rewrite", "research", "collect_answer"]
 
-    async def mock_astream(state, *, stream_mode="messages", config=None):
+    async def mock_astream(state, *args, **kwargs):
         if error is not None:
             raise error
 
@@ -99,24 +103,15 @@ def _build_mock_graph(
 
             msg = AIMessageChunk(content=text)
             metadata = {"langgraph_node": current_node}
+            yield {"type": "messages", "data": (msg, metadata)}
 
-            if interrupt is not None and i == len(chunks) - 1:
-                metadata["__interrupt__"] = [FakeInterrupt(value=interrupt)]
-
-            yield msg, metadata
-
-        # If interrupt with no chunks, yield one empty message with interrupt
-        if interrupt is not None and not chunks:
-            msg = AIMessageChunk(content="")
-            metadata = {
-                "langgraph_node": "query_rewrite",
-                "__interrupt__": [FakeInterrupt(value=interrupt)],
-            }
-            yield msg, metadata
+        # Interrupt is delivered as an updates-type chunk
+        if interrupt is not None:
+            yield {"type": "updates", "data": {"__interrupt__": [FakeInterrupt(value=interrupt)]}}
 
     graph.astream = mock_astream
 
-    # Mock get_state for final state retrieval
+    # Mock aget_state for final state retrieval (prod calls await graph.aget_state(config))
     default_final_state = {
         "citations": [],
         "attempted_strategies": set(),
@@ -130,7 +125,7 @@ def _build_mock_graph(
 
     state_snapshot = MagicMock()
     state_snapshot.values = default_final_state
-    graph.get_state = MagicMock(return_value=state_snapshot)
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
 
     return graph
 
@@ -649,8 +644,9 @@ class TestAllEventTypes:
         clarif_types = {e["type"] for e in events2}
         assert "clarification" in clarif_types
 
-        # Scenario 3: Error (1 type)
-        graph3 = _build_mock_graph(error=CircuitOpenError("service down"))
+        # Scenario 3: Error (1 type) — use ValueError (caught by generic except Exception)
+        # RuntimeError without "call limit exceeded" is re-raised by production intentionally.
+        graph3 = _build_mock_graph(error=ValueError("service unavailable"))
         app3 = _make_app(graph=graph3)
 
         with TestClient(app3) as client3:
@@ -695,7 +691,10 @@ class TestErrorEvents:
         assert isinstance(error_events[0]["trace_id"], str)
 
     def test_generic_error_event(self):
-        graph = _build_mock_graph(error=RuntimeError("unexpected"))
+        # ValueError is caught by the generic `except Exception` handler → SERVICE_UNAVAILABLE.
+        # RuntimeError without "call limit exceeded" is intentionally re-raised by production
+        # (it signals a programming bug, not a user-facing degradation).
+        graph = _build_mock_graph(error=ValueError("unexpected service error"))
         app = _make_app(graph=graph)
 
         with TestClient(app) as client:
@@ -951,10 +950,10 @@ class TestSessionContinuity:
         graph = MagicMock()
         invoked_configs = []
 
-        async def capture_astream(state, *, stream_mode="messages", config=None):
-            invoked_configs.append(config)
+        async def capture_astream(state, *args, **kwargs):
+            invoked_configs.append(kwargs.get("config"))
             msg = AIMessageChunk(content="Hi")
-            yield msg, {"langgraph_node": "respond"}
+            yield {"type": "messages", "data": (msg, {"langgraph_node": "collect_answer"})}
 
         graph.astream = capture_astream
 
@@ -967,7 +966,7 @@ class TestSessionContinuity:
             "sub_questions": [],
             "final_response": "Test.",
         }
-        graph.get_state = MagicMock(return_value=state_snapshot)
+        graph.aget_state = AsyncMock(return_value=state_snapshot)
 
         app = _make_app(graph=graph)
 
