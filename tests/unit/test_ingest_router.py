@@ -97,6 +97,7 @@ class TestAllowedExtensions:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
 
         # Mock IncrementalChecker
         mock_checker_cls.compute_file_hash.return_value = "fakehash123"
@@ -194,6 +195,7 @@ class TestFileTooLarge:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
         app = _make_app(db=db)
         client = TestClient(app)
 
@@ -371,6 +373,7 @@ class TestBackgroundTask:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
 
         mock_checker_cls.compute_file_hash.return_value = "hash123"
         checker = AsyncMock()
@@ -406,6 +409,7 @@ class TestBackgroundTask:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
 
         mock_checker_cls.compute_file_hash.return_value = "hash456"
         checker = AsyncMock()
@@ -448,6 +452,7 @@ class TestResponseFormat:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
 
         mock_checker_cls.compute_file_hash.return_value = "hash789"
         checker = AsyncMock()
@@ -495,6 +500,7 @@ class TestResponseFormat:
         db.get_collection.return_value = _make_collection(coll_id=coll_id)
         db.create_document.return_value = None
         db.create_ingestion_job.return_value = None
+        db.get_document_by_hash.return_value = None  # no pre-existing doc
 
         mock_checker_cls.compute_file_hash.return_value = "hashxyz"
         checker = AsyncMock()
