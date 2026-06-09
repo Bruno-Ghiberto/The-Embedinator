@@ -21,6 +21,21 @@ from backend.api import chat
 from backend.middleware import TraceIDMiddleware
 
 
+@pytest.fixture(autouse=True)
+def reset_chat_semaphore():
+    """Replace the module-level semaphore with one bound to the current test loop.
+
+    The semaphore at chat._chat_semaphore is created at import time and is
+    therefore bound to the import-time event loop.  Each pytest-asyncio test
+    gets a fresh loop, causing 'Semaphore bound to a different event loop'.
+    Re-creating it here binds it to the correct loop for every test.
+    """
+    original = chat._chat_semaphore
+    chat._chat_semaphore = asyncio.Semaphore(5)
+    yield
+    chat._chat_semaphore = original
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -353,8 +353,10 @@ class TestCollectAnswer:
         chunks = [_chunk(rerank_score=0.8)]
         state = _make_state(retrieved_chunks=chunks)
         result = await collect_answer(state, config=None)
-        assert result["answer"] is not None
-        assert len(result["answer"]) > 0
+        # Production writes answer into sub_answers[-1].answer, not result["answer"]
+        assert result["sub_answers"] and len(result["sub_answers"]) > 0
+        assert result["sub_answers"][-1].answer is not None
+        assert len(result["sub_answers"][-1].answer) > 0
 
     @pytest.mark.asyncio
     async def test_returns_citations(self):
@@ -387,17 +389,18 @@ class TestFallbackResponse:
     async def test_answer_mentions_sub_question(self):
         state = _make_state(sub_question="How does auth work?")
         result = await fallback_response(state)
-        assert "How does auth work?" in result["answer"]
+        # Production writes answer into sub_answers[-1].answer
+        assert "How does auth work?" in result["sub_answers"][-1].answer
 
     @pytest.mark.asyncio
     async def test_with_some_chunks_mentions_collection_count(self):
         chunks = [_chunk(collection="col1"), _chunk(collection="col2", chunk_id="c2")]
         state = _make_state(retrieved_chunks=chunks)
         result = await fallback_response(state)
-        assert "2 collection(s)" in result["answer"]
+        assert "2 collection(s)" in result["sub_answers"][-1].answer
 
     @pytest.mark.asyncio
     async def test_with_no_chunks(self):
         state = _make_state(retrieved_chunks=[])
         result = await fallback_response(state)
-        assert "could not find" in result["answer"].lower()
+        assert "could not find" in result["sub_answers"][-1].answer.lower()
