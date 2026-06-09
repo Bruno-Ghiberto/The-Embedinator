@@ -7,7 +7,7 @@ All Qdrant calls are wrapped with the circuit breaker pattern per C1.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from qdrant_client import AsyncQdrantClient
@@ -79,7 +79,7 @@ class HybridSearcher:
                 continue  # FR-002: silently ignore unknown keys
             conditions.append(FieldCondition(key=key, match=MatchValue(value=value)))
 
-        return Filter(must=conditions) if conditions else None
+        return Filter(must=cast(list[Any], conditions)) if conditions else None
 
     def _points_to_chunks(self, points: list[Any], collection: str) -> list[RetrievedChunk]:
         """Convert Qdrant ScoredPoint results to RetrievedChunk objects."""
@@ -193,7 +193,7 @@ class HybridSearcher:
             # Extract points from QueryResponse
             points = results.points if hasattr(results, "points") else results
 
-            chunks = self._points_to_chunks(points, collection)
+            chunks = self._points_to_chunks(cast(list[Any], points), collection)
             self._record_success()
 
             logger.info(
@@ -263,7 +263,7 @@ class HybridSearcher:
         # Merge successful results, log failures
         merged: list[RetrievedChunk] = []
         for name, result in zip(collection_names, results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 logger.warning(
                     "retrieval_collection_search_failed",
                     collection=name,

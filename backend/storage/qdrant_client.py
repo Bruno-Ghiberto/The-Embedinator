@@ -2,6 +2,8 @@
 
 import time
 from dataclasses import dataclass
+from typing import Any, cast
+from uuid import UUID
 
 import structlog
 from qdrant_client import AsyncQdrantClient
@@ -59,6 +61,11 @@ class QdrantClientWrapper:
             self._circuit_open = True
             logger.error("circuit_qdrant_opened", failure_count=self._failure_count)
 
+    def _require_client(self) -> AsyncQdrantClient:
+        """Return the Qdrant client; assert it is connected."""
+        assert self.client is not None, "QdrantClientWrapper not connected — call connect() first"
+        return self.client
+
     async def connect(self):
         """Initialize async Qdrant client."""
         try:
@@ -77,7 +84,7 @@ class QdrantClientWrapper:
         """Check if Qdrant is reachable."""
         self._check_circuit()
         try:
-            await self.client.get_collections()
+            await self._require_client().get_collections()
             self._record_success()
             return True
         except Exception:
@@ -102,10 +109,10 @@ class QdrantClientWrapper:
         reraise=True,
     )
     async def _ensure_collection_with_retry(self, collection_name: str, vector_size: int):
-        collections = await self.client.get_collections()
+        collections = await self._require_client().get_collections()
         existing = [c.name for c in collections.collections]
         if collection_name not in existing:
-            await self.client.create_collection(
+            await self._require_client().create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
             )
@@ -129,7 +136,8 @@ class QdrantClientWrapper:
         reraise=True,
     )
     async def _search_with_retry(self, collection_name: str, query_vector: list[float], limit: int) -> list[dict]:
-        results = await self.client.search(
+        # Legacy: AsyncQdrantClient.search removed in qdrant-client >=1.12; use cast to satisfy mypy
+        results = await cast(Any, self._require_client()).search(
             collection_name=collection_name,
             query_vector=query_vector,
             limit=limit,
@@ -170,7 +178,7 @@ class QdrantClientWrapper:
             )
             for p in points
         ]
-        await self.client.upsert(collection_name=collection_name, points=qdrant_points)
+        await self._require_client().upsert(collection_name=collection_name, points=qdrant_points)
 
 
 # ---------------------------------------------------------------------------
@@ -576,7 +584,7 @@ class QdrantStorage:
             client = await self._get_client()
             await client.delete(
                 collection_name=collection_name,
-                points_selector=PointIdsList(points=point_ids),
+                points_selector=PointIdsList(points=cast(list[int | str | UUID], point_ids)),
             )
             self._record_success()
             return len(point_ids)
@@ -602,12 +610,12 @@ class QdrantStorage:
             self._record_failure()
             raise
 
-    def _build_filter(self, filter_dict: dict):  # type: ignore[return]
+    def _build_filter(self, filter_dict: dict) -> Any:
         """Convert a simple key→value dict into a Qdrant Filter."""
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         conditions = [FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filter_dict.items()]
-        return Filter(must=conditions)
+        return Filter(must=cast(list[Any], conditions))
 
     # ------------------------------------------------------------------
     # Point retrieval
@@ -657,7 +665,7 @@ class QdrantStorage:
         collection_name: str,
         limit: int = 100,
         offset: int | None = None,
-    ) -> tuple[list[dict], int | None]:
+    ) -> tuple[list[dict], int | str | UUID | None]:
         """Cursor-based iteration through a collection. Returns (points, next_offset)."""
         self._check_circuit()
         try:

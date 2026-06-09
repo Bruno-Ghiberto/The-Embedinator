@@ -101,13 +101,13 @@ def _signal_confidence(
         return 0.0
 
     # Use top-k chunks by rerank score
-    scored = [c for c in chunks if c.rerank_score is not None]
+    scored: list[RetrievedChunk] = [c for c in chunks if c.rerank_score is not None]
     if not scored:
         # Fall back to dense_score if no rerank scores
-        scores = sorted([c.dense_score for c in chunks], reverse=True)[:top_k]
+        scores: list[float] = sorted([c.dense_score for c in chunks], reverse=True)[:top_k]
     else:
-        scored.sort(key=lambda c: c.rerank_score, reverse=True)
-        scores = [c.rerank_score for c in scored[:top_k]]
+        scored.sort(key=lambda c: c.rerank_score if c.rerank_score is not None else 0.0, reverse=True)
+        scores = [c.rerank_score for c in scored[:top_k] if c.rerank_score is not None]
 
     if not scores:
         return 0.0

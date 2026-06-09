@@ -62,7 +62,9 @@ async def health(request: Request):
     if ollama_status.status == "error":
         all_ok = False
 
-    status = "healthy" if all_ok else "degraded"
+    from typing import Literal
+
+    status: Literal["healthy", "degraded"] = "healthy" if all_ok else "degraded"
     status_code = 200 if all_ok else 503
 
     response = HealthResponse(
