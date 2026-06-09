@@ -164,18 +164,18 @@ class TestVerifyGroundedness:
         monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", False)
         mock_llm = AsyncMock()
         state = _make_state()
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
         assert result["groundedness_result"] is None
         mock_llm.with_structured_output.assert_not_called()
 
     async def test_returns_none_when_no_final_response(self):
         state = _make_state(final_response=None)
-        result = await verify_groundedness(state, llm=AsyncMock())
+        result = await verify_groundedness(state, config={"configurable": {"llm": AsyncMock()}})
         assert result["groundedness_result"] is None
 
     async def test_returns_none_when_no_sub_answers(self):
         state = _make_state(sub_answers=[])
-        result = await verify_groundedness(state, llm=AsyncMock())
+        result = await verify_groundedness(state, config={"configurable": {"llm": AsyncMock()}})
         assert result["groundedness_result"] is None
 
     async def test_returns_none_when_no_context(self):
@@ -183,10 +183,11 @@ class TestVerifyGroundedness:
         empty_chunk = _make_chunk(text="")
         sa = _make_sub_answer(chunks=[empty_chunk])
         state = _make_state(sub_answers=[sa])
-        result = await verify_groundedness(state, llm=AsyncMock())
+        result = await verify_groundedness(state, config={"configurable": {"llm": AsyncMock()}})
         assert result["groundedness_result"] is None
 
-    async def test_full_groundedness_check_supported_answer(self):
+    async def test_full_groundedness_check_supported_answer(self, monkeypatch):
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         gr = _make_groundedness_result(
             supported=2, unsupported=0, contradicted=0, overall_grounded=True, confidence_adjustment=1.0
         )
@@ -199,7 +200,7 @@ class TestVerifyGroundedness:
             final_response="Supported claim 1. Supported claim 2.",
             sub_answers=[_make_sub_answer(confidence_score=80)],
         )
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is gr
         assert result["confidence_score"] == 80  # 80 * 1.0
@@ -237,8 +238,9 @@ class TestVerifyGroundedness:
         annotated = _apply_groundedness_annotations(response, gr)
         assert annotated.startswith("**Warning:")
 
-    async def test_gav_adjusted_confidence_score(self):
+    async def test_gav_adjusted_confidence_score(self, monkeypatch):
         """Confidence = mean(sub_answer scores) * confidence_adjustment, clamped 0-100."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         gr = _make_groundedness_result(
             supported=2, unsupported=1, contradicted=0, overall_grounded=True, confidence_adjustment=0.8
         )
@@ -253,7 +255,7 @@ class TestVerifyGroundedness:
             final_response="Supported claim 1. Supported claim 2. Unsupported claim 1.",
             sub_answers=[sa1, sa2],
         )
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         # mean([80, 60]) = 70, * 0.8 = 56
         assert result["confidence_score"] == 56
@@ -265,7 +267,7 @@ class TestVerifyGroundedness:
         mock_structured.ainvoke.side_effect = RuntimeError("LLM unavailable")
 
         state = _make_state()
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
         assert result["groundedness_result"] is None
 
     async def test_graceful_degradation_on_circuit_open(self):
@@ -276,7 +278,7 @@ class TestVerifyGroundedness:
         mock_structured.ainvoke.side_effect = RuntimeError("circuit open")
 
         state = _make_state()
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
         assert result["groundedness_result"] is None
 
 
@@ -585,7 +587,7 @@ class TestTierParams:
             "selected_collections": ["col1"],
         }
 
-        result = await rewrite_query(state, llm=mock_llm)
+        result = await rewrite_query(state, config={"configurable": {"llm": mock_llm}})
         assert "retrieval_params" in result
         assert result["retrieval_params"]["top_k"] == _tp["analytical"]["top_k"]  # 25
 
@@ -606,7 +608,7 @@ class TestTierParams:
             "selected_collections": [],
         }
 
-        result = await rewrite_query(state, llm=mock_llm)
+        result = await rewrite_query(state, config={"configurable": {"llm": mock_llm}})
         assert "retrieval_params" in result
         assert result["retrieval_params"] == _tp["lookup"]
 
