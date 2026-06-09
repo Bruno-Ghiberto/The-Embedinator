@@ -113,10 +113,9 @@ jobs:
     name: backend-type-check
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # TODO(spec-28): mypy baseline cleanup — 138 pre-existing errors in backend/.
-    # Once baseline is green, REMOVE continue-on-error to make this gate blocking per FR-005 / AC-010.
-    # Tracked in T172 tech-debt issue (Wave 3). Job runs for visibility but does NOT block merges.
-    continue-on-error: true
+    # mypy baseline is clean (0 errors in backend/) — gate made blocking per FR-005 / AC-010.
+    # A mypy error now fails this job. NOTE: not yet promoted into the aggregate REQUIRED
+    # roster (line ~454) or branch-protection required checks ("Shape X") — see PR description.
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
