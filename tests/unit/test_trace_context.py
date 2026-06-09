@@ -226,12 +226,12 @@ async def test_ingest_file_generates_trace_id():
         clear_calls.append(1)
 
     # Minimal mocks for IngestionPipeline dependencies
-    mock_db = MagicMock()
+    mock_db = AsyncMock()
     mock_db.update_ingestion_job = AsyncMock()
-    mock_db.update_document_status = AsyncMock()
-    mock_db.insert_parent_chunk = AsyncMock()
+    mock_db.update_document = AsyncMock()
+    mock_db.create_parent_chunk = AsyncMock()
 
-    mock_qdrant = MagicMock()
+    mock_qdrant = AsyncMock()
 
     pipeline = IngestionPipeline(db=mock_db, qdrant=mock_qdrant)
 
