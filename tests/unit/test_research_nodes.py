@@ -404,3 +404,57 @@ class TestFallbackResponse:
         state = _make_state(retrieved_chunks=[])
         result = await fallback_response(state)
         assert "could not find" in result["sub_answers"][-1].answer.lower()
+
+
+class _NonExceptionBaseError(BaseException):
+    """Custom BaseException subclass that is NOT an Exception.
+
+    Used in BUG-T4 tests to simulate BaseException from asyncio.gather
+    without triggering pytest's KeyboardInterrupt / SystemExit handlers.
+    """
+
+
+class TestToolsNodeBaseExceptionHandling:
+    """BUG-T4: asyncio.gather(return_exceptions=True) can return BaseException
+    instances (e.g. KeyboardInterrupt, SystemExit). The original guard
+    isinstance(outcome, Exception) does NOT catch BaseException subclasses that
+    are not Exception subclasses, causing a TypeError when the code tries to
+    unpack the outcome as a 4-tuple.
+    """
+
+    @pytest.mark.asyncio
+    async def test_base_exception_is_handled_in_loop_not_via_outer_except(self):
+        """BUG-T4: tools_node must handle BaseException from gather in the loop.
+
+        With the buggy isinstance(outcome, Exception) guard:
+          _NonExceptionBaseError passes the guard → TypeError at tuple-unpack
+          → caught by outer except Exception → messages=[](empty)
+
+        With the fix isinstance(outcome, BaseException):
+          _NonExceptionBaseError IS caught in the loop → ToolMessage appended
+          → messages=[ToolMessage(...)] (non-empty)
+        """
+        mock_tool = AsyncMock()
+        mock_tool.name = "search_child_chunks"
+        # Raise a BaseException that is NOT an Exception
+        mock_tool.ainvoke = AsyncMock(side_effect=_NonExceptionBaseError("simulated"))
+
+        mock_ai_msg = MagicMock()
+        mock_ai_msg.tool_calls = [
+            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"}
+        ]
+
+        state = _make_state(messages=[mock_ai_msg])
+        config = {"configurable": {"tools": [mock_tool]}}
+
+        result = await tools_node(state, config=config)
+
+        # The exception path in the loop must be taken: a ToolMessage is appended.
+        # With the buggy code, messages would be empty because TypeError is caught
+        # by the outer except and the loop never finishes building tool_messages.
+        assert isinstance(result, dict)
+        assert len(result.get("messages", [])) == 1, (
+            "Expected 1 ToolMessage for the failed tool call; "
+            "got empty messages — indicates outer except caught TypeError instead of "
+            "the loop handling the BaseException"
+        )

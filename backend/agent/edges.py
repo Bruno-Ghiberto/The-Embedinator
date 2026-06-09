@@ -113,6 +113,7 @@ def route_fan_out(state: ConversationState) -> list[Send]:
             "_top_k_retrieval": None,
             "_top_k_rerank": None,
             "_payload_filters": None,
+            "loop_start_time": None,
         }
         sends.append(Send("research", payload))
 
