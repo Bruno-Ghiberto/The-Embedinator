@@ -6,10 +6,12 @@ import os
 import sys
 import tempfile
 import time
+from collections.abc import MutableMapping
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import aiosqlite
 
@@ -38,7 +40,7 @@ from backend.api import settings as api_settings
 _SENSITIVE_KEYS = {"api_key", "password", "secret", "token", "authorization"}
 
 
-def _strip_sensitive_fields(logger, method, event_dict: dict) -> dict:
+def _strip_sensitive_fields(logger: Any, method: Any, event_dict: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     """Redact sensitive field values in log records (FR-006)."""
     for key in list(event_dict.keys()):
         if key.lower() in _SENSITIVE_KEYS:
@@ -77,7 +79,7 @@ def _configure_logging(log_level: str = "INFO", log_level_overrides: str = ""):
         override_map[module.strip()] = level_int
 
     # --- Per-component filter processor (T039) ---
-    def _filter_by_component(logger, method_name: str, event_dict: dict) -> dict:
+    def _filter_by_component(logger: Any, method_name: str, event_dict: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         """Drop events that fall below the per-component override level.
 
         Uses ``event_dict.get("component", "")`` because loggers are bound with
@@ -238,9 +240,13 @@ async def _migrate_checkpoint_auto_vacuum(path: str, logger) -> bool:
     """
     async with aiosqlite.connect(path) as conn:
         async with conn.execute("PRAGMA auto_vacuum") as cur:
-            (mode,) = await cur.fetchone()
+            row_mode = await cur.fetchone()
+            assert row_mode is not None, "PRAGMA auto_vacuum returned no rows"
+            (mode,) = row_mode
         async with conn.execute("PRAGMA page_count") as cur:
-            (page_count,) = await cur.fetchone()
+            row_page = await cur.fetchone()
+            assert row_page is not None, "PRAGMA page_count returned no rows"
+            (page_count,) = row_page
 
         if mode == 2:
             # Already INCREMENTAL — idempotent no-op.
@@ -364,7 +370,7 @@ async def _recover_checkpoint_db(path: str, logger) -> RecoveryResult:
     try:
         async with aiosqlite.connect(path) as conn:
             async with conn.execute("PRAGMA integrity_check") as cur:
-                rows = await cur.fetchall()
+                rows = list(await cur.fetchall())
     except Exception:
         rows = []  # treat unreadable DB as corrupt — fall through to recovery
 
@@ -397,7 +403,7 @@ async def _recover_checkpoint_db(path: str, logger) -> RecoveryResult:
         async with aiosqlite.connect(salvage_path) as conn:
             await conn.execute("REINDEX")
             async with conn.execute("PRAGMA integrity_check") as cur:
-                salvage_rows = await cur.fetchall()
+                salvage_rows = list(await cur.fetchall())
 
         salvage_ok = bool(salvage_rows) and salvage_rows[0][0] == "ok" and len(salvage_rows) == 1
 
@@ -594,6 +600,7 @@ async def lifespan(app: FastAPI):
     from backend.agent.research_graph import build_research_graph
     from backend.agent.conversation_graph import build_conversation_graph
 
+    assert qdrant.client is not None, "Qdrant client not connected — degraded mode should never reach searcher init"
     hybrid_searcher = HybridSearcher(qdrant.client, settings)
     app.state.hybrid_searcher = hybrid_searcher
     logger.info("retrieval_hybrid_searcher_initialized")
@@ -659,7 +666,7 @@ async def lifespan(app: FastAPI):
     app.state.shutting_down = True
 
     # FR-051: WAL checkpoint for main database before closing
-    await db.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    await db._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     await db.close()
 
     # FR-051: WAL checkpoint for checkpoints database

@@ -1,5 +1,7 @@
 """System settings endpoints -- read and partial update."""
 
+from typing import Any, Callable
+
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.agent.schemas import SettingsResponse, SettingsUpdateRequest
@@ -14,7 +16,7 @@ def _parse_bool(value: str) -> bool:
 
 
 # Map of setting keys to their config defaults and type coercion functions
-_SETTINGS_KEYS: dict[str, tuple[str, type]] = {
+_SETTINGS_KEYS: dict[str, tuple[str, type | Callable[[str], Any]]] = {
     "default_llm_model": ("default_llm_model", str),
     "default_embed_model": ("default_embed_model", str),
     "confidence_threshold": ("confidence_threshold", int),
