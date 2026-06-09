@@ -37,6 +37,10 @@ ignore_missing_imports = false
 follow_imports = "normal"
 exclude = ["^build/", "^dist/", "^\\.venv/", "^migrations/"]
 
+[[tool.mypy.overrides]]
+module = ["langchain_ollama", "langchain_openai", "langchain_anthropic", "sentence_transformers", "tiktoken"]
+ignore_missing_imports = true
+
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
