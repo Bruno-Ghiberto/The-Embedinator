@@ -57,7 +57,7 @@ def build_research_graph(
 
     if meta_reasoning_graph:
 
-        async def meta_reasoning_mapper(state: ResearchState, config: RunnableConfig = None) -> dict:
+        async def meta_reasoning_mapper(state: ResearchState, config: RunnableConfig | None = None) -> dict:
             """Map ResearchState -> MetaReasoningState, invoke subgraph, map back."""
             _t0_meta = time.perf_counter()
 

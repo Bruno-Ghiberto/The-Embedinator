@@ -27,7 +27,7 @@ FALLBACK_ORDER = [STRATEGY_WIDEN_SEARCH, STRATEGY_CHANGE_COLLECTION, STRATEGY_RE
 
 async def generate_alternative_queries(
     state: MetaReasoningState,
-    config: RunnableConfig = None,
+    config: RunnableConfig | None = None,
 ) -> dict:
     """Produce 3 rephrased query variants using LLM (FR-001).
 
@@ -57,6 +57,7 @@ async def generate_alternative_queries(
     chunk_summaries = "\n".join(f"- {c.text[:100]}..." for c in chunks[:5]) or "(no chunks retrieved)"
 
     try:
+        assert config is not None
         llm = config["configurable"]["llm"]
         prompt = GENERATE_ALT_QUERIES_SYSTEM.format(
             sub_question=sub_question,
@@ -91,7 +92,7 @@ async def generate_alternative_queries(
 
 async def evaluate_retrieval_quality(
     state: MetaReasoningState,
-    config: RunnableConfig = None,
+    config: RunnableConfig | None = None,
 ) -> dict:
     """Score all retrieved chunks with cross-encoder (FR-002, FR-003).
 
@@ -124,6 +125,8 @@ async def evaluate_retrieval_quality(
 
     # Reranker unavailability guard (FR-012)
     try:
+        if config is None:
+            raise KeyError("config")
         reranker = config["configurable"]["reranker"]
         if reranker is None:
             raise ValueError("Reranker is None")
@@ -158,7 +161,7 @@ async def evaluate_retrieval_quality(
 
 async def decide_strategy(
     state: MetaReasoningState,
-    config: RunnableConfig = None,
+    config: RunnableConfig | None = None,
 ) -> dict:
     """Select recovery strategy based on quantitative evaluation (FR-004).
 
@@ -304,7 +307,7 @@ def _build_modified_state_relax() -> dict:
 
 async def report_uncertainty(
     state: MetaReasoningState,
-    config: RunnableConfig = None,
+    config: RunnableConfig | None = None,
 ) -> dict:
     """Generate honest uncertainty report (FR-007, FR-008).
 
@@ -356,6 +359,7 @@ async def report_uncertainty(
     )
 
     try:
+        assert config is not None
         llm = config["configurable"]["llm"]
         prompt = REPORT_UNCERTAINTY_SYSTEM
         response = await llm.ainvoke(
