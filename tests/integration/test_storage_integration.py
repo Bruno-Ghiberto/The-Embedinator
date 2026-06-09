@@ -31,6 +31,9 @@ from backend.storage.qdrant_client import QdrantPoint, QdrantStorage
 from backend.storage.sqlite_db import SQLiteDB
 from tests.integration.conftest import unique_name
 
+# All tests in this module require a live Qdrant on localhost:6333.
+pytestmark = pytest.mark.require_docker
+
 
 # ---------------------------------------------------------------------------
 # Helpers

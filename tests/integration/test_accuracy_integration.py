@@ -130,8 +130,9 @@ def _make_mock_llm(return_value):
 class TestGAVIntegration:
     """IT-01: Full verify_groundedness flow: LLM call → annotations → adjusted confidence."""
 
-    async def test_full_gav_flow_all_supported(self):
+    async def test_full_gav_flow_all_supported(self, monkeypatch):
         """All claims supported: no [unverified], no warning, full confidence kept."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         gr = GroundednessResult(
             verifications=[
                 ClaimVerification(
@@ -156,7 +157,7 @@ class TestGAVIntegration:
             sub_answers=[_make_sub_answer(confidence_score=80)],
         )
 
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is gr
         assert result["confidence_score"] == 80  # int(80 * 1.0)
@@ -164,8 +165,9 @@ class TestGAVIntegration:
         assert "Warning" not in result["final_response"]
         assert "[Removed:" not in result["final_response"]
 
-    async def test_full_gav_flow_unsupported_claims_annotated(self):
+    async def test_full_gav_flow_unsupported_claims_annotated(self, monkeypatch):
         """T035: one supported, one unsupported, one contradicted — verify annotations."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         gr = GroundednessResult(
             verifications=[
                 ClaimVerification(
@@ -199,7 +201,7 @@ class TestGAVIntegration:
             sub_answers=[_make_sub_answer(chunks=[chunk_c1, chunk_c2], confidence_score=80)],
         )
 
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is gr
         # Unsupported claim annotated
@@ -218,8 +220,9 @@ class TestGAVIntegration:
         assert "unsupported" in verds
         assert "contradicted" in verds
 
-    async def test_full_gav_flow_contradicted_claims_removed(self):
+    async def test_full_gav_flow_contradicted_claims_removed(self, monkeypatch):
         """Contradicted claims are replaced with [Removed:...] marker in response."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         gr = GroundednessResult(
             verifications=[
                 ClaimVerification(
@@ -238,7 +241,7 @@ class TestGAVIntegration:
             sub_answers=[_make_sub_answer(confidence_score=60)],
         )
 
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert "X causes Y" not in result["final_response"]
         assert "[Removed:" in result["final_response"]
@@ -251,7 +254,7 @@ class TestGAVIntegration:
         mock_llm = MagicMock()
         state = _make_state()
 
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is None
         mock_llm.with_structured_output.assert_not_called()
@@ -264,7 +267,7 @@ class TestGAVIntegration:
         mock_structured.ainvoke.side_effect = RuntimeError("LLM unavailable")
         state = _make_state()
 
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is None
         # No exception propagated — graceful degradation
@@ -390,7 +393,7 @@ class TestTierParamsIntegration:
             messages=[HumanMessage(content="What version is installed?")],
         )
 
-        result = await rewrite_query(state, llm=mock_llm)
+        result = await rewrite_query(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["query_analysis"].complexity_tier == "factoid"
         assert result["retrieval_params"] == TIER_PARAMS["factoid"]
@@ -411,7 +414,7 @@ class TestTierParamsIntegration:
             messages=[HumanMessage(content="How does the authentication system handle token refresh?")],
         )
 
-        result = await rewrite_query(state, llm=mock_llm)
+        result = await rewrite_query(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["query_analysis"].complexity_tier == "analytical"
         assert result["retrieval_params"] == TIER_PARAMS["analytical"]
@@ -432,7 +435,7 @@ class TestTierParamsIntegration:
             messages=[HumanMessage(content="What is the deployment process?")],
         )
 
-        result = await rewrite_query(state, llm=mock_llm)
+        result = await rewrite_query(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["query_analysis"].complexity_tier == "lookup"
         assert result["retrieval_params"] == TIER_PARAMS["lookup"]
@@ -461,12 +464,12 @@ class TestTierParamsIntegration:
         # First call: factoid
         mock_structured.ainvoke.return_value = factoid_analysis
         factoid_state = _make_state(messages=[HumanMessage(content="What version?")])
-        factoid_result = await rewrite_query(factoid_state, llm=mock_llm)
+        factoid_result = await rewrite_query(factoid_state, config={"configurable": {"llm": mock_llm}})
 
         # Second call: multi_hop
         mock_structured.ainvoke.return_value = multihop_analysis
         multihop_state = _make_state(messages=[HumanMessage(content="Compare A and B across C")])
-        multihop_result = await rewrite_query(multihop_state, llm=mock_llm)
+        multihop_result = await rewrite_query(multihop_state, config={"configurable": {"llm": mock_llm}})
 
         assert factoid_result["retrieval_params"]["top_k"] < multihop_result["retrieval_params"]["top_k"]
         assert (
@@ -507,8 +510,9 @@ class TestCircuitBreakerIntegration:
 
         wrapper.client.search.assert_not_called()
 
-    async def test_inference_circuit_opens_and_degrades_gracefully(self):
+    async def test_inference_circuit_opens_and_degrades_gracefully(self, monkeypatch):
         """T039: Inference CB opens after threshold failures; subsequent calls degrade."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         import backend.agent.nodes as nodes_module
 
         mock_llm = MagicMock()
@@ -520,7 +524,7 @@ class TestCircuitBreakerIntegration:
 
         # Exhaust failures to open the inference circuit (threshold = 5)
         for _ in range(5):
-            result = await verify_groundedness(state, llm=mock_llm)
+            result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
             assert result["groundedness_result"] is None
 
         assert nodes_module._inf_circuit_open is True
@@ -528,7 +532,7 @@ class TestCircuitBreakerIntegration:
 
         # Next call: circuit open → LLM not called → graceful degradation
         mock_structured.ainvoke.reset_mock()
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is None
         mock_structured.ainvoke.assert_not_called()
@@ -559,8 +563,9 @@ class TestCircuitBreakerIntegration:
         assert wrapper._circuit_open is False
         assert wrapper._failure_count == 0
 
-    async def test_fr017_infrastructure_error_during_retry(self):
+    async def test_fr017_infrastructure_error_during_retry(self, monkeypatch):
         """FR-017: infrastructure error during retry triggers inference circuit breaker."""
+        monkeypatch.setattr("backend.agent.nodes.settings.groundedness_check_enabled", True)
         import backend.agent.nodes as nodes_module
 
         mock_llm = MagicMock()
@@ -575,7 +580,7 @@ class TestCircuitBreakerIntegration:
         # Drive failure count to threshold
         threshold = 5
         for i in range(threshold):
-            result = await verify_groundedness(state, llm=mock_llm)
+            result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
             assert result["groundedness_result"] is None, f"Expected graceful degradation on call {i + 1}"
 
         # Circuit should now be open
@@ -585,7 +590,7 @@ class TestCircuitBreakerIntegration:
 
         # Verify the circuit blocks further LLM calls
         call_count_before = mock_structured.ainvoke.call_count
-        result = await verify_groundedness(state, llm=mock_llm)
+        result = await verify_groundedness(state, config={"configurable": {"llm": mock_llm}})
 
         assert result["groundedness_result"] is None
         # LLM not called again — CB rejected before reaching the LLM
