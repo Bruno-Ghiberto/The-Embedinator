@@ -353,9 +353,7 @@ class TestEdgeCases:
 
         # Production calls db.update_document(doc_id, status=..., chunk_count=...)
         completed_calls = [
-            call
-            for call in mock_db.update_document.call_args_list
-            if call.kwargs.get("status") == "completed"
+            call for call in mock_db.update_document.call_args_list if call.kwargs.get("status") == "completed"
         ]
         assert len(completed_calls) >= 1
         assert completed_calls[-1].kwargs.get("chunk_count") == 0
@@ -376,9 +374,7 @@ class TestEdgeCases:
         with patch.object(
             pipeline,
             "_spawn_worker",
-            new=AsyncMock(
-                side_effect=FileNotFoundError("[Errno 2] No such file or directory: '/nonexistent/worker'")
-            ),
+            new=AsyncMock(side_effect=FileNotFoundError("[Errno 2] No such file or directory: '/nonexistent/worker'")),
         ):
             result = asyncio.run(
                 pipeline.ingest_file(

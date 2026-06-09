@@ -185,8 +185,7 @@ class TestIngestionPipeline:
         completed_calls = [
             call
             for call in mock_db.update_document.call_args_list
-            if call.kwargs.get("status") == "completed"
-            or (len(call.args) > 1 and call.args[1] == "completed")
+            if call.kwargs.get("status") == "completed" or (len(call.args) > 1 and call.args[1] == "completed")
         ]
         assert len(completed_calls) >= 1
         assert completed_calls[-1].kwargs.get("chunk_count", 0) > 0
@@ -405,8 +404,7 @@ class TestIngestionPipeline:
         doc_failed = [
             call
             for call in mock_db.update_document.call_args_list
-            if call.kwargs.get("status") == "failed"
-            or (len(call.args) > 1 and call.args[1] == "failed")
+            if call.kwargs.get("status") == "failed" or (len(call.args) > 1 and call.args[1] == "failed")
         ]
         assert len(doc_failed) >= 1
 
