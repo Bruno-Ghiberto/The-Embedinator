@@ -148,10 +148,10 @@ class TestCheckChange:
     @pytest.fixture
     def mock_db(self):
         db = AsyncMock()
-        # Mock the db._conn.execute pattern used by IncrementalChecker.check_change
+        # Mock the nested db.db.execute pattern for direct SQL queries
         mock_cursor = AsyncMock()
-        db._conn = AsyncMock()
-        db._conn.execute = AsyncMock(return_value=mock_cursor)
+        db.db = AsyncMock()
+        db.db.execute = AsyncMock(return_value=mock_cursor)
         return db, mock_cursor
 
     @pytest.mark.asyncio
@@ -191,6 +191,6 @@ class TestCheckChange:
         assert is_changed is False
         assert old_id is None
         # Verify the SQL query includes the hash != condition
-        call_args = db._conn.execute.call_args
+        call_args = db.db.execute.call_args
         sql = call_args[0][0]
         assert "file_hash != ?" in sql
