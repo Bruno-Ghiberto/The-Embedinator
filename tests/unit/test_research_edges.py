@@ -196,9 +196,7 @@ class TestRouteFanOut:
         sends = route_fan_out(state)
         assert len(sends) >= 1
         for send in sends:
-            assert "loop_start_time" in send.arg, (
-                "ResearchState payload is missing required key 'loop_start_time'"
-            )
+            assert "loop_start_time" in send.arg, "ResearchState payload is missing required key 'loop_start_time'"
 
     def test_send_payload_loop_start_time_is_none(self):
         """loop_start_time initialises as None in fan-out."""

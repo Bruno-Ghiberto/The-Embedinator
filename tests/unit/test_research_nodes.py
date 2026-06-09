@@ -440,9 +440,7 @@ class TestToolsNodeBaseExceptionHandling:
         mock_tool.ainvoke = AsyncMock(side_effect=_NonExceptionBaseError("simulated"))
 
         mock_ai_msg = MagicMock()
-        mock_ai_msg.tool_calls = [
-            {"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"}
-        ]
+        mock_ai_msg.tool_calls = [{"name": "search_child_chunks", "args": {"query": "test"}, "id": "call_1"}]
 
         state = _make_state(messages=[mock_ai_msg])
         config = {"configurable": {"tools": [mock_tool]}}
