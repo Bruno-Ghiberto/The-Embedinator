@@ -277,7 +277,7 @@ The phase-playbook is the canonical source for these bindings; the table is repr
 - `embedinator.sh`, `embedinator.ps1` (SACRED — spec-19 launcher contract).
 - `backend/**`, `frontend/**`, `ingestion-worker/**` outside BLOCKER-PATCHED exception.
 - Any file owned by an in-flight Dependabot PR (`gh pr list --label dependencies` before any inline edit).
-- The corpus (`docs/Collection-Docs/` — gitignored already; out of spec-30 scope per A-002).
+- The corpus (`data/Collection-Docs/` — gitignored, relocated from `docs/` in repo-order cleanup; out of spec-30 scope per A-002).
 
 ## SC Evaluation Matrix
 

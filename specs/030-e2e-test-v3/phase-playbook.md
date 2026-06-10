@@ -164,7 +164,7 @@ docker compose restart backend
 
 #### P2-S1 — Create collection + upload single PDF
 
-**Pilot action**: UI: Create collection "hunt-pdfs". Upload `docs/Collection-Docs/NAG-200.pdf` (or any small NAG PDF available).
+**Pilot action**: UI: Create collection "hunt-pdfs". Upload `data/Collection-Docs/NAG-200.pdf` (or any small NAG PDF available).
 
 **Expected outcome**:
 - Status transitions: `pending → parsing → chunking → indexing → ready` without skipping.
