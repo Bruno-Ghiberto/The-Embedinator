@@ -74,7 +74,7 @@ class TestCheckDuplicate:
     @pytest.mark.asyncio
     async def test_duplicate_completed_returns_true(self, mock_db):
         """Same hash + completed status -> (True, existing_doc_id)."""
-        mock_db.find_document_by_hash.return_value = {
+        mock_db.get_document_by_hash.return_value = {
             "id": "doc-abc123",
             "status": "completed",
         }
@@ -84,12 +84,12 @@ class TestCheckDuplicate:
 
         assert is_dup is True
         assert doc_id == "doc-abc123"
-        mock_db.find_document_by_hash.assert_awaited_once_with("col-1", "hashABC")
+        mock_db.get_document_by_hash.assert_awaited_once_with("col-1", "hashABC")
 
     @pytest.mark.asyncio
     async def test_no_match_returns_false(self, mock_db):
         """No document with this hash -> (False, None)."""
-        mock_db.find_document_by_hash.return_value = None
+        mock_db.get_document_by_hash.return_value = None
         checker = IncrementalChecker(mock_db)
 
         is_dup, doc_id = await checker.check_duplicate("col-1", "hashXYZ")
@@ -100,7 +100,7 @@ class TestCheckDuplicate:
     @pytest.mark.asyncio
     async def test_failed_status_not_duplicate(self, mock_db):
         """Same hash + failed status -> (False, None) — allows re-ingestion (FR-004)."""
-        mock_db.find_document_by_hash.return_value = {
+        mock_db.get_document_by_hash.return_value = {
             "id": "doc-failed123",
             "status": "failed",
         }
@@ -114,7 +114,7 @@ class TestCheckDuplicate:
     @pytest.mark.asyncio
     async def test_pending_status_not_duplicate(self, mock_db):
         """Same hash + pending status -> (False, None)."""
-        mock_db.find_document_by_hash.return_value = {
+        mock_db.get_document_by_hash.return_value = {
             "id": "doc-pending",
             "status": "pending",
         }
@@ -129,7 +129,7 @@ class TestCheckDuplicate:
     async def test_per_collection_scoping(self, mock_db):
         """Same hash in different collections -> not duplicate."""
         # First call: collection A has it
-        mock_db.find_document_by_hash.side_effect = [
+        mock_db.get_document_by_hash.side_effect = [
             {"id": "doc-inA", "status": "completed"},
             None,  # Second call: collection B doesn't
         ]

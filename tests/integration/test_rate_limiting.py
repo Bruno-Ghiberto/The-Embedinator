@@ -30,9 +30,9 @@ def _build_mock_graph():
     """Build a mock ConversationGraph that returns quickly."""
     graph = MagicMock()
 
-    async def mock_astream(state, *, stream_mode="messages", config=None):
+    async def mock_astream(state, *args, **kwargs):
         msg = AIMessageChunk(content="Answer")
-        yield msg, {"langgraph_node": "respond"}
+        yield {"type": "messages", "data": (msg, {"langgraph_node": "collect_answer"})}
 
     graph.astream = mock_astream
 
@@ -45,7 +45,7 @@ def _build_mock_graph():
         "sub_questions": [],
         "final_response": "Answer",
     }
-    graph.get_state = MagicMock(return_value=state_snapshot)
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
     return graph
 
 

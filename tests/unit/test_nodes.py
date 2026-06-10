@@ -118,6 +118,21 @@ def _make_llm_mock(content: str) -> AsyncMock:
     return llm_mock
 
 
+def _make_structured_llm_mock(structured_result: object) -> MagicMock:
+    """Return an LLM mock that supports with_structured_output().
+
+    Production code calls llm.with_structured_output(SomeModel, method=...) and
+    then awaits the returned object's ainvoke().  This helper wires that chain so
+    the final ainvoke() returns *structured_result*.
+    """
+    structured_llm = AsyncMock()
+    structured_llm.ainvoke = AsyncMock(return_value=structured_result)
+
+    llm_mock = MagicMock()
+    llm_mock.with_structured_output = MagicMock(return_value=structured_llm)
+    return llm_mock
+
+
 # ---------------------------------------------------------------------------
 # classify_intent tests
 # ---------------------------------------------------------------------------
@@ -135,7 +150,9 @@ async def test_classify_intent_rag_query():
 @pytest.mark.asyncio
 async def test_classify_intent_collection_mgmt():
     """LLM returning collection_mgmt intent should propagate correctly."""
-    llm = _make_llm_mock('{"intent": "collection_mgmt"}')
+    from backend.agent.schemas import IntentClassification
+
+    llm = _make_structured_llm_mock(IntentClassification(intent="collection_mgmt", reason="user wants to create"))
     state = _make_state(messages=[HumanMessage(content="Create a new collection")])
     result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "collection_mgmt"
@@ -144,7 +161,9 @@ async def test_classify_intent_collection_mgmt():
 @pytest.mark.asyncio
 async def test_classify_intent_ambiguous():
     """LLM returning ambiguous intent should propagate correctly."""
-    llm = _make_llm_mock('{"intent": "ambiguous"}')
+    from backend.agent.schemas import IntentClassification
+
+    llm = _make_structured_llm_mock(IntentClassification(intent="ambiguous", reason="unclear"))
     state = _make_state(messages=[HumanMessage(content="What about that thing")])
     result = await classify_intent(state, config={"configurable": {"llm": llm}})
     assert result["intent"] == "ambiguous"

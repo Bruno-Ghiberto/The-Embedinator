@@ -519,7 +519,7 @@ require_docker  # Tests requiring Qdrant on localhost:6333
 
 - All images published to `ghcr.io` are signed with cosign. [Verify before running](docs/cicd.md#signing--sbom).
 - Every PR runs the full quality gate: backend lint + format + pip-audit, frontend tests + coverage, Docker smoke test, and pre-commit parity.
-- Branch protection policy: see [ADR-0001](docs/adr/0001-branch-protection.md).
+- Branch protection policy: see [ADR-0001](docs/Project_blueprints/adr/0001-branch-protection.md).
 - Full CI/CD reference: [docs/cicd.md](docs/cicd.md).
 
 

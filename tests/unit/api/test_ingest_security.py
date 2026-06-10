@@ -99,7 +99,10 @@ async def test_non_pdf_skips_magic_check():
     """AC-5: .md file with any content passes (no magic check)."""
     app = _make_app()
     # Mock DB so collection exists and rest of pipeline works
-    app.state.db.get_collection = AsyncMock(return_value={"id": "col1", "name": "test"})
+    app.state.db.get_collection = AsyncMock(
+        return_value={"id": "col1", "name": "test", "qdrant_collection_name": "qdrant_col1"}
+    )
+    app.state.db.get_document_by_hash = AsyncMock(return_value=None)
     app.state.db.create_document = AsyncMock()
     app.state.db.create_ingestion_job = AsyncMock()
 

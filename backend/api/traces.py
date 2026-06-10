@@ -3,6 +3,7 @@
 import json
 import math
 import time
+from typing import Any
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -35,8 +36,8 @@ async def list_traces(
     db = request.app.state.db
 
     # Build query dynamically
-    conditions = []
-    params = []
+    conditions: list[str] = []
+    params: list[Any] = []
 
     if session_id is not None:
         conditions.append("session_id = ?")
@@ -194,8 +195,8 @@ async def system_stats(request: Request) -> dict:
 
 @router.get("/api/metrics", response_model=MetricsResponse)
 async def metrics(
+    request: Request,
     window: str = Query(default="24h"),
-    request: Request = ...,
 ) -> MetricsResponse:
     """Return time-bucketed query metrics for the requested time window."""
     if window not in ("1h", "24h", "7d"):

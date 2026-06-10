@@ -20,7 +20,7 @@ class LLMProvider(ABC):
         """Generate a complete response."""
 
     @abstractmethod
-    async def generate_stream(self, prompt: str, system_prompt: str = "") -> AsyncIterator[str]:
+    def generate_stream(self, prompt: str, system_prompt: str = "") -> AsyncIterator[str]:
         """Generate a streaming response, yielding tokens."""
 
     @abstractmethod

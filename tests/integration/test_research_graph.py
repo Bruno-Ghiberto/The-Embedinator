@@ -43,6 +43,15 @@ def _make_initial_state(**overrides):
         "messages": [],
         "_no_new_tools": False,
         "_needs_compression": False,
+        "sub_answers": [],
+        # Fields added by spec-26 (optional — LangGraph fills defaults)
+        "stage_timings": {},
+        "_meta_attempt_count": 0,
+        "_attempted_strategies": set(),
+        "_top_k_retrieval": None,
+        "_top_k_rerank": None,
+        "_payload_filters": None,
+        "loop_start_time": None,
     }
     base.update(overrides)
     return base
@@ -76,16 +85,22 @@ class TestFallbackPath:
 
     @pytest.mark.asyncio
     async def test_no_llm_routes_to_fallback(self):
-        """Without LLM, orchestrator sets _no_new_tools=True -> exhausted -> fallback"""
+        """Without LLM, orchestrator sets _no_new_tools=True -> exhausted -> fallback.
+
+        fallback_response sets sub_answers[0].answer (not state["answer"] directly).
+        """
         graph = build_research_graph(tools=[])
         state = _make_initial_state()
 
         result = await graph.ainvoke(state)
 
-        assert result["answer"] is not None
         assert result["confidence_score"] == 0.0
         assert result["citations"] == []
-        assert "could not find" in result["answer"].lower() or "searched" in result["answer"].lower()
+        # fallback_response writes the answer into sub_answers, not state["answer"]
+        assert len(result["sub_answers"]) > 0
+        fallback_text = result["sub_answers"][-1].answer
+        assert fallback_text is not None
+        assert "could not find" in fallback_text.lower() or "searched" in fallback_text.lower()
 
 
 class TestBudgetEnforcement:
@@ -93,7 +108,10 @@ class TestBudgetEnforcement:
 
     @pytest.mark.asyncio
     async def test_terminates_at_max_iterations(self):
-        """Pre-set iteration_count at max -> immediate exhaustion -> fallback"""
+        """Pre-set iteration_count at max -> immediate exhaustion -> fallback.
+
+        fallback_response sets sub_answers[0].answer (not state["answer"] directly).
+        """
         graph = build_research_graph(tools=[])
         state = _make_initial_state(iteration_count=10)
 
@@ -103,8 +121,9 @@ class TestBudgetEnforcement:
         # So flow: orchestrator (inc to 11) -> should_continue_loop (11 >= 10 -> exhausted) -> fallback
         result = await graph.ainvoke(state)
 
-        assert result["answer"] is not None
         assert result["confidence_score"] == 0.0
+        # fallback_response writes answer into sub_answers
+        assert len(result["sub_answers"]) > 0
 
 
 class TestDeduplication:

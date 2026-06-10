@@ -84,7 +84,7 @@ async def _maybe_summarize_research_messages(
         return messages
 
 
-async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def orchestrator(state: ResearchState, config: RunnableConfig | None = None) -> dict:
     """Decide which tools to call based on current context.
 
     Binds all available tools to the LLM and invokes with the orchestrator
@@ -276,7 +276,7 @@ async def _execute_single_tool(
             return tool_name, retry_err, calls_consumed, tool_call_id
 
 
-async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def tools_node(state: ResearchState, config: RunnableConfig | None = None) -> dict:
     """Execute pending tool calls from orchestrator in PARALLEL (ENH-007).
 
     ENH-007: Uses asyncio.gather for concurrent tool execution while
@@ -339,7 +339,7 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
 
         # Post-process results: dedup, budget counting, build ToolMessages
         for i, outcome in enumerate(parallel_results):
-            if isinstance(outcome, Exception):
+            if isinstance(outcome, BaseException):
                 tc = tool_calls[i]
                 log.warning("agent_tool_call_gather_error", tool=tc["name"], error=type(outcome).__name__)
                 tool_messages.append(
@@ -496,7 +496,7 @@ async def should_compress_context(state: ResearchState) -> dict:
     return {"_needs_compression": needs_compression}
 
 
-async def compress_context(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def compress_context(state: ResearchState, config: RunnableConfig | None = None) -> dict:
     """Summarize retrieved chunks when context window is approached.
 
     Concatenates all chunk texts, summarizes via LLM call, replaces
@@ -601,7 +601,7 @@ def _build_citations(
     ]
 
 
-async def collect_answer(state: ResearchState, config: RunnableConfig = None, *, store=None) -> dict:
+async def collect_answer(state: ResearchState, config: RunnableConfig | None = None, *, store=None) -> dict:
     """Generate answer from retrieved chunks, compute confidence, build citations.
 
     1. Build prompt with sub_question + retrieved chunks
