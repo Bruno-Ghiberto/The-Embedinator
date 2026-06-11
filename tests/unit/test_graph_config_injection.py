@@ -40,7 +40,8 @@ class TestNoConfigInjectionWarnings:
             build_conversation_graph(research_graph=mock_research)
 
         config_warnings = [
-            w for w in caught
+            w
+            for w in caught
             if issubclass(w.category, UserWarning)
             and "config" in str(w.message).lower()
             and "parameter" in str(w.message).lower()
@@ -60,7 +61,8 @@ class TestNoConfigInjectionWarnings:
             build_research_graph(tools=[])
 
         config_warnings = [
-            w for w in caught
+            w
+            for w in caught
             if issubclass(w.category, UserWarning)
             and "config" in str(w.message).lower()
             and "parameter" in str(w.message).lower()
@@ -83,7 +85,8 @@ class TestNoConfigInjectionWarnings:
             build_research_graph(tools=[], meta_reasoning_graph=meta_graph)
 
         config_warnings = [
-            w for w in caught
+            w
+            for w in caught
             if issubclass(w.category, UserWarning)
             and "config" in str(w.message).lower()
             and "parameter" in str(w.message).lower()
@@ -103,7 +106,8 @@ class TestNoConfigInjectionWarnings:
             build_meta_reasoning_graph()
 
         config_warnings = [
-            w for w in caught
+            w
+            for w in caught
             if issubclass(w.category, UserWarning)
             and "config" in str(w.message).lower()
             and "parameter" in str(w.message).lower()
