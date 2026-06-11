@@ -8,7 +8,7 @@ loop: orchestrator -> tools -> compress check -> (compress | orchestrator).
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from langchain_core.runnables import RunnableConfig
@@ -57,7 +57,7 @@ def build_research_graph(
 
     if meta_reasoning_graph:
 
-        async def meta_reasoning_mapper(state: ResearchState, config: RunnableConfig | None = None) -> dict:
+        async def meta_reasoning_mapper(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
             """Map ResearchState -> MetaReasoningState, invoke subgraph, map back."""
             _t0_meta = time.perf_counter()
 
