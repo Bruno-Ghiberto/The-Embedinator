@@ -10,6 +10,7 @@ import statistics
 
 import structlog
 from langchain_core.runnables import RunnableConfig
+from typing import Optional
 
 from backend.agent.prompts import GENERATE_ALT_QUERIES_SYSTEM, REPORT_UNCERTAINTY_SYSTEM
 from backend.agent.state import MetaReasoningState
@@ -27,7 +28,7 @@ FALLBACK_ORDER = [STRATEGY_WIDEN_SEARCH, STRATEGY_CHANGE_COLLECTION, STRATEGY_RE
 
 async def generate_alternative_queries(
     state: MetaReasoningState,
-    config: RunnableConfig | None = None,
+    config: Optional[RunnableConfig] = None,
 ) -> dict:
     """Produce 3 rephrased query variants using LLM (FR-001).
 
@@ -92,7 +93,7 @@ async def generate_alternative_queries(
 
 async def evaluate_retrieval_quality(
     state: MetaReasoningState,
-    config: RunnableConfig | None = None,
+    config: Optional[RunnableConfig] = None,
 ) -> dict:
     """Score all retrieved chunks with cross-encoder (FR-002, FR-003).
 
@@ -161,7 +162,7 @@ async def evaluate_retrieval_quality(
 
 async def decide_strategy(
     state: MetaReasoningState,
-    config: RunnableConfig | None = None,
+    config: Optional[RunnableConfig] = None,
 ) -> dict:
     """Select recovery strategy based on quantitative evaluation (FR-004).
 
@@ -307,7 +308,7 @@ def _build_modified_state_relax() -> dict:
 
 async def report_uncertainty(
     state: MetaReasoningState,
-    config: RunnableConfig | None = None,
+    config: Optional[RunnableConfig] = None,
 ) -> dict:
     """Generate honest uncertainty report (FR-007, FR-008).
 

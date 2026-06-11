@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -84,7 +84,7 @@ async def _maybe_summarize_research_messages(
         return messages
 
 
-async def orchestrator(state: ResearchState, config: RunnableConfig | None = None) -> dict:
+async def orchestrator(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Decide which tools to call based on current context.
 
     Binds all available tools to the LLM and invokes with the orchestrator
@@ -276,7 +276,7 @@ async def _execute_single_tool(
             return tool_name, retry_err, calls_consumed, tool_call_id
 
 
-async def tools_node(state: ResearchState, config: RunnableConfig | None = None) -> dict:
+async def tools_node(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Execute pending tool calls from orchestrator in PARALLEL (ENH-007).
 
     ENH-007: Uses asyncio.gather for concurrent tool execution while
@@ -496,7 +496,7 @@ async def should_compress_context(state: ResearchState) -> dict:
     return {"_needs_compression": needs_compression}
 
 
-async def compress_context(state: ResearchState, config: RunnableConfig | None = None) -> dict:
+async def compress_context(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Summarize retrieved chunks when context window is approached.
 
     Concatenates all chunk texts, summarizes via LLM call, replaces
@@ -601,7 +601,7 @@ def _build_citations(
     ]
 
 
-async def collect_answer(state: ResearchState, config: RunnableConfig | None = None, *, store=None) -> dict:
+async def collect_answer(state: ResearchState, config: Optional[RunnableConfig] = None, *, store=None) -> dict:
     """Generate answer from retrieved chunks, compute confidence, build citations.
 
     1. Build prompt with sub_question + retrieved chunks

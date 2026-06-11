@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -161,7 +161,7 @@ def _record_inference_failure() -> None:
 # --- Node implementations ---
 
 
-async def classify_intent(state: ConversationState, config: RunnableConfig | None = None, *, store=None) -> dict:
+async def classify_intent(state: ConversationState, config: Optional[RunnableConfig] = None, *, store=None) -> dict:
     """Classify user message as rag_query, collection_mgmt, or ambiguous.
 
     Uses with_structured_output(IntentClassification) for reliable parsing (ENH-002).
@@ -247,7 +247,7 @@ async def classify_intent(state: ConversationState, config: RunnableConfig | Non
         }
 
 
-async def rewrite_query(state: ConversationState, config: RunnableConfig | None = None) -> dict:
+async def rewrite_query(state: ConversationState, config: Optional[RunnableConfig] = None) -> dict:
     llm: Any = (config or {}).get("configurable", {}).get("llm")
     """Decompose query into sub-questions with Pydantic structured output.
 
@@ -492,7 +492,7 @@ def _apply_groundedness_annotations(response: str, result: GroundednessResult) -
     return annotated
 
 
-async def verify_groundedness(state: ConversationState, config: RunnableConfig | None = None) -> dict:
+async def verify_groundedness(state: ConversationState, config: Optional[RunnableConfig] = None) -> dict:
     llm: Any = (config or {}).get("configurable", {}).get("llm")
     """NLI-based claim verification against retrieved context (GAV).
 
