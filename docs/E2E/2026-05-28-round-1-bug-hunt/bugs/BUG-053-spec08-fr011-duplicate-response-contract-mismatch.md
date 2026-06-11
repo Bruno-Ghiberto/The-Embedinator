@@ -1,4 +1,4 @@
-# BUG-053: spec-08 FR-011 duplicate-response wording does not match implementation; policy semantics undocumented
+# BUG-053: spec-08 FR-011 duplicate-response contract mismatch
 
 - **Severity**: COSMETIC
 - **Layer**: Backend

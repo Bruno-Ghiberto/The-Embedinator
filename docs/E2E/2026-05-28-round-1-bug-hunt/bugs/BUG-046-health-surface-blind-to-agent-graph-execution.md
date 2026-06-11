@@ -1,4 +1,4 @@
-# BUG-046: Health surface blind to agent-graph execution — reports healthy during 100% chat outage
+# BUG-046: Health surface blind to agent-graph execution path
 
 - **Severity**: MAJOR
 - **Layer**: Observability

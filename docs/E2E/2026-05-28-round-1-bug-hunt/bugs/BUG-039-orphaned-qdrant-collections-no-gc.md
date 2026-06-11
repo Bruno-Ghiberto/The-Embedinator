@@ -1,4 +1,4 @@
-# BUG-039: Orphaned Qdrant vector collections — app-created namespaces with zero SQLite metadata and no cleanup mechanism
+# BUG-039: Orphaned Qdrant collections — no cross-store atomicity, no GC
 
 - **Severity**: MINOR
 - **Layer**: Backend

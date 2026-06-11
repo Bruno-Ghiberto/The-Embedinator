@@ -1,4 +1,4 @@
-# BUG-051: "Try again" offered unconditionally for all upload errors, including deterministic 409 duplicates
+# BUG-051: Retry offered unconditionally for deterministic upload errors
 
 - **Severity**: MINOR
 - **Layer**: Frontend

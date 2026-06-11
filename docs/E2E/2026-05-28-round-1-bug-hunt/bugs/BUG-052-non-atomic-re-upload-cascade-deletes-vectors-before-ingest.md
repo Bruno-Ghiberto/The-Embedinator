@@ -1,4 +1,4 @@
-# BUG-052: Non-atomic re-upload — change-detection deletes old vectors before new ingest succeeds; permanent silent data loss on failure
+# BUG-052: Non-atomic re-upload deletes old vectors before ingest succeeds
 
 - **Severity**: CRITICAL
 - **Layer**: Ingestion

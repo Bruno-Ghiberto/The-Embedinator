@@ -1,4 +1,4 @@
-# BUG-045: Global chat outage — PEP 563 stringized union annotation breaks LangGraph config injection (regression from 3a5fe6b)
+# BUG-045: PEP 563 union annotation breaks LangGraph config injection
 
 - **Severity**: BLOCKER
 - **Layer**: Backend

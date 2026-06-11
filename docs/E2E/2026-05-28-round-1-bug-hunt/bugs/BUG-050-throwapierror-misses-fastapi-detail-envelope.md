@@ -1,4 +1,4 @@
-# BUG-050: throwApiError reads body.error but FastAPI wraps in body.detail — all structured API error messages degraded to statusText
+# BUG-050: throwApiError misses FastAPI detail envelope; error messages lost
 
 - **Severity**: MAJOR
 - **Layer**: Frontend
