@@ -41,7 +41,7 @@ langgraph>=1.0.10
 langchain-core>=1.2.10
 
 # LangChain provider adapters (lazy-imported in registry.py)
-langchain-ollama>=0.3
+langchain-ollama>=1.1.0
 langchain-openai>=0.3
 langchain-anthropic>=1.4.3
 
