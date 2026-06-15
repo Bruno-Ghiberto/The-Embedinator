@@ -16,7 +16,7 @@ quality = [
     "datasets>=2.18",
     # openai: code written against 1.x patterns (OpenAI(base_url=...) constructor).
     # 2.x is a new major with potential breaking changes — cap below 2.0.
-    "openai>=1.0,<2.0",
+    "openai>=1.0,<3.0",
     "pyyaml>=6.0",
 ]
 
