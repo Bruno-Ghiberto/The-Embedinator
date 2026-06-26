@@ -123,6 +123,7 @@ async def test_parent_retrieval_latency_target(seeded_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.require_docker
 async def test_search_latency_target():
     """Hybrid search on test collection must complete in < 100ms.
 

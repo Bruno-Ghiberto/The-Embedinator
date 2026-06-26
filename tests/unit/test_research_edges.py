@@ -1,7 +1,9 @@
 """Unit tests for ResearchGraph edge functions."""
 
 import pytest
+from langchain_core.messages import HumanMessage
 
+from backend.agent.edges import route_fan_out
 from backend.agent.research_edges import route_after_compress_check, should_continue_loop
 
 
@@ -58,6 +60,54 @@ class TestShouldContinueLoop:
         state = _make_state(confidence_score=0.3, _no_new_tools=True)
         assert should_continue_loop(state) == "exhausted"
 
+    def test_sufficient_when_iterations_exhausted_with_chunks(self):
+        """When budget exhausts but chunks were retrieved, route to collect_answer
+        so the LLM can synthesize a grounded response from what's available
+        rather than emitting a mechanical decline."""
+        from backend.agent.schemas import RetrievedChunk
+
+        chunk = RetrievedChunk(
+            chunk_id="c1",
+            text="some content",
+            source_file="doc.pdf",
+            page=1,
+            breadcrumb="",
+            parent_id="p1",
+            collection="col1",
+            dense_score=0.5,
+            sparse_score=0.0,
+            rerank_score=None,
+        )
+        state = _make_state(
+            confidence_score=0.3,
+            iteration_count=10,
+            retrieved_chunks=[chunk],
+        )
+        assert should_continue_loop(state) == "sufficient"
+
+    def test_sufficient_when_tool_calls_exhausted_with_chunks(self):
+        """Same as above for tool_call_count budget exhaustion."""
+        from backend.agent.schemas import RetrievedChunk
+
+        chunk = RetrievedChunk(
+            chunk_id="c1",
+            text="content",
+            source_file="doc.pdf",
+            page=1,
+            breadcrumb="",
+            parent_id="p1",
+            collection="col1",
+            dense_score=0.5,
+            sparse_score=0.0,
+            rerank_score=None,
+        )
+        state = _make_state(
+            confidence_score=0.3,
+            tool_call_count=8,
+            retrieved_chunks=[chunk],
+        )
+        assert should_continue_loop(state) == "sufficient"
+
     def test_confidence_checked_first_then_budget(self):
         """F1: Even if budget is exhausted, confidence >= threshold -> sufficient"""
         state = _make_state(
@@ -113,3 +163,43 @@ class TestRouteAfterCompressCheck:
         state = _make_state()
         del state["_needs_compression"]
         assert route_after_compress_check(state) == "continue"
+
+
+def _make_conversation_state(**overrides):
+    """Build a minimal ConversationState dict for route_fan_out tests."""
+    base = {
+        "session_id": "test-session",
+        "messages": [HumanMessage(content="What is X?")],
+        "query_analysis": None,
+        "sub_answers": [],
+        "selected_collections": ["col1"],
+        "llm_model": "qwen2.5:7b",
+        "embed_model": "nomic-embed-text",
+        "intent": "rag_query",
+        "final_response": None,
+        "citations": [],
+        "groundedness_result": None,
+        "confidence_score": 0,
+        "iteration_count": 0,
+        "stage_timings": {},
+    }
+    base.update(overrides)
+    return base
+
+
+class TestRouteFanOut:
+    """Tests for route_fan_out edge function (BUG-T3: loop_start_time key)."""
+
+    def test_send_payload_contains_loop_start_time(self):
+        """BUG-T3: Each Send payload must include loop_start_time key."""
+        state = _make_conversation_state()
+        sends = route_fan_out(state)
+        assert len(sends) >= 1
+        for send in sends:
+            assert "loop_start_time" in send.arg, "ResearchState payload is missing required key 'loop_start_time'"
+
+    def test_send_payload_loop_start_time_is_none(self):
+        """loop_start_time initialises as None in fan-out."""
+        state = _make_conversation_state()
+        sends = route_fan_out(state)
+        assert sends[0].arg["loop_start_time"] is None

@@ -43,6 +43,7 @@ def _make_mock_db(collection_id: str, doc_id: str) -> AsyncMock:
     db.create_ingestion_job = AsyncMock()
     db.update_document = AsyncMock()
     db.update_ingestion_job = AsyncMock()
+    db.get_document_by_hash = AsyncMock(return_value=None)  # no pre-existing doc
 
     # Job always returns "completed" (pipeline is mocked to run instantly)
     db.get_ingestion_job = AsyncMock(

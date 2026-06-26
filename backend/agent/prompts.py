@@ -203,10 +203,25 @@ with [Source: document_name] markers preserved inline.
 """
 
 COLLECT_ANSWER_SYSTEM = """Generate a precise answer to the sub-question using ONLY the
-retrieved passages below. For every claim, cite the source using [N] where N is the passage number shown above.
+retrieved passages below. For every claim, cite the source using [N] where N is the
+passage number shown above.
 
-If the passages do not contain sufficient information, say so clearly rather than
-guessing or hallucinating.
+How to handle the passages:
+
+1. Scan ALL passages and find any that directly address the sub-question — even ONE
+   passage with the answer is enough to answer.
+2. Ignore passages that are off-topic. Do NOT let irrelevant passages stop you from
+   answering: the retrieval system intentionally returns a wide candidate pool, so
+   most answers will be supported by only one or two of the passages shown.
+3. Build the answer from the passages that DO address the question. Quote or
+   paraphrase their content directly. Cite only those supporting passages with [N].
+4. ONLY decline if NO passage contains information relevant to the sub-question.
+   When you decline, be specific about what was searched.
+
+Hard rules (no exceptions):
+- Do NOT fabricate facts that are not stated in the passages.
+- Do NOT guess or extrapolate beyond what the passages say.
+- Do NOT cite a passage that does not actually contain the cited claim.
 
 Passages:
 {passages}

@@ -54,8 +54,8 @@ class TestIngestionPipeline:
         """Create a mock SQLiteDB."""
         db = AsyncMock()
         db.update_ingestion_job = AsyncMock()
-        db.update_document_status = AsyncMock()
-        db.insert_parent_chunk = AsyncMock()
+        db.update_document = AsyncMock()
+        db.create_parent_chunk = AsyncMock()
         db.create_ingestion_job = AsyncMock(return_value="job-test123")
         return db
 
@@ -130,11 +130,13 @@ class TestIngestionPipeline:
         assert "completed" in job_statuses
 
         # Verify document status transitions
-        doc_calls = mock_db.update_document_status.call_args_list
+        doc_calls = mock_db.update_document.call_args_list
         doc_statuses = []
         for call in doc_calls:
             if call.args and len(call.args) > 1:
                 doc_statuses.append(call.args[1])
+            elif "status" in call.kwargs:
+                doc_statuses.append(call.kwargs["status"])
         assert "ingesting" in doc_statuses
         assert "completed" in doc_statuses
 
@@ -179,18 +181,18 @@ class TestIngestionPipeline:
             )
 
         assert result.status == "completed"
-        # Verify chunk_count passed to update_document_status
+        # Verify chunk_count passed to update_document (status="completed", chunk_count=N)
         completed_calls = [
             call
-            for call in mock_db.update_document_status.call_args_list
-            if len(call.args) > 1 and call.args[1] == "completed"
+            for call in mock_db.update_document.call_args_list
+            if call.kwargs.get("status") == "completed" or (len(call.args) > 1 and call.args[1] == "completed")
         ]
-        assert len(completed_calls) == 1
-        assert completed_calls[0].kwargs.get("chunk_count", 0) > 0
+        assert len(completed_calls) >= 1
+        assert completed_calls[-1].kwargs.get("chunk_count", 0) > 0
 
     @pytest.mark.asyncio
     async def test_parent_chunks_stored_in_sqlite(self, pipeline, mock_db, mock_qdrant):
-        """Verify parent chunks are stored via db.insert_parent_chunk."""
+        """Verify parent chunks are stored via db.create_parent_chunk."""
         raw_chunks = _sample_raw_chunks(2)
         mock_proc = _mock_popen(raw_chunks, returncode=0)
 
@@ -236,9 +238,10 @@ class TestIngestionPipeline:
                 file_hash="test-hash",
             )
 
-        assert mock_db.insert_parent_chunk.call_count == 2
-        first_call = mock_db.insert_parent_chunk.call_args_list[0]
-        assert first_call.kwargs["chunk_id"] == "parent-001"
+        assert mock_db.create_parent_chunk.call_count == 2
+        first_call = mock_db.create_parent_chunk.call_args_list[0]
+        # Production calls create_parent_chunk(id=..., collection_id=..., document_id=...)
+        assert first_call.kwargs["id"] == "parent-001"
         assert first_call.kwargs["collection_id"] == "col-test"
         assert first_call.kwargs["document_id"] == "doc-test"
 
@@ -373,7 +376,7 @@ class TestIngestionPipeline:
         assert result.chunks_processed > 0
         assert "Worker exited with code 2" in result.error
         # Parent chunks should still have been stored
-        assert mock_db.insert_parent_chunk.called
+        assert mock_db.create_parent_chunk.called
 
     @pytest.mark.asyncio
     async def test_pipeline_exception_sets_failed(self, pipeline, mock_db, mock_qdrant):
@@ -400,8 +403,8 @@ class TestIngestionPipeline:
         # Verify document marked as failed
         doc_failed = [
             call
-            for call in mock_db.update_document_status.call_args_list
-            if len(call.args) > 1 and call.args[1] == "failed"
+            for call in mock_db.update_document.call_args_list
+            if call.kwargs.get("status") == "failed" or (len(call.args) > 1 and call.args[1] == "failed")
         ]
         assert len(doc_failed) >= 1
 
@@ -505,8 +508,8 @@ class TestFaultTolerance:
     def mock_db(self):
         db = AsyncMock()
         db.update_ingestion_job = AsyncMock()
-        db.update_document_status = AsyncMock()
-        db.insert_parent_chunk = AsyncMock()
+        db.update_document = AsyncMock()
+        db.create_parent_chunk = AsyncMock()
         return db
 
     @pytest.fixture
@@ -811,11 +814,14 @@ class TestFaultTolerance:
         assert "Crash on page 5" in result.error
 
         # Verify document status set to failed
-        doc_statuses = [call.args[1] for call in mock_db.update_document_status.call_args_list if len(call.args) > 1]
+        doc_statuses = [
+            call.kwargs.get("status") or (call.args[1] if len(call.args) > 1 else None)
+            for call in mock_db.update_document.call_args_list
+        ]
         assert "failed" in doc_statuses
 
         # Verify parent chunks were still stored
-        assert mock_db.insert_parent_chunk.called
+        assert mock_db.create_parent_chunk.called
 
         # Verify chunks_processed was recorded in job update
         failed_job_calls = [

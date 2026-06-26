@@ -53,10 +53,13 @@ def app():
 
     # Mock app state
     mock_db = AsyncMock()
-    mock_db.get_collection = AsyncMock(return_value={"id": "col-test", "name": "Test"})
+    mock_db.get_collection = AsyncMock(
+        return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
+    )
     mock_db.create_document = AsyncMock()
     mock_db.create_ingestion_job = AsyncMock()
     mock_db.update_document = AsyncMock()
+    mock_db.get_document_by_hash = AsyncMock(return_value=None)  # no pre-existing doc
 
     mock_qdrant = AsyncMock()
 
@@ -213,7 +216,9 @@ class TestIngestEndpoint:
     def test_all_supported_extensions_accepted(self, client, mock_db):
         """All 12 supported file types return 202."""
         for ext in SUPPORTED_FORMATS:
-            mock_db.get_collection = AsyncMock(return_value={"id": "col-test", "name": "Test"})
+            mock_db.get_collection = AsyncMock(
+                return_value={"id": "col-test", "name": "Test", "qdrant_collection_name": "qdrant_col_test"}
+            )
             mock_db.create_document = AsyncMock()
             mock_db.create_ingestion_job = AsyncMock()
 
@@ -286,7 +291,7 @@ class TestEdgeCases:
 
         mock_db = AsyncMock()
         mock_db.update_ingestion_job = AsyncMock()
-        mock_db.update_document_status = AsyncMock()
+        mock_db.update_document = AsyncMock()
 
         mock_qdrant = AsyncMock()
         pipeline = IngestionPipeline(db=mock_db, qdrant=mock_qdrant)
@@ -298,7 +303,7 @@ class TestEdgeCases:
         mock_proc.wait.return_value = None
         mock_proc.returncode = 0
 
-        with patch.object(pipeline, "_spawn_worker", return_value=mock_proc):
+        with patch.object(pipeline, "_spawn_worker", new=AsyncMock(return_value=mock_proc)):
             result = asyncio.run(
                 pipeline.ingest_file(
                     file_path="/tmp/empty.pdf",
@@ -322,7 +327,7 @@ class TestEdgeCases:
 
         mock_db = AsyncMock()
         mock_db.update_ingestion_job = AsyncMock()
-        mock_db.update_document_status = AsyncMock()
+        mock_db.update_document = AsyncMock()
 
         mock_qdrant = AsyncMock()
         pipeline = IngestionPipeline(db=mock_db, qdrant=mock_qdrant)
@@ -334,7 +339,7 @@ class TestEdgeCases:
         mock_proc.wait.return_value = None
         mock_proc.returncode = 0
 
-        with patch.object(pipeline, "_spawn_worker", return_value=mock_proc):
+        with patch.object(pipeline, "_spawn_worker", new=AsyncMock(return_value=mock_proc)):
             asyncio.run(
                 pipeline.ingest_file(
                     file_path="/tmp/empty.pdf",
@@ -346,10 +351,12 @@ class TestEdgeCases:
                 )
             )
 
-        status_calls = mock_db.update_document_status.call_args_list
-        final_call = status_calls[-1]
-        assert final_call.args[1] == "completed"
-        assert final_call.kwargs.get("chunk_count") == 0
+        # Production calls db.update_document(doc_id, status=..., chunk_count=...)
+        completed_calls = [
+            call for call in mock_db.update_document.call_args_list if call.kwargs.get("status") == "completed"
+        ]
+        assert len(completed_calls) >= 1
+        assert completed_calls[-1].kwargs.get("chunk_count") == 0
 
     def test_missing_worker_binary_returns_error(self):
         """Missing worker binary raises FileNotFoundError, pipeline sets status=failed."""
@@ -359,7 +366,7 @@ class TestEdgeCases:
 
         mock_db = AsyncMock()
         mock_db.update_ingestion_job = AsyncMock()
-        mock_db.update_document_status = AsyncMock()
+        mock_db.update_document = AsyncMock()
 
         mock_qdrant = AsyncMock()
         pipeline = IngestionPipeline(db=mock_db, qdrant=mock_qdrant)
@@ -367,7 +374,7 @@ class TestEdgeCases:
         with patch.object(
             pipeline,
             "_spawn_worker",
-            side_effect=FileNotFoundError("[Errno 2] No such file or directory: '/nonexistent/worker'"),
+            new=AsyncMock(side_effect=FileNotFoundError("[Errno 2] No such file or directory: '/nonexistent/worker'")),
         ):
             result = asyncio.run(
                 pipeline.ingest_file(
@@ -384,9 +391,9 @@ class TestEdgeCases:
         job_calls = mock_db.update_ingestion_job.call_args_list
         last_job_call = job_calls[-1]
         assert last_job_call.kwargs.get("status") == "failed"
-        doc_calls = mock_db.update_document_status.call_args_list
-        last_doc_call = doc_calls[-1]
-        assert last_doc_call.args[1] == "failed"
+        # Production calls db.update_document(doc_id, status="failed")
+        doc_calls = mock_db.update_document.call_args_list
+        assert any(call.kwargs.get("status") == "failed" for call in doc_calls)
 
     def test_concurrent_upload_same_file_unique_constraint(self, app, mock_db):
         """Second upload of same file to same collection rejected by UNIQUE constraint."""

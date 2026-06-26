@@ -8,7 +8,7 @@ loop: orchestrator -> tools -> compress check -> (compress | orchestrator).
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from langchain_core.runnables import RunnableConfig
@@ -47,17 +47,17 @@ def build_research_graph(
 
     # Bind tools into node closures via functools.partial or config
     graph.add_node(
-        "orchestrator", orchestrator, retry=RetryPolicy(max_attempts=3, initial_interval=1.0, backoff_factor=2.0)
+        "orchestrator", orchestrator, retry_policy=RetryPolicy(max_attempts=3, initial_interval=1.0, backoff_factor=2.0)
     )
-    graph.add_node("tools", tools_node, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
+    graph.add_node("tools", tools_node, retry_policy=RetryPolicy(max_attempts=2, initial_interval=0.5))
     graph.add_node("should_compress_context", should_compress_context)
-    graph.add_node("compress_context", compress_context, retry=RetryPolicy(max_attempts=2, initial_interval=0.5))
-    graph.add_node("collect_answer", collect_answer, retry=RetryPolicy(max_attempts=2, initial_interval=1.0))
+    graph.add_node("compress_context", compress_context, retry_policy=RetryPolicy(max_attempts=2, initial_interval=0.5))
+    graph.add_node("collect_answer", collect_answer, retry_policy=RetryPolicy(max_attempts=2, initial_interval=1.0))
     graph.add_node("fallback_response", fallback_response)
 
     if meta_reasoning_graph:
 
-        async def meta_reasoning_mapper(state: ResearchState, config: RunnableConfig = None) -> dict:
+        async def meta_reasoning_mapper(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
             """Map ResearchState -> MetaReasoningState, invoke subgraph, map back."""
             _t0_meta = time.perf_counter()
 

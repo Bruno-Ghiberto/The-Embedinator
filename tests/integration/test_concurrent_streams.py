@@ -21,6 +21,21 @@ from backend.api import chat
 from backend.middleware import TraceIDMiddleware
 
 
+@pytest.fixture(autouse=True)
+def reset_chat_semaphore():
+    """Replace the module-level semaphore with one bound to the current test loop.
+
+    The semaphore at chat._chat_semaphore is created at import time and is
+    therefore bound to the import-time event loop.  Each pytest-asyncio test
+    gets a fresh loop, causing 'Semaphore bound to a different event loop'.
+    Re-creating it here binds it to the correct loop for every test.
+    """
+    original = chat._chat_semaphore
+    chat._chat_semaphore = asyncio.Semaphore(5)
+    yield
+    chat._chat_semaphore = original
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -30,11 +45,11 @@ def _build_mock_graph():
     """Build a mock ConversationGraph for concurrent stream tests."""
     graph = MagicMock()
 
-    async def mock_astream(state, *, stream_mode="messages", config=None):
+    async def mock_astream(state, *args, **kwargs):
         # Yield a few chunks to simulate real streaming
         for i in range(3):
             msg = AIMessageChunk(content=f"Token-{i} ")
-            yield msg, {"langgraph_node": "format_response"}
+            yield {"type": "messages", "data": (msg, {"langgraph_node": "collect_answer"})}
             # Small yield to let other coroutines run
             await asyncio.sleep(0)
 
@@ -49,7 +64,7 @@ def _build_mock_graph():
         "sub_questions": [],
         "final_response": "Token-0 Token-1 Token-2 ",
     }
-    graph.get_state = MagicMock(return_value=state_snapshot)
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
     return graph
 
 

@@ -21,9 +21,9 @@ def test_spec26_groundedness_disabled_by_default():
 
 
 def test_spec26_default_llm_is_qwen():
-    """FR-004 — default model reverted to non-thinking qwen2.5:7b (A3's Wave 2)."""
+    """FR-004 — default model is qwen3:14b (upgraded from qwen2.5:7b in spec-28 follow-up)."""
     s = Settings()
-    assert s.default_llm_model == "qwen2.5:7b"
+    assert s.default_llm_model == "qwen3:14b"
 
 
 def test_spec26_supported_llm_models_includes_defaults():

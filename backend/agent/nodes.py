@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -161,14 +161,14 @@ def _record_inference_failure() -> None:
 # --- Node implementations ---
 
 
-async def classify_intent(state: ConversationState, config: RunnableConfig = None, *, store=None) -> dict:
+async def classify_intent(state: ConversationState, config: Optional[RunnableConfig] = None, *, store=None) -> dict:
     """Classify user message as rag_query, collection_mgmt, or ambiguous.
 
     Uses with_structured_output(IntentClassification) for reliable parsing (ENH-002).
     Reads preferred_collections from LangGraph Store when available (ENH-001).
     On any failure (LLM error, validation), defaults to "rag_query".
     """
-    llm = (config or {}).get("configurable", {}).get("llm")
+    llm: Any = (config or {}).get("configurable", {}).get("llm")
     log = logger.bind(session_id=state["session_id"])
     _VALID_INTENTS = {"rag_query", "collection_mgmt", "ambiguous"}
     _t0 = time.perf_counter()
@@ -247,8 +247,8 @@ async def classify_intent(state: ConversationState, config: RunnableConfig = Non
         }
 
 
-async def rewrite_query(state: ConversationState, config: RunnableConfig = None) -> dict:
-    llm = (config or {}).get("configurable", {}).get("llm")
+async def rewrite_query(state: ConversationState, config: Optional[RunnableConfig] = None) -> dict:
+    llm: Any = (config or {}).get("configurable", {}).get("llm")
     """Decompose query into sub-questions with Pydantic structured output.
 
     Uses llm.with_structured_output(QueryAnalysis) for Pydantic parsing.
@@ -385,7 +385,7 @@ def aggregate_answers(state: ConversationState, **kwargs: Any) -> dict:
     from backend.agent.schemas import Citation, SubAnswer  # noqa: F401
 
     log = logger.bind(session_id=state["session_id"])
-    sub_answers: list[SubAnswer] = state.get("sub_answers", [])  # type: ignore[assignment]
+    sub_answers: list[SubAnswer] = state.get("sub_answers", [])
 
     # Filter out failed sub-answers (answer is None)
     valid: list[SubAnswer] = [sa for sa in sub_answers if sa.answer is not None]
@@ -492,8 +492,8 @@ def _apply_groundedness_annotations(response: str, result: GroundednessResult) -
     return annotated
 
 
-async def verify_groundedness(state: ConversationState, config: RunnableConfig = None) -> dict:
-    llm = (config or {}).get("configurable", {}).get("llm")
+async def verify_groundedness(state: ConversationState, config: Optional[RunnableConfig] = None) -> dict:
+    llm: Any = (config or {}).get("configurable", {}).get("llm")
     """NLI-based claim verification against retrieved context (GAV).
 
     Evaluates every factual claim in the generated answer against retrieved
@@ -515,7 +515,7 @@ async def verify_groundedness(state: ConversationState, config: RunnableConfig =
         log.info("agent_verify_groundedness_no_final_response")
         return {"groundedness_result": None}
 
-    sub_answers: list[SubAnswer] = state.get("sub_answers", [])  # type: ignore[assignment]
+    sub_answers: list[SubAnswer] = state.get("sub_answers", [])
     if not sub_answers:
         log.info("agent_verify_groundedness_no_sub_answers")
         return {"groundedness_result": None}
@@ -649,7 +649,7 @@ async def validate_citations(state: ConversationState, *, reranker: Any = None) 
     sub_answers = state.get("sub_answers", [])
 
     if not citations or not reranker:
-        result = {"citations": citations}
+        result: dict[str, Any] = {"citations": citations}
         result["stage_timings"] = {
             **state.get("stage_timings", {}),
             "ranking": {"duration_ms": round((time.perf_counter() - _t0) * 1000, 1)},
@@ -733,7 +733,7 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
     """
     from langchain_core.messages.utils import count_tokens_approximately
 
-    llm = kwargs.get("llm")
+    llm: Any = kwargs.get("llm")
     messages = state["messages"]
     llm_model = state["llm_model"]
     log = logger.bind(session_id=state["session_id"], llm_model=llm_model)
@@ -800,9 +800,9 @@ def format_response(state: ConversationState, **kwargs: Any) -> dict:
     from backend.agent.schemas import Citation  # noqa: F401
 
     log = logger.bind(session_id=state["session_id"])
-    final_response: str = state.get("final_response") or ""  # type: ignore[assignment]
-    citations: list[Citation] = state.get("citations", [])  # type: ignore[assignment]
-    confidence_score: int = state.get("confidence_score", 0)  # type: ignore[assignment]
+    final_response: str = state.get("final_response") or ""
+    citations: list[Citation] = state.get("citations", [])
+    confidence_score: int = state.get("confidence_score", 0)
     groundedness_result = state.get("groundedness_result")  # None in Phase 1
 
     if not final_response:

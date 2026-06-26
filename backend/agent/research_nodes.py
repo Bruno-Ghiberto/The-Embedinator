@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -84,7 +84,7 @@ async def _maybe_summarize_research_messages(
         return messages
 
 
-async def orchestrator(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def orchestrator(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Decide which tools to call based on current context.
 
     Binds all available tools to the LLM and invokes with the orchestrator
@@ -276,7 +276,7 @@ async def _execute_single_tool(
             return tool_name, retry_err, calls_consumed, tool_call_id
 
 
-async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def tools_node(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Execute pending tool calls from orchestrator in PARALLEL (ENH-007).
 
     ENH-007: Uses asyncio.gather for concurrent tool execution while
@@ -339,7 +339,7 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
 
         # Post-process results: dedup, budget counting, build ToolMessages
         for i, outcome in enumerate(parallel_results):
-            if isinstance(outcome, Exception):
+            if isinstance(outcome, BaseException):
                 tc = tool_calls[i]
                 log.warning("agent_tool_call_gather_error", tool=tc["name"], error=type(outcome).__name__)
                 tool_messages.append(
@@ -373,23 +373,50 @@ async def tools_node(state: ResearchState, config: RunnableConfig = None) -> dic
                 )
                 continue
 
-            # --- Deduplication (US4) ---
+            # --- Deduplication (US4) + rerank score-update (BUG-006 fix) ---
             tc = tool_calls[i]
             tool_args = tc["args"]
             if isinstance(result, list):
-                before_count = len(new_chunks)
-                for chunk in result:
-                    if isinstance(chunk, RetrievedChunk):
-                        key = dedup_key(
-                            tool_args.get("query", state["sub_question"]),
-                            chunk.parent_id,
-                        )
-                        if key not in updated_keys:
-                            updated_keys.add(key)
-                            new_chunks.append(chunk)
-                deduped_count = len(new_chunks) - before_count
-                original_new_count = len([c for c in result if isinstance(c, RetrievedChunk)])
-                log.info("agent_dedup_filtered", tool=tool_name, original=original_new_count, kept=deduped_count)
+                if tool_name == "cross_encoder_rerank":
+                    # spec-28 BUG-006: rerank reorders existing chunks; it does NOT
+                    # introduce new ones. Treating reranked output via dedup-by-(query,
+                    # parent_id) caused 100% of chunks to be discarded as "duplicates"
+                    # of themselves from the prior search call. Instead, update the
+                    # rerank_score on the matching chunk (by chunk_id) in new_chunks.
+                    reranked_count = 0
+                    skipped_count = 0
+                    for reranked in result:
+                        if isinstance(reranked, RetrievedChunk):
+                            matched = False
+                            for existing in new_chunks:
+                                if existing.chunk_id == reranked.chunk_id:
+                                    existing.rerank_score = reranked.rerank_score
+                                    reranked_count += 1
+                                    matched = True
+                                    break
+                            if not matched:
+                                skipped_count += 1
+                    log.info(
+                        "agent_rerank_score_applied",
+                        tool=tool_name,
+                        reranked=reranked_count,
+                        skipped_no_match=skipped_count,
+                        total_results=len([c for c in result if isinstance(c, RetrievedChunk)]),
+                    )
+                else:
+                    before_count = len(new_chunks)
+                    for chunk in result:
+                        if isinstance(chunk, RetrievedChunk):
+                            key = dedup_key(
+                                tool_args.get("query", state["sub_question"]),
+                                chunk.parent_id,
+                            )
+                            if key not in updated_keys:
+                                updated_keys.add(key)
+                                new_chunks.append(chunk)
+                    deduped_count = len(new_chunks) - before_count
+                    original_new_count = len([c for c in result if isinstance(c, RetrievedChunk)])
+                    log.info("agent_dedup_filtered", tool=tool_name, original=original_new_count, kept=deduped_count)
 
             tool_messages.append(
                 ToolMessage(
@@ -469,7 +496,7 @@ async def should_compress_context(state: ResearchState) -> dict:
     return {"_needs_compression": needs_compression}
 
 
-async def compress_context(state: ResearchState, config: RunnableConfig = None) -> dict:
+async def compress_context(state: ResearchState, config: Optional[RunnableConfig] = None) -> dict:
     """Summarize retrieved chunks when context window is approached.
 
     Concatenates all chunk texts, summarizes via LLM call, replaces
@@ -574,7 +601,7 @@ def _build_citations(
     ]
 
 
-async def collect_answer(state: ResearchState, config: RunnableConfig = None, *, store=None) -> dict:
+async def collect_answer(state: ResearchState, config: Optional[RunnableConfig] = None, *, store=None) -> dict:
     """Generate answer from retrieved chunks, compute confidence, build citations.
 
     1. Build prompt with sub_question + retrieved chunks

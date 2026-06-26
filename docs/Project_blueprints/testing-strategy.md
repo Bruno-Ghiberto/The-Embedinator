@@ -61,10 +61,8 @@
 | `backend/storage/sqlite_db.py` | All CRUD operations; concurrent read behavior; migration | In-memory SQLite (`:memory:`) |
 | `backend/providers/registry.py` | Model-to-provider resolution; key decryption; fallback handling | Provider instances, KeyManager |
 | `backend/config.py` | Default values; env var override; validation | Environment variables |
-| `backend/agent/retrieval.py` | Filter by collection; exclude deleted docs; top_k; empty results | QdrantStorage, SQLiteDB |
 | `backend/agent/confidence.py` | Zero/perfect/mixed scores; clamping; top_k weighting | None (pure logic) |
 | `backend/agent/citations.py` | Basic citation build; dedup; max limit; truncation; prompt formatting | None (pure logic) |
-| `backend/agent/answer_generator.py` | Stream tokens; empty stream; complete generation | LLMProvider |
 
 ---
 
@@ -177,10 +175,8 @@ tests/
     providers/
       test_registry.py           # Provider resolution
       test_key_manager.py        # Encryption/decryption
-    test_retrieval.py            # Retrieval module tests
     test_confidence.py           # Confidence scoring tests
     test_citations.py            # Citation building tests
-    test_answer_generator.py     # Answer generation tests
   integration/
     conftest.py                  # unique_name() helper
     test_qdrant_integration.py   # Real Qdrant container

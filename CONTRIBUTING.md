@@ -61,6 +61,57 @@ make dev-backend    # Python backend with hot reload on :8000
 make dev-frontend   # Next.js frontend with hot reload on :3000
 ```
 
+### Backend Source Changes Inside the Docker Stack
+
+If you are using the Docker-based stack (`./embedinator.sh` or `make up`) and you
+edit any Python source under `backend/`, you **must rebuild the backend image** to
+pick up your changes:
+
+```bash
+./scripts/dev-rebuild-backend.sh
+```
+
+`docker compose restart backend` is **not** sufficient — `Dockerfile.backend` does
+not bind-mount `backend/`, so the source code is baked into the image at build
+time. Running `restart` recreates the container from the existing (stale) image
+and silently keeps serving the old binaries. This cost a meaningful amount of
+spec-28 debugging time before it was caught (see BUG-014 in
+`docs/E2E/2026-04-24-bug-hunt/bugs-raw/`).
+
+If you want true hot-reload while developing the backend, use the Native
+Development path above (`make dev-backend` runs uvicorn outside Docker with
+`--reload`).
+
+### Docker Hot-Reload (Development)
+
+An opt-in alternative for iterating on backend Python code **inside** the Docker
+stack without rebuilding the image on every change. The repository ships a
+`docker-compose.dev.yml` overlay that bind-mounts `backend/` into the running
+container and tells uvicorn to watch only that directory for changes.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+This is deliberately **opt-in**, not automatic. The overlay file is named
+`docker-compose.dev.yml` — not `docker-compose.override.yml` — so it is never
+auto-loaded by a plain `docker compose up`. Running `./embedinator.sh` or
+`make up` continues to use the production-shaped backend (source baked into the
+image at build time). Only developers who explicitly pass both `-f` flags enter
+hot-reload mode.
+
+**Notes:**
+- Uvicorn watches `backend/` via `--reload-dir /app/backend`. Edits to Python
+  files under `backend/` trigger a reload within 1–2 seconds.
+- This mode also enables `CHECKPOINT_AUTO_RECOVER=true`, which auto-recovers a
+  corrupt `data/checkpoints.db` at startup instead of logging a warning and
+  continuing (see `backend/main.py::_recover_checkpoint_db`). In production the
+  default is `false` — a manual runbook recovery is required so operators
+  maintain control.
+- If you prefer the explicit rebuild loop (rebuild image, restart container),
+  `scripts/dev-rebuild-backend.sh` remains the supported path documented in the
+  section above.
+
 ### Useful Makefile Targets
 
 | Target | Description |

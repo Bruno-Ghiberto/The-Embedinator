@@ -34,12 +34,13 @@ class Settings(BaseSettings):
     # Providers
     ollama_base_url: str = "http://localhost:11434"
     default_provider: str = "ollama"
-    default_llm_model: str = "qwen2.5:7b"  # spec-26: FR-004 Path B — revert to proven non-thinking model
+    default_llm_model: str = "qwen3:14b"  # Spec-28 follow-up: upgraded from qwen2.5:7b. Qwen3-14B Q4_K_M (~9.3 GB on Ollama) has hybrid thinking + native tool/MCP support + stronger Spanish per docs-Bruno/Researches/models-research.md. Fits 12 GB VRAM with headroom for the 568 MB cross-encoder. Apache 2.0.
     supported_llm_models: list[str] = [
+        "qwen3:14b",
         "qwen2.5:7b",
         "llama3.1:8b",
         "mistral:7b",
-    ]  # spec-26: FR-004 — tested-and-recommended list; thinking models unsupported, see docs/performance.md
+    ]  # qwen3:14b is the new default; qwen2.5:7b kept as a fallback for resource-constrained hardware. Thinking-mode models are now supported (qwen3 has hybrid thinking) — docs/performance.md note about "thinking models unsupported" is outdated for qwen3.
     default_embed_model: str = "nomic-embed-text"
     api_key_encryption_secret: str = Field(default="", alias="EMBEDINATOR_FERNET_KEY")  # Constitution V
 
@@ -48,6 +49,10 @@ class Settings(BaseSettings):
     checkpoint_max_threads: int = (
         100  # spec-26 DISK-001: cap LangGraph checkpoints.db growth; prune oldest threads on startup. Set 0 to disable.
     )
+    checkpoint_auto_recover: bool = Field(
+        default=False,
+        alias="CHECKPOINT_AUTO_RECOVER",
+    )  # spec-029 R2: opt-in startup auto-recovery for corrupt checkpoints.db. Enabled in dev via docker-compose.dev.yml.
 
     # Ingestion
     upload_dir: str = "data/uploads"

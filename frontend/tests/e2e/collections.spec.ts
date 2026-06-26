@@ -12,7 +12,7 @@
 
 import { test, expect } from "@playwright/test";
 
-const BACKEND = "http://localhost:8000";
+const BACKEND = "";
 
 const EXISTING_COLLECTION = {
   id: "col-e2e-existing",
@@ -88,7 +88,7 @@ test.describe("Collections page", () => {
     await page.getByPlaceholder("my-collection").fill("my-collection");
 
     // No validation error
-    await expect(page.getByRole("alert")).not.toBeVisible();
+    await expect(page.locator('p[role="alert"]')).not.toBeVisible();
 
     // Submit
     await page.getByRole("button", { name: /^Create$/i }).click();
@@ -108,7 +108,7 @@ test.describe("Collections page", () => {
     await page.getByPlaceholder("my-collection").fill("-foo");
 
     // Slug starts with '-' → role=alert error
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.locator('p[role="alert"]')).toBeVisible();
 
     // Submit button is disabled
     await expect(
@@ -150,8 +150,8 @@ test.describe("Collections page", () => {
     await page.getByRole("button", { name: /^Create$/i }).click();
 
     // Dialog STAYS open — conflict error appears
-    await expect(page.getByRole("alert")).toBeVisible({ timeout: 3000 });
-    await expect(page.getByRole("alert")).toContainText(
+    await expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('p[role="alert"]')).toContainText(
       "already exists",
     );
     await expect(page.getByRole("dialog")).toBeVisible();

@@ -519,8 +519,42 @@ require_docker  # Tests requiring Qdrant on localhost:6333
 
 - All images published to `ghcr.io` are signed with cosign. [Verify before running](docs/cicd.md#signing--sbom).
 - Every PR runs the full quality gate: backend lint + format + pip-audit, frontend tests + coverage, Docker smoke test, and pre-commit parity.
-- Branch protection policy: see [ADR-0001](docs/adr/0001-branch-protection.md).
+- Branch protection policy: see [ADR-0001](docs/Project_blueprints/adr/0001-branch-protection.md).
 - Full CI/CD reference: [docs/cicd.md](docs/cicd.md).
+
+
+## Engineering Process
+
+This project is built the way I work on production systems — spec-first, tested,
+and verified end to end, rather than improvised into existence.
+
+- **Spec-driven development** — every subsystem starts as a written specification
+  (user stories, functional requirements, success criteria, and an implementation
+  task list) before any code is written. The full set lives in [`specs/`](specs/);
+  see the table below.
+- **Systematic E2E bug hunting** — the running product is exercised end to end
+  against a documented test plan. Round 1 surfaced **40 findings across 5 layers**,
+  each captured with deterministic reproduction steps, an expected-vs-actual
+  contract, a root-cause hypothesis, and a severity triage →
+  **[E2E Bug Hunt — Round 1](docs/E2E/2026-05-28-round-1-bug-hunt/README.md)**.
+- **Layered testing** — backend `pytest` suite (87% coverage, enforced gate),
+  frontend `vitest`, contract tests that introspect component interfaces, and
+  `require_docker` integration tests against a real Qdrant. See [Testing](#testing).
+- **Quality gates on every PR** — lint, format, dependency audit, blocking `mypy`
+  type-check, Docker build smoke test, and cosign-signed / SBOM-attested images.
+  See [CI/CD](#cicd).
+
+| E2E Bug Hunt — Round 1 | Count |
+|------------------------|-------|
+| 🔴 Blocker / Critical  | 3     |
+| 🟠 Major               | 15    |
+| 🟡 Minor               | 18    |
+| ⚪ Cosmetic            | 4     |
+| **Total documented**   | **40** |
+
+> The bug hunt is intentionally part of the public record. Finding, documenting,
+> and triaging defects with discipline is the work — not something to hide behind
+> a green badge.
 
 
 ## Specifications

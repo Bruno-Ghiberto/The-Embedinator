@@ -68,11 +68,16 @@ class TestResearchStateSchema:
     """Verify ResearchState TypedDict fields."""
 
     def test_field_count(self):
-        """ResearchState must have exactly 17 fields (16 original + stage_timings from spec-14)."""
+        """ResearchState field count — updated from 17 to 24 after spec-26 additions.
+
+        New fields added by later specs:
+        sub_answers, _meta_attempt_count, _attempted_strategies,
+        _top_k_retrieval, _top_k_rerank, _payload_filters, loop_start_time.
+        """
         from backend.agent.state import ResearchState
 
         hints = get_type_hints(ResearchState)
-        assert len(hints) == 17, f"Expected 17 fields, got {len(hints)}: {list(hints.keys())}"
+        assert len(hints) == 24, f"Expected 24 fields, got {len(hints)}: {list(hints.keys())}"
 
     def test_private_flag_fields_present(self):
         """ResearchState must include _no_new_tools and _needs_compression."""
@@ -142,32 +147,34 @@ class TestDualConfidenceScale:
 class TestConversationGraphNodes:
     """Verify all 11 ConversationGraph node signatures in nodes.py."""
 
-    # Pattern A: *, llm: Any (KEYWORD_ONLY DI)
+    # Pattern Config-DI: (state, config=None) — llm injected via config["configurable"]["llm"]
     def test_classify_intent_keyword_only_llm(self):
+        """classify_intent uses config-based DI: (state, config=None, *, store=None)."""
         from backend.agent.nodes import classify_intent
 
         sig = inspect.signature(classify_intent)
         params = sig.parameters
-        assert "llm" in params, "classify_intent missing 'llm' param"
-        assert params["llm"].kind == inspect.Parameter.KEYWORD_ONLY, "'llm' must be KEYWORD_ONLY after *"
+        assert "config" in params, "classify_intent missing 'config' param"
+        assert params["config"].default is None, "classify_intent 'config' default must be None"
 
     def test_rewrite_query_keyword_only_llm(self):
+        """rewrite_query uses config-based DI: (state, config=None)."""
         from backend.agent.nodes import rewrite_query
 
         sig = inspect.signature(rewrite_query)
         params = sig.parameters
-        assert "llm" in params, "rewrite_query missing 'llm' param"
-        assert params["llm"].kind == inspect.Parameter.KEYWORD_ONLY
+        assert "config" in params, "rewrite_query missing 'config' param"
+        assert params["config"].default is None, "rewrite_query 'config' default must be None"
 
-    # Pattern A with default: *, llm: Any = None
+    # Pattern Config-DI with default: (state, config=None) — llm extracted from config
     def test_verify_groundedness_keyword_only_llm_with_default(self):
+        """verify_groundedness uses config-based DI: (state, config=None)."""
         from backend.agent.nodes import verify_groundedness
 
         sig = inspect.signature(verify_groundedness)
         params = sig.parameters
-        assert "llm" in params, "verify_groundedness missing 'llm' param"
-        assert params["llm"].kind == inspect.Parameter.KEYWORD_ONLY
-        assert params["llm"].default is None, "verify_groundedness 'llm' default must be None"
+        assert "config" in params, "verify_groundedness missing 'config' param"
+        assert params["config"].default is None, "verify_groundedness 'config' default must be None"
 
     def test_validate_citations_keyword_only_reranker_with_default(self):
         from backend.agent.nodes import validate_citations
@@ -490,14 +497,17 @@ class TestToolFactory:
         assert callable(create_research_tools)
 
     def test_create_research_tools_params(self):
-        """Factory must have params: searcher, reranker, parent_store."""
+        """Factory must have required params: searcher, reranker, parent_store.
+
+        embed_provider was added as an optional 4th param in a later spec.
+        """
         from backend.agent.tools import create_research_tools
 
         sig = inspect.signature(create_research_tools)
         params = list(sig.parameters.keys())
-        assert params == ["searcher", "reranker", "parent_store"], (
-            f"Expected ['searcher', 'reranker', 'parent_store'], got {params}"
-        )
+        required = ["searcher", "reranker", "parent_store"]
+        for p in required:
+            assert p in params, f"create_research_tools missing required param '{p}'"
 
     def test_create_research_tools_return_annotation(self):
         """Factory return annotation must be list (or 'list' string when annotations are deferred)."""

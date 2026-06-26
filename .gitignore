@@ -92,12 +92,25 @@ skills-lock.json
 .serena/
 .gitnexus/
 .gitnexus
-Docs/PROMPTS/
+graphify-out/
 docs/PROMPTS/
 frontend/test-results/
 .atl/
 .playwright-mcp/
 skills/
+claudedocs/
+docs-Bruno/
+
+# Obsidian vault — personal config (vault-at-root); see docs/superpowers/specs/2026-06-08-knowledge-system-architecture-design.md
+.obsidian/
+# Builder-private notes — own nested git repo (arch doc §4.4)
+notes/
+
+# Deferred POC (archived on archive/frontend-v2-poc branch)
+frontend-v2/
+
+# Demo corpus — RAG ingestion DATA, relocated under data/ (gitignored); licensing pending, substitution planned before v1.0 launch
+data/Collection-Docs/
 
 # Runtime / build artifacts
 /embedinator

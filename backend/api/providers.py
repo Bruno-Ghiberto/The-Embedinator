@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from backend.providers.base import LLMProvider
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -100,6 +101,7 @@ async def provider_health(request: Request) -> dict:
     async def check_one(p: dict) -> ProviderHealthSchema:
         name = p["name"]
         has_key = bool(p.get("api_key_encrypted"))
+        provider_instance: LLMProvider
 
         if name == "ollama":
             try:
