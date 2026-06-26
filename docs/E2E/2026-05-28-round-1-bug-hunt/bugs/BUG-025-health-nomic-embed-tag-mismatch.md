@@ -30,3 +30,5 @@ The health check string-compares the configured short name ("nomic-embed-text") 
 
 ## Notes
 Reporter: log-analyst. Embeddings continue to work correctly — Ollama resolves short names at inference time. Health surface is permanently misleading. Related to BUG-026 (aggregate health stays "healthy" despite this false flag).
+
+P3-S1 confirmation (2026-06-18): /api/health still reports {"nomic-embed-text": false} after develop merge (5fac6e5) + backend rebuild. nomic-embed-text:latest (0.27 GB) confirmed present in Ollama via /api/tags. qwen3:14b reports healthy because it uses an explicit tag; bare short-name models do not match. Bug persists across P1→P3.

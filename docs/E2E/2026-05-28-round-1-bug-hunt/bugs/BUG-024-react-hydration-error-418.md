@@ -34,3 +34,5 @@ Browser-only state (e.g., localStorage, window dimensions, or Date.now()) is acc
 
 ## Notes
 Reporter: frontend-inspector. Observed at P1-S1/S2. No visible crash but masks future render divergences.
+
+P3-S2 recurrence (2026-06-18): hydration error #418 reproduced on navigation to /documents/{uuid} via citation click (did NOT repro in P3-S1 on the chat route — route-specific). Same root-cause class: DocumentsPage breadcrumb `collections?.find(c=>c.id===collectionId)?.name ?? collectionId` — SSR renders raw UUID (SWR not yet fired server-side), client resolves collection name after mount → server/client text mismatch triggers #418. Idiomatic fix: client-only breadcrumb guard (suppressHydrationWarning or useEffect defer on name resolution) or Server-Component prefetch. Recorded as recurrence, not new bug.

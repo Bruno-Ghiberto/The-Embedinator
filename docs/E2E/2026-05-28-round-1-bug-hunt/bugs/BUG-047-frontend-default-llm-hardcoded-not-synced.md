@@ -1,6 +1,6 @@
 # BUG-047: Frontend DEFAULT_LLM hardcoded — never synced with backend settings
 
-- **Severity**: MINOR
+- **Severity**: MAJOR
 - **Layer**: Frontend
 - **Discovered**: 2026-06-11T12:55:00Z in Phase 2 (P2-S2)
 - **Phase scenario**: P2-S2
@@ -20,13 +20,15 @@ Frontend and backend defaults are independent constants; today they coincidental
 
 ## Artifacts
 - Screenshot: screenshots/BUG-047-model-badge.png (gitignored)
-- Log excerpt: null
+- Log excerpt: logs/BUG-047-p3s1-post-body.log (gitignored)
 - Trace: null
 
 ## Root-cause hypothesis
-Chat page initializes model state from a local constant; useModels() populates the dropdown but not the initial selection; no settings fetch on mount.
+Chat page initializes model state from a local constant; useModels() populates the dropdown but not the initial selection; no settings fetch on mount. More precisely: ChatRequest.llm_model defaults to "qwen2.5:7b" at schemas.py:192 — when frontend sends the explicit field, backend never falls back to config default_llm_model="qwen3:14b". All inference runs on the smaller model regardless of backend configuration.
 
 ## Triage (filled in Phase 8 for MAJOR+)
 
 ## Notes
 Model confirmed NOT the cause of BUG-045 (both models installed; Ollama never reached).
+
+P3-S1 evidence (2026-06-18, escalation to MAJOR): frontend-inspector confirmed POST /api/chat body always contains llm_model="qwen2.5:7b" explicitly on every request — this is not display-only, it is an unconditional backend override. Log-analyst confirmed via query_traces.llm_model + Ollama runner log that qwen2.5:7b actually served inference (trace 2f4d0b4f), while backend startup validates qwen3:14b as default. Functional impact: smaller model handles all chat inference, degrading answer quality and increasing retry probability (see BUG-055, BUG-056). Capture: /tmp/spec30-captures/p3-s1-ndjson-stream.json.
