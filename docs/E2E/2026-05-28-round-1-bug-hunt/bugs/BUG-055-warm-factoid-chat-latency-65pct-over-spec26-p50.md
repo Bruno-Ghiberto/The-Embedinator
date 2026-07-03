@@ -1,4 +1,4 @@
-# BUG-055: Warm factoid chat latency 32.2s exceeds spec-26 19.5s p50 by 65%
+# BUG-055: All warm queries breach spec-26 latency p50 (2nd research-loop iteration)
 
 - **Severity**: MAJOR
 - **Layer**: Backend
@@ -34,3 +34,8 @@ Research-loop fires a 2nd iteration that dominates wall-clock time. Causally ent
 
 ## Notes
 Capture: /tmp/spec30-captures/P3-S1-backend-trace.log. Answer was correct — this is a performance regression, not a correctness failure. Flag for spec-31 triage alongside BUG-047 root-cause analysis; fixing the model override may change the latency profile materially.
+P3-S3 broadened to ALL warm queries (analyst-correlated, HIGH confidence): Analytical trace 618fb649 (2026-06-18T16:46:43 local) = 31.6s, +97.3% over spec-26 analytical p50 16.0s; orchestrator_calls=2; stage breakdown: intent 2.18s / research_orchestrator 17.48s (55.4%) / retrieval 592.8ms (1 call) / answer_generation 3.81s / ranking 0.0ms / unaccounted 7.51s. Factoid Q-001 = 32.2s (trace 2f4d0b4f), +65.1% over p50 19.5s; orchestrator_calls=2. Systemic root consistent in both: the 2nd research-loop iteration ALWAYS fires (agent_loop_exit_tool_exhaustion, routing=sufficient) but does NOT retrieve again — it doubles LLM cost regardless of query type. Cross-ref BUG-056 (rewrite_query OutputParserException fallback +4.3s, present in both). llm_model=qwen2.5:7b.
+P3-S4 (2026-07-03) clean-probe data points, both warm factoid queries: T1 = 32,892ms (~32.9s, trace f3348415); T2 = 34,950ms (~35.0s, trace 30307482). Both breach spec-26 warm factoid p50 (19.5s) by a similar margin to the original P3-S1 finding, consistent with the systemic 2nd-research-loop root cause (no new mechanism identified).
+P3-S5 (2026-07-03) COUNTER-data-point + accuracy nuance: latency 18,563ms (~18.6s) — this MET the spec-26 factoid p50 (19.5s), and it was a COLD first query on a brand-new collection (nag-corpus-spec28), yet FASTER than the same day's WARM hunt-pdfs queries (32.9s/35.0s). Trace 80c47266. This indicates the latency breach is INTERMITTENT and tracks whether the redundant 2nd research-loop iteration fires — NOT a simple warm/cold-cache effect, and NOT universal to every factoid query. FLAG FOR VERIFY GATE: the current title's "All warm queries" framing may need softening at phase close if further warm queries meet budget; do NOT retitle now per Lead direction — this is a flag for the closure/verify step, not an immediate change.
+
+**UPDATE 2026-07-03** (Q-014 exit-checklist incident, no severity change): the wasteful 2nd/3rd research-loop iteration's latency is what pushes analytical/multi-source queries into a long single-node silent dwell that trips the ~30s idle timeout (BUG-054) → direct contributor to the BUG-073/074 hang chain. Q-014 data: iterations=2 → 50.2s total, HUNG (cancelled mid-stream); iterations=3 → 44.8s total, COMPLETED (no single silent gap crossed 30s). Cross-ref BUG-073/074/075.

@@ -24,9 +24,10 @@ A standalone "." character is rendered below the [1] citation chip; visible in t
 - Trace: null
 
 ## Root-cause hypothesis
-Citation chip rendering leaves a trailing punctuation character outside the chip wrapper element; likely a markdown-to-component transformation artifact where a period following the citation reference escapes the chip span.
+CONFIRMED 2026-07-03 (pinned via P3-S5 3rd occurrence, trace 80c47266): the raw model text ends a sentence immediately after the citation marker in the SAME text run, e.g. "...doméstico [3]." — the citation-chip renderer swaps the "[3]" token for an interactive chip component but leaves the trailing "." as a separate plain-text DOM node, which renders detached/below the chip instead of inline immediately after it. Not a markdown-transform escape as originally hypothesized — it is the chip-swap boundary splitting a single text run into chip + orphaned-punctuation-node.
 
 ## Triage (filled in Phase 8 for MAJOR+)
 
 ## Notes
 Frontend-inspector finding. Capture: /tmp/spec30-captures/p3-s1-current-state.png. Cosmetic only; does not affect function or accessibility. Visible in demo context.
+3rd occurrence confirmed P3-S5 (2026-07-03, per Lead's occurrence count): orphaned "." below the [3] chip on Q-007 (NAG-204, collection nag-corpus-spec28), trace 80c47266 — same mechanism as the original P3-S1 occurrence (below [1]). Recurrence across P3-S1 and P3-S5, on two different collections, confirms the defect is systemic to the chip-swap renderer, not query- or collection-specific.
