@@ -37,3 +37,5 @@ ChatMessageBubble.handleCitationClick:124 calls router.push(`/documents/${citati
 
 ## Notes
 Cross-ref BUG-042 (shared substrate: /documents/[id] page treats id as collection_id + raw-UUID breadcrumb) — distinct trigger (citation click) and root cause (wrong ID type in Citation schema); registered as separate bug. Cross-ref BUG-063 (GET /api/documents 200 [] for unknown collection_id masks the error — SWR never fires error branch, user sees misleading "No documents yet"). Session 931817be; backend trace 27bd5c78. Captures: /tmp/spec30-captures/p3-s2-frames/p3-s2-click-inline-1-destination.png, p3-s2-citation3-destination.png, p3-s2-citation4-destination.png, p3-s2-4sources-expanded.png, frame_018.jpg.
+
+**UPDATE 2026-07-03 (P4-S1 cross-scenario repro)**: frontend-inspector confirmed the identical citation-click dead-end reproduces on a DECLINE answer, not just a grounded one — the citation chips shown alongside a P4-S1 out-of-scope decline (see BUG-081) route-push and dead-end the same way. Same root cause, no new fix surface; broadens confirmed impact to decline responses too.

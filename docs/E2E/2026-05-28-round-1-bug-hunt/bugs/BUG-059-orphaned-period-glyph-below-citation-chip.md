@@ -31,3 +31,5 @@ CONFIRMED 2026-07-03 (pinned via P3-S5 3rd occurrence, trace 80c47266): the raw 
 ## Notes
 Frontend-inspector finding. Capture: /tmp/spec30-captures/p3-s1-current-state.png. Cosmetic only; does not affect function or accessibility. Visible in demo context.
 3rd occurrence confirmed P3-S5 (2026-07-03, per Lead's occurrence count): orphaned "." below the [3] chip on Q-007 (NAG-204, collection nag-corpus-spec28), trace 80c47266 — same mechanism as the original P3-S1 occurrence (below [1]). Recurrence across P3-S1 and P3-S5, on two different collections, confirms the defect is systemic to the chip-swap renderer, not query- or collection-specific.
+
+4th occurrence confirmed P4-S2 (2026-07-03): orphaned "." glyph re-confirmed under the [1] and [4] chips on the ambiguous "¿Es seguro?" answer. Same mechanism, further confirming the defect is chip-renderer-systemic rather than tied to any specific phase, query, or collection.

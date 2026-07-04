@@ -29,3 +29,5 @@ GET /api/documents endpoint queries documents filtered by collection_id without 
 
 ## Notes
 Cross-ref BUG-061: this behavior MASKS BUG-061 — when citation click routes /documents/{chunk-uuid}, the SWR fetch returns 200 [] instead of 404, so the FE error branch never fires and the user sees the misleading "No documents yet" page rather than an error. Confirmed via /tmp/spec30-captures/P3-S2-citation-payload-score.log (4× 200 [] for chunk UUIDs 9a674844, 907ed763, a49b801e, 2c04624d).
+
+**UPDATE 2026-07-03 (P4-S1 cross-scenario repro)**: same masking behavior reproduces when the citation dead-end is reached from a DECLINE answer (BUG-081) rather than a grounded answer — the endpoint still returns 200 [] for the unknown collection_id derived from the decline's citation payload. Confirms the masking is unconditional on the answer type, not specific to grounded happy-path citations.
