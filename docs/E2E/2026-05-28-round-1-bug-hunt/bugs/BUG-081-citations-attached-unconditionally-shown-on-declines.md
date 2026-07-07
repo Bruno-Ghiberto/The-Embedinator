@@ -31,3 +31,5 @@ HIGH confidence (log-analyst + frontend-inspector). `_build_citations` unconditi
 
 ## Notes
 Cross-ref: BUG-080 (same decline-blind failure class, applied to confidence instead of citations). BUG-070/BUG-078 (feed the same citation-count bloat problem from a different angle — across-turn accumulation rather than within-turn over-attachment). BUG-061/BUG-063 (the citation click-through dead-end — a downstream consequence of citations being shown when they shouldn't be).
+
+P4-S4 (2026-07-07) fresh repro data point: on the BUG-083 prompt-injection-compliance trace, `_build_citations` attached 5 sources to the literal "pwned" non-answer produced by a successful prompt injection — the unconditional-attachment behavior does not distinguish a hijacked non-answer from a genuine grounded answer any more than it distinguishes a decline.
