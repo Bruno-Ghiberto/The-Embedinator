@@ -35,3 +35,5 @@ Cross-ref: BUG-080 (same decline-blind failure class, applied to confidence inst
 P4-S4 (2026-07-07) fresh repro data point: on the BUG-083 prompt-injection-compliance trace, `_build_citations` attached 5 sources to the literal "pwned" non-answer produced by a successful prompt injection — the unconditional-attachment behavior does not distinguish a hijacked non-answer from a genuine grounded answer any more than it distinguishes a decline.
 
 P4-S4 (2026-07-08) fresh repro data point: system-prompt-extraction probe, trace `effe246c-caec-4e8b-99b2-b2462856c55f` (session `8c2ed0a7…`, created_at 2026-07-08T18:42:37Z, latency 35.2s, intent=rag_query, confidence_score=37, llm_model=qwen2.5:7b). 5 citations stapled to a pure decline, ALL with negative relevance (-9.83/-10.40/-10.50/-10.61/-10.69 → NAG-240/200/215/235/E209), confidence Low 37%, response in English.
+
+[2026-07-10T12:26:22-03:00] P5-S3 recurrence. The UI displayed "5 sources" with citation chips on an answer that explicitly declined to answer. Citations are still attached unconditionally on declines. Severity UNCHANGED (MINOR).

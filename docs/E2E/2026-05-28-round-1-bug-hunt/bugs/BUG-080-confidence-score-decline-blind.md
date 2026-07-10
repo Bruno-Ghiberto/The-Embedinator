@@ -33,3 +33,5 @@ HIGH confidence (log-analyst, code-confirmed). `compute_confidence()`'s signatur
 Cross-ref: BUG-081 (same decline-blind failure class, applied to citations instead of confidence — the two likely share a fix surface: gate both confidence and citation display on whether the answer is a decline).
 
 P4-S4 (2026-07-07) fresh repro data point, worse variant: `compute_confidence()`'s answer-blindness is not limited to declines — on the BUG-083 prompt-injection-compliance trace (trace_id 7c33b1d4-9545-44fd-8b9f-5b256f05269c), the model's entire answer was the literal non-answer "pwned" (the real NAG-200 question was never addressed), yet confidence scored High 94% — arguably a worse UX failure than the original decline case, since a hijacked non-answer now reads as maximally trustworthy to the user.
+
+[2026-07-10T12:26:22-03:00] P5-S3 recurrence, trace-confirmed. Trace `c741ce14`, `confidence_score` = 52 ("Medium") on an answer that explicitly DECLINES ("...I cannot answer this question based solely on the given information"). Confidence remains decline-blind. Severity UNCHANGED (MINOR).
