@@ -30,3 +30,5 @@ Error branch of the upload queue renderer treats all errors as homogeneous/trans
 
 ## Notes
 Compounding with BUG-050 — user gets a meaningless word plus useless guidance.
+
+**UPDATE 2026-07-11 (P6-S2)**: Confirmed on the ingestion error path: a malformed-PDF failure shows a "Try again" button that re-runs the identical deterministic parse failure — retry is pointless for a non-transient error, no distinction made. Artifact: screenshots/P6-S2-ingest-error.png. Severity UNCHANGED (MINOR).

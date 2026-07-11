@@ -34,3 +34,5 @@ useStreamChat error handling maps only the message field into UI state.
 Would have cut this hunt's correlation time materially; cheap high-value fix candidate for spec-31. Cross-evidence from P2-S4b: the ingest API's 413 response carries trace_id in BOTH the JSON body and the x-trace-id response header (97095d98-51bf-41ce-a61c-38c0322552c8) — the backend consistently delivers trace_ids; the chat UI is the only surface dropping them.
 
 P3-S1 update (2026-06-18): confirmed scope is broader than error path only — trace_id is also present in the `done` event on successful requests (2f4d0b4f, captured in /tmp/spec30-captures/p3-s1-ndjson-stream.json) and is never surfaced. 182 NDJSON events streamed (session/status×6/chunk×80/citation/confidence/done); trace_id field present in done event, no DOM element renders it.
+
+**UPDATE 2026-07-11 (P6-S1)**: Confirmed still true in the dedicated Trace UI. `TraceDetailSheet` (`TraceTable.tsx:91-93`) shows `Session: {session_id.slice(0,8)}…` but never renders `trace.id`; no copyable/visible trace UUID anywhere in the trace panel. Artifact: screenshots/P6-S1-trace-detail-stage-timings.png. Severity UNCHANGED (MINOR).
