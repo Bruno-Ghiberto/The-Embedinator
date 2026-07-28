@@ -290,19 +290,24 @@ failed can calibrate the rest; a reader shown only clean results has to take all
 ## Repeatability
 
 The hunt is re-runnable, and that is the point of writing the process down rather than only the
-results. Four families of prompt artifact live under `notes/Process/spec-30-r1-sdd/`:
+results. The prompts that drove it are published under [`process/`](./process/):
 
 - **`lead-prompt.md`** — the standing orchestrator contract: roles, write boundaries, prohibitions.
-- **`apply-*-prompt.md`** — one launch prompt per hunt phase, carrying that phase's scenarios,
+- **`apply-*.md`** — one launch prompt per hunt phase, carrying that phase's scenarios,
   entry checklist and deviations.
-- **`verify-*-prompt.md`** — one gate prompt per phase, written to be executed by a reviewer with
+- **`verify-*.md`** — one gate prompt per phase, written to be executed by a reviewer with
   no prior context, which is what makes the gates independent.
-- **`spawn/spawn-*.md`** — role definitions for the three teammate agents, including the
+- **`spawn/spawn-*.md`** — boot contracts for the three teammate agents, including the
   methodology hazards each accumulated as the hunt progressed.
+- **`agents/A1–A5-*.md`** — the underlying role manuals: mission, tool allowlist, read/write
+  scope, and forbidden actions per role.
 
 Alongside them the session directory holds the append-only session log, the 106 records, and the
 schema they validate against. Re-running a phase means re-reading its prompt, not reconstructing
-what was done.
+what was done. [`process/README.md`](./process/README.md) states what the set does *not* cover —
+the phases whose launch prompts were never written as standalone files, the two earliest gate
+prompts that were not preserved, and the registry-validation scripts that lived in scratch space
+and were lost.
 
 ---
 
