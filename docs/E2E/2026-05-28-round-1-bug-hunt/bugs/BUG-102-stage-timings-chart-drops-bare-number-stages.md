@@ -27,9 +27,9 @@ Each stage's real duration is shown; the largest contributor is visually dominan
 Backend writes `research_orchestrator_ms`/`_calls` and `research_tools_ms`/`_calls` as bare numeric values in `stage_timings` (`research_nodes.py:139-140,200-201,232-233,320-321,444-445,462-463`), siblings to `{duration_ms}` entries. Frontend contract `frontend/lib/types.ts:140` expects `Record<string,{duration_ms:number;failed?:boolean}>`; `buildChartData()` (`frontend/components/StageTimingsChart.tsx:29-37`) reads `timing.duration_ms` on every value → `undefined` for bare numbers → empty bars + dropped values.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/162
+- **Rationale**: This observability surface does not merely omit — it misreports: the 18.1s orchestrator (69% of total) renders as an empty bar and the 1.9s intent_classification is shown as the dominant stage, so the chart names the wrong bottleneck.
 
 ## Notes
 Additional supporting artifact: screenshots/P6-S1-stage-hover-tooltip.png. Related: BUG-103 (ranking stage always 0ms — same chart, adjacent mechanism), BUG-104 (embedding/retrieval alias — same instrumentation gap family).

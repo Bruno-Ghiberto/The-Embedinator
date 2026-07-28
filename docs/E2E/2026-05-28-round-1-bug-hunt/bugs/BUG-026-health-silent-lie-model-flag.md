@@ -1,4 +1,4 @@
-# BUG-026: Overall health stays "healthy" and UI shows "Backend connected" while a model flag is false
+# BUG-026: Aggregate health stays "healthy" and UI green while a model flag is false
 
 - **Severity**: MAJOR
 - **Layer**: Backend
@@ -27,9 +27,9 @@ When any required model flag is false, the aggregate health status reflects degr
 The health aggregation logic does not incorporate model availability flags into the outer status decision; the frontend status component only checks the outer `status` field and does not render per-model state from the health response payload.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/124
+- **Rationale**: Aggregate status asserts "healthy" and the dashboard says "Backend connected" while a required model is missing — a missing capability is invisible end-to-end.
 
 ## Notes
 Reporters: frontend-inspector + log-analyst. Related to BUG-025 (false model flag source — tag-suffix mismatch) and BUG-027 (no per-service UI badges). Note: the BUG-025 false flag is a string-match bug; this bug describes the separate architectural issue that any false model flag does not propagate to aggregate health or UI regardless of its cause.

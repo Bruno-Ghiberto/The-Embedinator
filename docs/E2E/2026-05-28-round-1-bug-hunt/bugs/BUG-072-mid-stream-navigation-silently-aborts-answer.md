@@ -31,9 +31,9 @@ HIGH confidence, code-confirmed (frontend-inspector) — `useStreamChat.ts:121-1
 Post-return nuance: code analysis predicts the interrupted turn should be ABSENT entirely after a true remount (nothing persisted it); the observed screenshot instead shows an EMPTY bubble in place, which is more consistent with Next.js 16's Router Cache showing a stale mid-stream snapshot of the `/chat` route segment (no `staleTimes` override found in `next.config.ts`). Either mechanism produces the same user-facing outcome: the answer is lost with no feedback.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/146
+- **Rationale**: An unmount-triggered abort that deliberately excludes AbortError from onError destroys the in-flight answer on a routine in-app route change, leaving an empty bubble that reads as a produced-but-blank answer — no error, no partial text, no interrupted marker, no retry.
 
 ## Notes
 No documented cancel-or-background policy exists for this scenario — per the P3-S6 playbook scenario, "the absence of clear policy is itself a MAJOR finding," which applies here directly (sidebar-toggle sub-variant of this same scenario PASSED cleanly; only the route-change sub-variant fails).

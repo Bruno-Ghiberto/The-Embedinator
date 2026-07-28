@@ -38,9 +38,9 @@ Day-one wiring gap between the storage contract and the API surface:
 - Damning corroboration: `frontend/tests/e2e/settings.spec.ts:32` mocks a provider literally named `"openai"` with `model_count: 5` — the Settings E2E suite validates against a product state the backend cannot produce.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/157
+- **Rationale**: The README advertises OpenAI/Anthropic/OpenRouter in three places while no POST/create route has ever existed in any version of providers.py — an advertised headline feature unreachable through every surface, falsifiable by a reader in under a minute.
 
 ## Notes
 Why CRITICAL, not MAJOR: the README makes the claim in three places — line 29 ("Cloud providers (OpenAI, Anthropic, OpenRouter) are supported as optional alternatives."), line 65 ("**Multi-provider LLM support** -- Ollama (local), OpenAI, Anthropic, and OpenRouter **with encrypted API key storage**"), line 150 (tech table: "Cloud providers | OpenAI, Anthropic, OpenRouter (optional)"). An advertised headline feature is unreachable through every surface the product exposes, with no workaround available to any user. Three adapter modules, two registry dispatch paths, and two storage methods are dead code. This is a v1.0 launch-blocking credibility defect, falsifiable by a reader in under a minute.

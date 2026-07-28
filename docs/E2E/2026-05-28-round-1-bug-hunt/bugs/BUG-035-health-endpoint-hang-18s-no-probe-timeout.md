@@ -1,4 +1,4 @@
-# BUG-035: Health endpoint hangs ~18s when qdrant TCP stalls — no per-service probe sub-timeout
+# BUG-035: Health endpoint hangs ~18s on qdrant TCP stall — no per-probe sub-timeout
 
 - **Severity**: MAJOR
 - **Layer**: Backend
@@ -28,9 +28,9 @@
 The qdrant client `get_collections()` call inside the health-check path uses the default connection timeout rather than a short probe-specific timeout (e.g., 1-2s); adding a per-probe `asyncio.wait_for()` wrapper or configuring the client's timeout for health checks would bound the hang to one polling interval.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/127
+- **Rationale**: Once BUG-034/038 treat any non-200 or timeout as degraded, this reduces to a probe-latency/resilience issue that no longer produces a user-visible false state.
 
 ## Notes
 Reporter: log-analyst. Additional log: logs/P1-S3-backend-circuit-breaker.log. Circuit breaker open total ~65s vs 30s Constitution cooldown target (medium confidence — config check pending; see candidate finding to be registered separately). This hang is the upstream cause of BUG-034's silent-lie window — the banner cannot report degradation until the backend itself produces a response.

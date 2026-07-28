@@ -28,9 +28,9 @@ Each turn's answer reflects only that turn's question and retrieval — per-turn
 HIGH confidence, code-confirmed (log-analyst, code + trace). See Actual — three-part chain: (a) append-only `operator.add` reducers on `sub_answers`/`citations`, (b) `initial_state` reset is a no-op against a live checkpoint, (c) `aggregate_answers` naively concatenates every accumulated sub-answer with no dedup or synthesis pass, so the corruption reaches the user-visible answer text starting at turn 2.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/150
+- **Rationale**: An append-only operator.add reducer whose initial_state reset is a no-op against a live checkpoint makes aggregate_answers concatenate prior turns' raw text into the visible answer, and P5-S4 shows it carrying citations across a collection boundary that was never successfully searched.
 
 ## Notes
 Cross-ref: BUG-070 — sibling `sub_answers`/`citations` reducer problem, but distinct facet. BUG-070's finding was that its `citations` accumulation is CONFINED to backend state + the `chunks_retrieved_json` trace column and does NOT reach visible answer text (that claim was verified via `chat.py:239-242` — the bloated `final_response` text is computed but discarded, never re-emitted, because token streaming already delivered the answer via `collect_answer`). BUG-078 is the sibling reducer (`sub_answers`) that DOES reach visible text, via `aggregate_answers`' header-prepend-and-concatenate path — a different code path than the one BUG-070 examined. BUG-070's severity (MINOR) is UNCHANGED by this finding; its "not user-visible" rationale applies only to the citations facet it investigated, not to this separate `sub_answers` facet.

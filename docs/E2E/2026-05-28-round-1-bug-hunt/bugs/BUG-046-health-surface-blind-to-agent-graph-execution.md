@@ -27,9 +27,11 @@ Health probes only infra connectivity (SQLite SELECT 1, Qdrant health_check, Oll
 Health surface designed as infra-connectivity check only; no graph-execution or config-injection self-check exists at startup or in readiness.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/133
+- **Rationale**: The record's own framing is decisive — the probe is "honest about infra, blind to wiring"; a deeper graph-execution readiness check is a missing capability, and the false-model-flag half is owned by BUG-026.
 
 ## Notes
 Extends the phase-1 silent-health-lie family — cross-reference BUG-026, BUG-034 (distinct gap: honest about infra, blind to wiring).
+
+**CORROBORATION 2026-07-28 (P7-S1)**: this record's "honest about infra, blind to wiring" framing confirmed live and at scale. Through a **160s wedged turn** — a request stalled after `agent_intent_classified` with zero forward progress — `GET /api/health` returned **200 OK 21 consecutive times** (14:02:43Z–14:05:14Z) and the container never went unhealthy. The event loop was demonstrably alive and serving health checks while the user's only in-flight request was permanently stuck. Adds a stalled-request dimension to the original finding (which covered a fully-failing chat path): health is green not only when chat is broken, but while a specific request is wedged. Artifact: logs/P7-S1-backend-killboundary.log. No severity change; no new ID.

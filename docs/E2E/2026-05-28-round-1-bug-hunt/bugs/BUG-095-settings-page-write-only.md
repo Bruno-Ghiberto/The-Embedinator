@@ -34,9 +34,9 @@ The DB `settings` table and the `backend.config.settings` Pydantic singleton are
 - `backend/main.py` contains ZERO settings-table calls. It neither seeds the DB from config at boot nor seeds config from the DB. A restart does not help.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/158
+- **Rationale**: Nothing outside the settings router ever reads the settings table, so seven load-bearing knobs are inert — including groundedness_check_enabled, which a user believes disables an entire verification stage when it only writes a row; the deception is structural rather than a false string.
 
 ## Notes
 All seven keys are load-bearing runtime consumers, not decoration — this raises severity rather than lowering it:
@@ -56,3 +56,7 @@ Corroborating orphans (see the orphaned-contract audit session-log entry): `SQLi
 Never built, not regressed: `backend/api/settings.py` first appears in `01b253e`, the commit where the entire backend entered version control (679 files, +121,211/-11,138; `backend/` did not exist at its parent `5f1fbb1`). Only `8bb53b8` (ruff format) and `3a5fe6b` (mypy fix) have touched it since. No wiring was ever added and removed.
 
 Dedup-check performed against all 71 existing bugs: BUG-047 is FRONTEND (`DEFAULT_LLM` hardcoded in chat/page.tsx; the chat page never fetches /api/settings) — a different layer, a different file, and its fix would NOT repair the other six settings. BUG-089 is providers, not settings. BUG-094 is provider_health's swallowed exceptions. No existing bug owns "the settings table is never read at runtime." New.
+
+**CORROBORATION 2026-07-28 (P7-S1)**: a clean end-to-end demonstration of this record's thesis — the setting is stored, readable, and not honoured. `settings.default_llm_model` = **qwen3:14b**; `GET /api/settings` echoes qwen3:14b; backend startup logs `startup_model_validated model=qwen3:14b`. Yet three independent traces this phase record `llm_model=qwen2.5:7b`, and `ollama ps` plus the checkpoint blob both confirm **qwen2.5:7b** actually served the inference. The value survives the full write→read round-trip and is then ignored at the point of use.
+
+**Attribution note (registrar)**: this evidence is genuinely dual-attributed and is recorded on BOTH records rather than being forced onto one. The PROXIMATE cause of the wrong model on these specific requests is BUG-047 — the P7-S1 POST body carries `"llm_model":"qwen2.5:7b"` explicitly, a frontend override that leaves the backend no fallback to consult. What THIS record contributes independently is that the persisted backend setting is never consulted at the point of use regardless of that override. Cross-ref BUG-047. No severity change; no new ID.

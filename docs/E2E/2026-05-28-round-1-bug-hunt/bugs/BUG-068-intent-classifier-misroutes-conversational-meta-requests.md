@@ -28,9 +28,9 @@ Classifier returns `intent=rag_query` for "Necesito una respuesta mas larga", tr
 HIGH confidence, code-confirmed — `backend/agent/prompts.py:47-54` (`CLASSIFY_INTENT_SYSTEM`) defines a closed 3-intent taxonomy (`rag_query`|`collection_mgmt`|`ambiguous`) with no "conversational instruction about a prior answer" category; prompt wording ("requires searching documents") biases the LLM toward `rag_query`. `backend/agent/nodes.py:173` (`_VALID_INTENTS`) confirms the closed taxonomy has no escape hatch for this case.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/142
+- **Rationale**: A closed 3-intent taxonomy with no conversational category causes a wasteful retrieval re-run; the user still receives an answer and nothing false is asserted about system state.
 
 ## Notes
 Lead+Pilot confirmed severity=MAJOR, layer=Reasoning — "Performance" is not in the bug-registry-schema layer enum (Frontend|Backend|Ingestion|Retrieval|Reasoning|Observability|Infrastructure), and all three P3-S4 findings root in `backend/agent/`. Co-occurs with BUG-056 on the SAME turn (T2) — the misrouted intent feeds a `rewrite_query` call that also fails (BUG-056's OutputParserException + fallback recovery). Session: c5ffb174. Shared multi-turn correlation log: logs/P3-S4-multiturn-window.log. Raw capture (staged read-only, superseded by the durable copy above): /tmp/spec30-captures/UNREG-A-P3-S4-T2-intent-misroute.log.

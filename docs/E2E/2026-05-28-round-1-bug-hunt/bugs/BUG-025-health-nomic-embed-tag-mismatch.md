@@ -1,4 +1,4 @@
-# BUG-025: /api/health reports nomic-embed-text=false despite model being installed — tag-suffix mismatch
+# BUG-025: /api/health reports nomic-embed-text=false — :latest tag suffix unnormalized
 
 - **Severity**: MINOR
 - **Layer**: Backend

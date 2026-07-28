@@ -3,7 +3,7 @@
 - **Severity**: MINOR
 - **Layer**: Backend
 - **Discovered**: 2026-07-03T00:00:00Z in Phase 3 (Q-014, P3 exit-checklist)
-- **Phase scenario**: Q-014 (P3 exit-checklist, analytical multi-source)
+- **Phase scenario**: P3-S7
 - **BLOCKER-PATCHED**: no
   <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
 
@@ -32,3 +32,5 @@ MEDIUM-HIGH confidence — frontend-inspector confirmed exactly 8 status events 
 
 ## Notes
 Cross-refs: this is the highest-fix-leverage bug in the Q-014 incident chain — a periodic keepalive during long node dwells would prevent BUG-073 and BUG-074 from ever triggering, since the idle timeout (BUG-054) would never see a silent gap long enough to fire. Also cross-ref BUG-055 (the 2nd-loop iteration whose latency is what creates dwells long enough to matter) and BUG-065 (distinct: frontend callback severed vs backend emitting nothing).
+
+**Scenario id normalized 2026-07-28 (schema compliance, no semantic change)**: `scenario_id` set to `P3-S7`; originally logged as `Q-014 (P3 exit-checklist, analytical multi-source)`, which does not satisfy the `bug-registry-schema.json` pattern `^P[0-7]-S[0-9]+$`. Phase 3 ran P3-S1..S6, so the exit checklist is its 7th step. The `Discovered` line above retains the original `Q-014` provenance verbatim.

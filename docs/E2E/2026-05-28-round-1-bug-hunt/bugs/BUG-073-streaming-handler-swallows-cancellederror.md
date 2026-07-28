@@ -3,7 +3,7 @@
 - **Severity**: MAJOR
 - **Layer**: Backend
 - **Discovered**: 2026-07-03T00:00:00Z in Phase 3 (Q-014, P3 exit-checklist)
-- **Phase scenario**: Q-014 (P3 exit-checklist, analytical multi-source)
+- **Phase scenario**: P3-S7
 - **BLOCKER-PATCHED**: no
   <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
 
@@ -28,9 +28,9 @@ The cancellation unwinds through the streaming handler with no logging path at a
 HIGH confidence, code-confirmed — `backend/api/chat.py` (~316-380) catches `GraphRecursionError`, `RuntimeError`, `CircuitOpenError`, and a bare `except Exception` — but there is NO `except asyncio.CancelledError` and NO `except BaseException`. Since Python 3.8, `asyncio.CancelledError` inherits from `BaseException` (NOT `Exception`), so it unwinds past all four `except` clauses with no logging and no trace write. The control retest (trace `552e3cf6`) independently confirms the mechanism: when nothing cancels the task, the post-research chain completes in ~9ms, ruling out slow compute as the explanation for the original 34.79s silent gap.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/147
+- **Rationale**: Team-lead reviewed after the 553s evidence and deliberately kept MAJOR because the user-facing no-answer harm is already carried by BUG-074/BUG-088; what remains is an observability gap that omits rather than misstates.
 
 ## Notes
 Traces: hung = `cda553a5-c0af-4b23-a1ac-770000c9a98f` (session `f28869df`); control = `552e3cf6`.
@@ -46,3 +46,5 @@ Fix surface: add `except asyncio.CancelledError` (log + re-raise, since re-raisi
 **Impact escalation**: this occurrence discards FULLY-COMPUTED, CORRECT results — 9 minutes of real backend work, a correct fallback answer, and correct deadline detection — and permanently loses the trace record (an observability gap on top of the user-facing loss; no `query_traces` row exists for this request at all). This is the same uncaught-`CancelledError` class as the original ~30s-idle-path finding, now confirmed to also fire on a much longer-running, otherwise-successful request. Cross-ref BUG-088 (the 553s stall whose correct output this defect discarded), BUG-074 (empty bubble — the frontend-visible consequence). Severity left at MAJOR pending Lead review of whether this evidence (loss of a fully-correct 9-minute computation + total observability loss, vs. the original MAJOR framing of losing a slow-but-recoverable research pass) warrants escalation — Lead's call, not registrar-adjudicated.
 
 Severity reviewed by team-lead 2026-07-08 after the 553s live confirmation; KEPT MAJOR — escalated impact (silent discard of a fully-computed result + permanent trace/observability loss) is a strong robustness/observability defect but not CRITICAL: no data corruption, no cross-request impact, and the user-facing no-answer harm is already carried by BUG-074/BUG-088. Deliberate decision, not an oversight.
+
+**Scenario id normalized 2026-07-28 (schema compliance, no semantic change)**: `scenario_id` set to `P3-S7`; originally logged as `Q-014 (P3 exit-checklist, analytical multi-source)`, which does not satisfy the `bug-registry-schema.json` pattern `^P[0-7]-S[0-9]+$`. Phase 3 ran P3-S1..S6, so the exit checklist is its 7th step. The `Discovered` line above retains the original `Q-014` provenance verbatim.

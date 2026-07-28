@@ -1,4 +1,4 @@
-# BUG-034: Silent health-lie window — banner shows "Backend connected" while /api/health returns 503/degraded
+# BUG-034: Silent health-lie window — banner stays green while /api/health returns 503
 
 - **Severity**: CRITICAL
 - **Layer**: Frontend
@@ -28,9 +28,9 @@ Banner displayed "Backend connected" for ~6-9s while `/api/health` returned HTTP
 The banner component reacts only to the circuit-breaker error string in the health response body, not to raw HTTP 503 status codes or timeout responses; non-CB-tripped degradation states (early 503s) are silently swallowed, leaving the banner green.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/126
+- **Rationale**: Banner displays "Backend connected" through 19 consecutive HTTP 503s for 6-9s — the playbook's explicit CRITICAL silent-health-lie criterion.
 
 ## Notes
 Reporters: frontend-inspector (primary), corroborated by log-analyst. Additional artifacts: screenshots/P1-S3-baseline.png. Cross-references: BUG-026 (aggregate health-lie sibling on cold start), BUG-027 (no per-service badges), BUG-035 (backend hang — upstream cause of the lie window), BUG-036 (misleading degradation message once CB does trip). Root cause source-confirmed by inspector: delay is upstream in BackendStatusProvider polling cadence — banner component reacts immediately to provider state changes; fix belongs in provider polling/error handling, not the banner.

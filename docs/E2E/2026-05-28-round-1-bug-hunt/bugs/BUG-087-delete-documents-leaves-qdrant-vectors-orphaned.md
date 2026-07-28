@@ -30,9 +30,9 @@ HIGH confidence, code-verified. `delete_document()` (`backend/api/documents.py:4
 **Fix surface**: `backend/api/documents.py:62` — resolve the document's collection → its `qdrant_collection_name` → call `delete_points_by_filter(qdrant_collection_name, {"document_id": doc_id})` before or alongside the SQLite delete.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/155
+- **Rationale**: The delete path never touches Qdrant, so a 204-confirmed deletion leaves the document permanently retrievable and citable — the system confirms a deletion that did not happen, with data-privacy as well as integrity consequences.
 
 ## Notes
 Dedup-check performed before minting: confirmed distinct from BUG-039 (orphaned Qdrant COLLECTIONS with zero SQLite metadata, caused by crashes/interruptions between collection-creation and ingestion commit — a FAILED/interrupted-write path with no completed document ever involved). BUG-087 is the opposite trigger: a fully `completed`, successfully-ingested document undergoes a deliberate, successful (204) delete, and only the vector-store half of that delete actually happens. No other existing bug owns "document delete doesn't cascade to the vector store."

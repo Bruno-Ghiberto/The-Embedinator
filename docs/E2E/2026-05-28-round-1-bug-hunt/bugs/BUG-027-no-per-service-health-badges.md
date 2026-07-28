@@ -1,4 +1,4 @@
-# BUG-027: No per-service health badges on dashboard — single coarse "Backend connected" banner only
+# BUG-027: No per-service health badges on dashboard — one coarse banner only
 
 - **Severity**: MAJOR
 - **Layer**: Frontend
@@ -27,9 +27,9 @@ A single coarse banner "Backend connected" is the only health surface on the das
 The frontend status component was implemented using only the outer `status` boolean from `/api/health` and was never extended to render per-service or per-model detail from the full health response payload.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/125
+- **Rationale**: Absence of per-service granularity is a missing feature, not a false statement; the actual health lies are owned and fixed by BUG-026/034/038.
 
 ## Notes
 Reporter: frontend-inspector. Renders playbook P1-S3 (degraded badge transitions) untestable until fixed. Related to BUG-026 (aggregate health silent lie).

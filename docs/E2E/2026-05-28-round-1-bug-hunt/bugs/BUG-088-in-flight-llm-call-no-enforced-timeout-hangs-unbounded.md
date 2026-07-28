@@ -35,9 +35,9 @@ HIGH confidence, code-confirmed (log-analyst). Two compounding gaps, both confir
 **Open reconciliation item (not blocking, noted for follow-up)**: the interim diagnosis stated the request "never reached Ollama's application layer" (health polls resumed immediately post-unpause with no corresponding `/api/chat` log line at the app layer), yet the call ultimately returned a real, well-formed decision (`num_tool_calls=2`) at 553.4s. These two observations are not yet reconciled — it's unclear whether the request was queued/retried at a transport layer invisible to Ollama's request log, or another mechanism resumed it. This does not change the defect (neither timeout bounded the wait either way) but is flagged as unresolved.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/156
+- **Rationale**: Neither request_timeout=120s nor max_loop_seconds=300 can bound an in-flight node await — the call ran 553.4s (4.6x and 1.8x past those limits) while the user saw an indefinite hang, and the orphaned task's correct answer was then discarded.
 
 ## Notes
 Dedup-check performed before minting: confirmed distinct from BUG-082 (`classify_intent ↔ request_clarification` infinite LOOP — a different mechanism where the graph keeps re-entering and returning from nodes each cycle; that loop is eventually cut short by the ~30s client-side idle-timeout cancellation chain, BUG-054→073→074) and from BUG-054/073/074/075 (the frontend-visible cancellation chain triggered by the client-side idle timeout). BUG-088 is a distinct failure: a SINGLE node's LLM call itself does not return control to the graph for 553s, with no enforced backend-side ceiling of any kind bounding that wait — worse than either prior mechanism even though (per the correction above) it is not a truly permanent/unrecoverable hang.

@@ -28,9 +28,9 @@ Deduplication should only collapse genuinely duplicate content (same chunk retri
 HIGH confidence, code-confirmed (log-analyst). `dedup_key()` (`research_nodes.py:41-43`) uses `(normalize_query(query), parent_id)` as its uniqueness key with no `chunk_id`/offset component, so any parent yielding 2+ scoring children in the same query collapses to 1 survivor at `research_nodes.py:410-416`, chosen by iteration/insertion order rather than any relevance criterion. Confirmed via the log chain `retrieval_hybrid_search_complete results=4` → `retrieval_rerank_complete input_count=4 output_count=4` → `agent_dedup_filtered original=4 kept=3`, and SQLite ground truth showing parent `cc495661` genuinely has two distinct children (offsets 0-439 / 439+) where only the first was passed downstream.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/154
+- **Rationale**: dedup_key omits chunk_id, so any parent yielding two scoring children silently loses one regardless of content — deterministic, repeatable recall loss in ordinary retrieval, with query_traces.chunk_count reporting the post-dedup set as what was retrieved.
 
 ## Notes
 Dedup-check performed before minting: confirmed distinct from BUG-071 (false decline because a document's own catalog identifier is absent from its body text — a retrieval-signal gap, not a dedup collision), BUG-062 (relevance-score display is an unclamped raw CrossEncoder logit — a normalization/rendering defect, unrelated to which chunks survive dedup), and BUG-066 (citation-count *inflation* — `chunks_retrieved_json` recording the same chunks 4× — the opposite failure direction from this bug's silent *drop*). None of the three owns this symptom.

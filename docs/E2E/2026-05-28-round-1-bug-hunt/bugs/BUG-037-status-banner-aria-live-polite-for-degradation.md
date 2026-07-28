@@ -1,4 +1,4 @@
-# BUG-037: Health-degradation banner uses aria-live="polite" — screen readers defer degradation announcements
+# BUG-037: Degradation banner uses aria-live="polite" — screen readers defer the alert
 
 - **Severity**: MINOR
 - **Layer**: Frontend

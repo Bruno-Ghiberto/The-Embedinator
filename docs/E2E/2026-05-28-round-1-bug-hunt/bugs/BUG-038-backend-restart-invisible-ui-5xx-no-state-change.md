@@ -1,4 +1,4 @@
-# BUG-038: Backend restart invisible to UI — HTTP 5xx with unparseable body produces no banner state change
+# BUG-038: Backend restart invisible to UI — HTTP 5xx with null body changes no state
 
 - **Severity**: MAJOR
 - **Layer**: Frontend
@@ -28,9 +28,9 @@ Banner reflects backend unavailability within one polling cycle of the first non
 The `BackendStatusProvider` error-handling path checks only for network-level throw (fetch failure) or a specific parsed JSON shape; an HTTP 500 with a null body falls through all conditional branches and leaves the previous `status` state unchanged; the fix is to treat any non-200 response as unreachable/degraded regardless of body parseability.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/129
+- **Rationale**: HTTP 500 with a null body falls through every provider branch, freezing the banner at "Backend connected" for the whole ~10-12s outage window.
 
 ## Notes
 Reporters: frontend-inspector (primary), corroborated by log-analyst. Additional artifacts: logs/P1-S4-backend-restart.log, screenshots/P1-S4-post-recovery.png. Same root family as BUG-034 (silent health-lie during qdrant 503s) — shared fix: treat any non-200 as unreachable/degraded. Log-analyst note: 15s restart budget passes with ~2.2s headroom (borderline) — cold page cache or slower disk would breach it (log-only observation, no separate bug filed).

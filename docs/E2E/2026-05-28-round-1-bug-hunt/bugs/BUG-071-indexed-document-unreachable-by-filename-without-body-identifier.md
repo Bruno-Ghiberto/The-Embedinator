@@ -28,9 +28,9 @@ The model produces a confident decline for a document that IS indexed and visibl
 HIGH confidence, DB-verified — the document filename/catalog identifier is NOT part of the retrieval signal anywhere in the pipeline. A direct `parent_chunks` query for `document_id 684df090` shows "NAG-E207" / "E207" / "E-207" appears 0 times across all 7 parent chunks; the document self-identifies internally only as "ET-ENRG-GD-Nº 7 / Año 2000" (title: "ACCESORIOS ROSCADOS DE FUNDICIÓN ESFEROIDAL PARA USO EN CAÑERÍAS DE GAS"). BM25/sparse retrieval operates on body text only, so it cannot match the query term "NAG-E207" against a document that never contains that string; dense/semantic retrieval has no exploitable signal for a bare catalog code with no supporting body context either. The ingestion pipeline never injects the source filename/catalog identifier into indexed content, nor uses it as a retrieval boost or metadata filter. CONTROL (rules out a general indexing gap): `NAG-204.pdf`'s parent chunks contain the literal string "NAG-204" 22 times — which is exactly why the P3-S5 / Q-007 query succeeded. Self-identifying documents work correctly; NAG-E207 fails specifically because it is the anomaly (a document whose body never restates its own public-facing name).
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/145
+- **Rationale**: Retrieval never indexes the filename/catalog identifier, so asking about NAG-E207 returns a confident "this document doesn't exist in the corpus" for a document the user can see in their own collection.
 
 ## Notes
 Trigger/impact: CONDITIONAL, not universal — affects any correctly-ingested document whose body text does NOT echo its own filename/catalog identifier; many documents self-reference internally and are unaffected. But when it does hit, the user receives a confident "this document doesn't exist" for a document they can see in their own collection — a trust/correctness failure at the retrieval layer, not a rare edge case restricted to one file.

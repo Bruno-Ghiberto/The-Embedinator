@@ -34,3 +34,11 @@ The original record framed this as failure-path-specific ("failed ingest job nev
 
 ## Notes
 Related: BUG-109 (same P6-S2 ingest-error scenario, same job record).
+
+**CORROBORATION 2026-07-28 (P7-S1 phase entry)**: re-confirmed at Phase-7 entry — **79/79 jobs carry `finished_at` NULL**, i.e. every job in the table, on every outcome. Consistent with this record's corrected universal framing (not failure-specific). Shared root cause with BUG-116: terminal-state columns are written only on the success path, so any non-completing outcome leaves them unset. No severity change; no new ID.
+
+**UPDATE 2026-07-28 (P7-S3) — the claim is now airtight, and strengthened beyond its previous wording.** Exact figures from the inspector: **81/81 jobs and 80/80 COMPLETED jobs carry a NULL `finished_at`**. Decisive detail: for one of those jobs the completion instant is known to the millisecond from the logs — **14:43:26.487Z** — and the column is STILL unstamped. So this is not "the value is unavailable at write time"; the value was demonstrably known, logged, and simply never written.
+
+Upgrade this record's claim from "never stamped on any outcome" to **"never stamped even when the exact completion time is known and logged"** — which closes the last plausible benign explanation.
+
+**Naming mismatch, recorded as a distinct observation**: the database column is `finished_at` while the API surfaces it as `completed_at`. Anyone correlating the two surfaces is comparing differently-named fields, and a fix touching one name will not obviously touch the other. Cross-ref BUG-127 (same table, same "written only on the success path" root cause, but diagnostics rather than timestamps — registered separately because either could be fixed without the other). No severity change; no new ID.

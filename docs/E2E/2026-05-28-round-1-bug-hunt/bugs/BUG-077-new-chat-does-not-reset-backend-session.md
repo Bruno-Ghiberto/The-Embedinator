@@ -29,9 +29,9 @@ The backend thread is reused; the new conversation inherits the prior conversati
 HIGH confidence, code-confirmed (both analysts, code + network). `frontend/hooks/useStreamChat.ts` holds `sessionIdRef` as a private ref with no reset path — the hook's return value exposes only `{messages, isStreaming, sendMessage, abort, setMessages}`, nothing that lets a caller clear the session ref. `handleNewChat()` (`frontend/app/chat/page.tsx:225-230`) clears `messages`/`historySessionIdRef`/`sessionLoadedRef` and calls `router.push("/chat")` — a soft navigation that does NOT remount the hook — but never resets `sessionIdRef`. `backend/api/chat.py:101` then honors and reuses the incoming `body.session_id`, silently continuing the old thread.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/149
+- **Rationale**: handleNewChat never resets sessionIdRef, so the backend silently continues the prior LangGraph thread while the user believes they started a fresh conversation — live-confirmed with three traces forming one checkpoint chain.
 
 ## Notes
 Cross-ref: BUG-064 (mirror image — that one LOSES the session on reload; this one LEAKS it forward into a chat the user believes is fresh). BUG-072 (same component family, different lifecycle defect — mid-stream navigation abort, not session identity).

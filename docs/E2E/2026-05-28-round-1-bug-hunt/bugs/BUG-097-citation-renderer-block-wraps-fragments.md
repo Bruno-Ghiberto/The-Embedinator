@@ -27,9 +27,9 @@ Each text fragment between citation markers is independently wrapped in a block-
 `frontend/components/ChatMessageBubble.tsx:27-78` `renderWithCitations` splits the answer on `/\[(\d+)\]/g`, then pushes `<MarkdownRenderer content={parts[i]} />` (line ~50) for EACH text fragment. `frontend/components/MarkdownRenderer.tsx:36` unconditionally wraps its output in `<div className={className}>`, and react-markdown emits `<p>`/`<ul>` inside. Both are `display: block`.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/159
+- **Rationale**: Each fragment between [N] markers is independently block-wrapped, isolating single words like "and" into their own paragraphs on every multi-citation answer — model-independent and deterministic, degrading the product's primary deliverable rather than a secondary surface.
 
 ## Notes
 The chip is exonerated: `CitationHoverCard` renders an `<a>` with computed `display: inline-flex`, verified in the live DOM. The chip is inline. The wrappers around it are not.

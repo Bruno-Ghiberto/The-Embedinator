@@ -26,9 +26,9 @@ The `ranking` stage reflects retrieval reranking (cross-encoder) duration.
 `validate_citations` (`backend/agent/nodes.py:633-724`) is registered bare at `backend/agent/conversation_graph.py:65` — no partial/closure binds its keyword-only `reranker` param → `reranker=None` → early return at `nodes.py:651-657` → ~0ms every call. The real rerank runs as a research tool (`research_nodes.py:380`) with no dedicated `stage_timings` key of its own.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/163
+- **Rationale**: The 0.0ms value is accurate for the no-op node it actually measures; this is the mislabelled-instrumentation symptom whose functional half — citation QA never running — is owned and fixed by BUG-107.
 
 ## Notes
 Related: BUG-107 (same root cause — `validate_citations` is a 100% no-op because the reranker is unbound; this record is the timing symptom, BUG-107 is the functional-loss finding), BUG-102 (same chart, adjacent instrumentation gap).

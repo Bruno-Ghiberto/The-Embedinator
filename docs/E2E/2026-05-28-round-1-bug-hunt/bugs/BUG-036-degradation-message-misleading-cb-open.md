@@ -1,4 +1,4 @@
-# BUG-036: Misleading degradation message — "Vector database is starting up." shown while backend reports "Qdrant circuit breaker is open"
+# BUG-036: Circuit-breaker-open state shown to users as "Vector database is starting up."
 
 - **Severity**: MAJOR
 - **Layer**: Frontend
@@ -27,9 +27,9 @@ The frontend maps the circuit-breaker error string to the generic startup messag
 The frontend status component maps all non-healthy qdrant states to a single startup message string rather than branching on the specific `error_message` content from the health response; a state machine or message-map keyed on the backend error string would allow accurate messaging (e.g., "Vector database is unavailable — retrying" for CB-open vs. "Vector database is starting" for actual first-boot).
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/128
+- **Rationale**: Tells the user to wait for a benign startup while the backend reports a circuit-breaker outage that may need operator action — a directly false statement about system state.
 
 ## Notes
 Reporters: frontend-inspector + Pilot. Additional artifact: screenshots/P1-S3-vector-db-banner-during-pause.png (Pilot capture). Cross-reference: BUG-034 (silent health-lie window — separate issue, precedes this message appearing). Root cause source-confirmed: frontend/components/StatusBanner.tsx:18 — `if (qdrant?.status === "error") return "Vector database is starting up.";` — single string for ALL qdrant error states, no distinction between genuine startup and circuit-breaker-open failure.

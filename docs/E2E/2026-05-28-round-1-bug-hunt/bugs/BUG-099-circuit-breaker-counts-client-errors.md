@@ -27,9 +27,9 @@ Client-side errors (malformed/incompatible requests) should not count toward an 
 `HybridSearcher` wraps its Qdrant call in `except Exception` (`searcher.py:216-219`) and calls `_record_failure()` on ANY exception, then raises `QdrantConnectionError`. But the P5-S4 failure was HTTP 400 Bad Request — a CLIENT error (a malformed vector was sent), not a Qdrant-availability failure. Retrying it can never help. Yet it increments the SAME `_failure_count` (`searcher.py:64-70`) whose purpose is to trip when Qdrant is DOWN. Threshold is 5 (`config.py`, `circuit_breaker_failure_threshold`), cooldown 60s (`circuit_breaker_cooldown_secs`). P5-S4 hit exactly 4 — one short. A 5th malformed sub-question would have opened the breaker.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/161
+- **Rationale**: A real cross-collection availability defect, but it needs 5 failures to trigger (P5-S4 reached 4, never tripping), is bounded to a 60s cooldown and self-heals — impact is bounded and was not reproduced.
 
 ## Notes
 The blast radius is app-wide: `main.py:606` constructs ONE `HybridSearcher` and stores it at `app.state.hybrid_searcher` — a single shared instance for the whole app, not per-collection. `_circuit_open`/`_failure_count` are instance attributes. So 5 malformed queries against ONE broken collection would open the breaker and reject searches against EVERY healthy collection, for the full 60s cooldown — while Qdrant is fine and returning 200s. A client-side input error is allowed to trigger an availability-protection mechanism that then denies service to unrelated healthy data.

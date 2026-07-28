@@ -29,9 +29,9 @@ Deletion runs unconditionally before worker execution (backend/ingestion/pipelin
 Cross-store delete→ingest sequence has no atomicity or compensation; sibling of BUG-039 (inverse failure: BUG-039 = vectors without rows, BUG-052 = rows without vectors — both from missing cross-store transactional discipline; cross-ref).
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/136
+- **Rationale**: Replace-on-change destroys the old document's vectors before the new ingest runs, with no rollback and no notification — 2,025 vectors permanently lost live; the hunt's most severe data-integrity finding.
 
 ## Notes
 Most severe data-integrity finding of the hunt. Discovered via Lead-dispatched inspector probing; dismissed hypotheses (documented for the record): "dedup gate bypassable" REFUTED — probe files had different SHA-256 hashes (30a52d1a corrupt, af8dc16a older version) so the gate behaved correctly; "chunk nondeterminism" REFUTED — 951 chunks matches all historical ingests of the older file version, deterministic per version.

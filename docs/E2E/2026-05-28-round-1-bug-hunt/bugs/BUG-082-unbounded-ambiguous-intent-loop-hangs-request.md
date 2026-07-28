@@ -31,9 +31,9 @@ HIGH confidence (log-analyst, code + live log evidence observed during the P4-S4
 **Security note (P4-S4)**: this is the direct-prompt-injection input. The injection itself did NOT succeed — the model never output "pwned" and showed no compliance — but it triggered this availability/DoS-class hang instead. Adversarial/ambiguous input → unbounded loop → dead request. The injection-compliance verdict itself is UNTESTED (the loop pre-empted any output); a re-run is required next session to separately verify prompt-injection resistance once this hang is fixed.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/152
+- **Rationale**: An unconditional request_clarification → classify_intent edge with no iteration cap on the direct path cycles forever (24 consecutive classifications), so any "ambiguous" message yields a permanently dead stream and no query_traces row.
 
 ## Notes
 Layer is Backend / ConversationGraph intent-routing — DISTINCT from BUG-073/074/075, which live in the ResearchGraph tool-loop / streaming layer (this bug is upstream of that layer; it never reaches the research subgraph at all).

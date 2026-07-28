@@ -28,9 +28,9 @@ Minified React error #418 (hydration mismatch) thrown on every cold load; produc
 Browser-only state (e.g., localStorage, window dimensions, or Date.now()) is accessed during SSR render, producing a different value server-side vs. client-side; React detects the mismatch at hydration time and throws #418.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/123
+- **Rationale**: Console-only hydration mismatch with no visible crash and nothing falsely asserted to the user; latent render-divergence risk, bounded and honest.
 
 ## Notes
 Reporter: frontend-inspector. Observed at P1-S1/S2. No visible crash but masks future render divergences.

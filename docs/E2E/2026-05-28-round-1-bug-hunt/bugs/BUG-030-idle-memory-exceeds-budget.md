@@ -1,4 +1,4 @@
-# BUG-030: Backend idle RSS 610.8 MiB exceeds SC-005 600 MB budget — warning fires on every cold start
+# BUG-030: Backend idle RSS 610.8 MiB exceeds the SC-005 600 MB budget on every boot
 
 - **Severity**: MINOR
 - **Layer**: Backend

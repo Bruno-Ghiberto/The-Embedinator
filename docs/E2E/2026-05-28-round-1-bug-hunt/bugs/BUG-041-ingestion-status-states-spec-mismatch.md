@@ -27,9 +27,9 @@ Real enum is pending/started/streaming/embedding/completed/failed/paused (fronte
 spec FR-029 binding table was written against a planned/different backend state machine than implemented; no shared canonical status enum across spec, backend, and frontend.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/131
+- **Rationale**: Spec-vs-implementation naming drift plus a "Completed"/"Complete!" label inconsistency; the pipeline was verified functionally healthy and the statuses shown are true.
 
 ## Notes
 Renders the playbook's stage-walk criterion untestable as written for P2 and any later phase citing those names. Functional pipeline verified healthy this scenario (14.81s, deltas exact, no functional skips).

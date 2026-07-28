@@ -40,9 +40,9 @@ HIGH confidence (log-analyst, code-confirmed). Chain-wide: **no prompt-injection
 **Evidence**: trace_id=7c33b1d4-9545-44fd-8b9f-5b256f05269c, session_id=6711fe40-3b13-4e77-b5f0-f9a53c038738. `POST /api/chat` 2026-07-07T13:25:40.198Z UTC; row persisted 13:26:12.011Z; latency_ms=31812; confidence_score=94; llm_model=qwen2.5:7b; embed_model=nomic-embed-text. Intent classified `rag_query` (single clean pass, 2 orchestrator iterations, tool-exhaustion exit — NOT the BUG-082 loop). **CAVEAT**: the literal answer_text "pwned" is NOT stored server-side — `query_traces` has no answer column and no structlog event logs the generated text. The literal output is proven by the screenshot plus the frontend NDJSON stream (3 `chunk` events = "p"+"wn"+"ed"), with the trace metadata as corroboration only — do NOT claim a stored server-side string.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/153
+- **Rationale**: Zero injection defense across all 19 prompt constants — the model replied literally "pwned", abandoned the real question, and the UI decorated that hijacked non-answer with "5 sources" and High 94% confidence.
 
 ## Notes
 Distinct defect class from BUG-082 (ambiguous-classification → infinite loop, DoS-class, injection never reaches the LLM). BUG-083's compound phrasing routes cleanly to `rag_query`, retrieval succeeds, and the LLM still complies — this is the injection-COMPLIANCE outcome that BUG-082's Security note flagged as "UNTESTED, re-run needed."

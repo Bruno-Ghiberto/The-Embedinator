@@ -1,4 +1,4 @@
-# BUG-033: Frontend Docker healthcheck is vacuous — wget --spider exits 0 on 404, confirms only TCP port open
+# BUG-033: Frontend Docker healthcheck is vacuous — wget --spider exits 0 on 404
 
 - **Severity**: MINOR
 - **Layer**: Infrastructure

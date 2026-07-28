@@ -28,9 +28,9 @@ Every wall-clock phase of a request — including `rewrite_query` — is instrum
 No `stage_timings` write exists between the `rewrite_query` function definition (`backend/agent/nodes.py:250`) and the next node's definition (`nodes.py:339`).
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/165
+- **Rationale**: A pure instrumentation gap — every stage that is reported is accurate, rewrite_query simply writes no stage_timings entry, so the surface omits rather than misstates.
 
 ## Notes
 Evidence: 3/6 traces log-verified — 08124655 (99.6% of the gap = `rewrite_query`), c9d5d6c5 (93.7%), effe246c (84.7%); residuals explained by trace-specific noise (BUG-098's retry storm, T0-anchor slop). `research_orchestrator_ms` instrumentation was independently confirmed EXACT (log-sum == stored value), so it is NOT part of this gap.

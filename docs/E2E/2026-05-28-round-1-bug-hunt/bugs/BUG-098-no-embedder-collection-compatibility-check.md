@@ -29,9 +29,9 @@ The retrieval path never checks embedder compatibility; it embeds with whatever 
 The retrieval path never checks which embedder built the target collection. `collections.embedding_model` is recorded at ingest (`api/collections.py:77`) and, per a repo-wide `rg "embedding_model" backend/` (7 hits, all in collections.py/sqlite_db.py/schemas.py), is read by NOTHING at query time. `searcher.py`, `agent/tools.py`, and `agent/research_nodes.py` never reference it. The query is embedded with `body.embed_model or settings.default_embed_model` (`chat.py:106`) — whatever the request or config says, never what the collection requires. Fixing this needs new plumbing: thread the collection's recorded `embedding_model` through `ResearchState` and compare it to the request embedder before searching.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/160
+- **Rationale**: collections.embedding_model is recorded at ingest and read by nothing at query time — retrieval returned zero chunks while fifty citations rendered, and two same-dimension different-model collections would silently search a semantically unrelated embedding space with no error at all.
 
 ## Notes
 Why CRITICAL — this defeats the headline feature, and the reproduced case is the LUCKY one:

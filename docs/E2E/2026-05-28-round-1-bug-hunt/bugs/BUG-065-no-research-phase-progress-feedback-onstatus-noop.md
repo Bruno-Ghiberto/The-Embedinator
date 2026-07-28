@@ -32,3 +32,7 @@ Callback chain severed at useStreamChat.ts:41 `onStatus: () => {}` — discards 
 
 ## Notes
 Pilot-confirmed observation during P3-S3. Forwarding the node name from onStatus into currentStage state in page.tsx is the minimal fix path. Primary artifact: frontend/hooks/useStreamChat.ts:41; secondary: frontend/app/chat/page.tsx:361-365, frontend/components/ChatPanel.tsx:211-213, frontend/lib/api.ts:171-172. Analyst-correlated HIGH confidence.
+
+**CORROBORATION 2026-07-28 (P7-S1) — ADDED AND THEN WITHDRAWN THE SAME DAY; THIS RECORD STANDS AS ORIGINALLY WRITTEN.** A P7-S1 corroboration was appended here claiming the backend emitted ZERO status events across a 187s stream, i.e. that there was nothing for the frontend to discard. **That claim is RETRACTED.** The frontend-inspector, whose observation it was, withdrew it on review: zero status events was a property of the WEDGED run only (the turn never progressed past `classify_intent`, so no further stage transitions existed to emit). A healthy turn carries **8 status events** — `classify_intent, rewrite_query, orchestrator, tools, orchestrator, tools, orchestrator, collect_answer` — so the backend does emit stage transitions normally and this record's original finding (the FRONTEND discards `onStatus`) is both correct and unmodified by Phase 7.
+
+Recorded as an explicit withdrawal rather than a silent deletion so the add-and-remove is auditable: no part of this record's severity, layer, root cause or fix surface was ever changed by the withdrawn text.

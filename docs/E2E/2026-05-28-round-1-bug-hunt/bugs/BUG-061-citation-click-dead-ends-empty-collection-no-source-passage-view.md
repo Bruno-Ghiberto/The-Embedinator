@@ -31,9 +31,9 @@ No document-detail or passage-highlight route exists anywhere in the app — US3
 ChatMessageBubble.handleCitationClick:124 calls router.push(`/documents/${citation.document_id}`). app/documents/[id]/page.tsx:28 treats the path segment as collection_id and calls getDocuments(collectionId) → GET /api/documents?collection_id={document_id} → 200 []. The document_id in the Citation payload is a parent-chunk UUID (research_nodes.py:593 Citation(document_id=chunk.parent_id)), never a collection_id. The Citation schema (schemas.py) has no collection_id field; the real hunt-pdfs collection (629d3d8b) is never in the payload. All 4 chips share the same broken handler. Spec-31 fix options: (A) add collection_id to Citation schema (BE+FE), route to /documents/${citation.collection_id}; (B) RECOMMENDED — intercepting route (.)documents/[id] opening a Radix Sheet/Dialog with the cited passage inline + new /api/citations/{passage_id} route handler, router.back() dismisses. Both require collection_id on Citation.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: <v1.0-fix | v1.1-defer>
-- **GitHub issue**: <url>
-- **Rationale**: <one sentence>
+- **Decision**: v1.0-fix
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/139
+- **Rationale**: Every citation click routes a parent-chunk UUID into a collection-id route and lands on "No documents yet" — US3 citation reachability, the product's headline verifiability claim, is 100% broken and the page falsely reports the collection as empty.
 
 ## Notes
 Cross-ref BUG-042 (shared substrate: /documents/[id] page treats id as collection_id + raw-UUID breadcrumb) — distinct trigger (citation click) and root cause (wrong ID type in Citation schema); registered as separate bug. Cross-ref BUG-063 (GET /api/documents 200 [] for unknown collection_id masks the error — SWR never fires error branch, user sees misleading "No documents yet"). Session 931817be; backend trace 27bd5c78. Captures: /tmp/spec30-captures/p3-s2-frames/p3-s2-click-inline-1-destination.png, p3-s2-citation3-destination.png, p3-s2-citation4-destination.png, p3-s2-4sources-expanded.png, frame_018.jpg.

@@ -29,9 +29,9 @@ No navigation affordance exists from the error message. The structured fields th
 The frontend upload/error UI renders only `status` + `error_message`; it does not render `job_id`/`document_id`/`started_at`/`x-trace-id`, and provides no error-detail navigation of any kind.
 
 ## Triage (filled in Phase 8 for MAJOR+)
-- **Decision**: TBD
-- **GitHub issue**: TBD
-- **Rationale**: TBD
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/166
+- **Rationale**: The error string shown is the real one; the UI merely omits job_id/document_id/started_at/x-trace-id and offers no detail navigation — missing affordances rather than a false report.
 
 ## Notes
 Related: BUG-051 (the same error surface's unconditional "Try again" retry affordance), BUG-110 (the same job's `completed_at` never set on the failure path), BUG-048 (same family — a backend-provided `trace_id`/correlation key that the frontend drops at the UI boundary, now confirmed on a second surface).
