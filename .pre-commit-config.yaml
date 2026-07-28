@@ -1,10 +1,19 @@
+# Bug-hunt evidence under docs/E2E/*/public-evidence/ is excluded from the two
+# hooks that REWRITE files. Those artifacts are verbatim instrument captures
+# (log tails, trace dumps) promoted under spec-30 FR-027/FR-028 with a documented
+# secret-scan verification. Normalising them would mean the committed file is no
+# longer what the instrument produced — and trailing whitespace is sometimes the
+# evidence itself, e.g. the empty-body lines in an outage-window health poll.
+# Read-only hooks (check-yaml, check-json) still apply everywhere.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        exclude: ^docs/E2E/[^/]+/public-evidence/
       - id: end-of-file-fixer
+        exclude: ^docs/E2E/[^/]+/public-evidence/
       - id: check-yaml
       - id: check-json
 

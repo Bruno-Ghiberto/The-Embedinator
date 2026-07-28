@@ -63,4 +63,3 @@ Reporters: team-lead (P7-S2 execution). Dedup-checked before minting against all
 **Both halves of the health story belong here, and they point opposite ways**: health is BLIND to a stuck turn (BUG-046 — 21 consecutive 200 OKs through a 160s wedge) but CORRECT about a dead dependency (this scenario — immediate, accurate, per-service 503). The probe's weakness is that it tests dependency reachability, not whether work is progressing; this scenario happens to fall on its strong side.
 
 **Method disclosure (log-analyst, self-reported)**: a stale-buffer fault was found in its own health-polling harness — `curl` leaving a previous response body in place on timeout, which could make a stale sample look like a fresh one. It was caught before reporting, and log-analyst confirmed none of the findings in this record rest on affected samples. Recorded because a verifier should be able to see that the instrument was checked, not only the result.
-
