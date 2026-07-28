@@ -1,0 +1,30 @@
+=== BUG-095 EVIDENCE — the Settings page is write-only ===
+captured: 2026-07-10T12:14:24-03:00  HEAD: b949c8c
+
+--- [1] P5-S3 live sequence ---
+Pilot set Settings > Models -> qwen3:14b, saved, then sent one chat on nag-corpus-spec28.
+
+  DB settings row  : qwen3:14b   <- the save landed
+  GET /api/settings: qwen3:14b   <- API agrees
+  chat header      : qwen2.5:7b   <- stale (BUG-047, frontend constant)
+  resulting trace  : c741ce14  llm_model=qwen2.5:7b
+                                       ^^^ THE OLD MODEL RAN
+
+--- [2] no settings key is EVER read from the DB at runtime ---
+  default_llm_model              config-singleton reads=10   db reads=0
+  default_embed_model            config-singleton reads=7    db reads=0
+  confidence_threshold           config-singleton reads=1    db reads=0
+  groundedness_check_enabled     config-singleton reads=1    db reads=0
+  citation_alignment_threshold   config-singleton reads=1    db reads=0
+  parent_chunk_size              config-singleton reads=1    db reads=0
+  child_chunk_size               config-singleton reads=1    db reads=0
+
+--- [3] nothing outside the settings router touches the table ---
+  $ grep -rn "get_setting(\|list_settings(" backend/ --include=*.py | grep -v "storage/sqlite_db.py\|api/settings.py"
+  -> ZERO HITS
+
+--- [4] the mechanism ---
+  backend/api/chat.py:22   from backend.config import settings   # module-level singleton
+  backend/api/settings.py:73-78   await db.set_setting(key, str(value))   # writes DB only
+  The singleton is built at import time from env/defaults and never mutated.
+  GET /api/settings reads the DB back, so the UI shows the change and the runtime ignores it.

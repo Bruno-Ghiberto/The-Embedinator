@@ -1,0 +1,4 @@
+# Raw artifacts — gitignored per spec-30 FR-022
+logs/
+screenshots/
+traces/

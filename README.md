@@ -483,6 +483,8 @@ The-Embedinator/
 The project has **1,487 tests** across unit, integration, E2E, and regression
 suites with **87% code coverage**.
 
+> **Round-1 E2E bug hunt** — a 7-phase adversarial hunt against the running stack found **106 defects** that the test suite above did not: [`docs/E2E/2026-05-28-round-1-bug-hunt/SUMMARY.md`](docs/E2E/2026-05-28-round-1-bug-hunt/SUMMARY.md) ([registry](docs/E2E/2026-05-28-round-1-bug-hunt/bugs-registry.json) · [55 tracked issues](https://github.com/Bruno-Ghiberto/The-Embedinator/issues?q=label%3Aspec-30-hunt)).
+
 ### Backend Tests (pytest)
 
 ```bash

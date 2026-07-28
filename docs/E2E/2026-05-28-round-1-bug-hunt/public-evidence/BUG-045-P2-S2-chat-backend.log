@@ -1,0 +1,194 @@
+embedinator-backend  | 2026-06-11T12:53:15.387041620Z 2026-06-11 12:53:15 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=11.51 method=GET path=/api/models/embed status=200 trace_id=da94ae82-cd3c-4582-b130-1456467d1f0f
+embedinator-backend  | 2026-06-11T12:53:15.387186648Z INFO:     172.18.0.2:55630 - "GET /api/models/embed HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:53:15.387389623Z 2026-06-11 12:53:15 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=12.19 method=GET path=/api/models/llm status=200 trace_id=b5dfef1b-cb8a-475a-9928-5c909dddfdbf
+embedinator-backend  | 2026-06-11T12:53:15.387553833Z INFO:     172.18.0.2:55618 - "GET /api/models/llm HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:53:15.388254626Z 2026-06-11 12:53:15 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=3.28 method=GET path=/api/collections status=200 trace_id=5900bae5-6af4-4a3a-a282-8f40484362e7
+embedinator-backend  | 2026-06-11T12:53:15.388342092Z INFO:     172.18.0.2:55632 - "GET /api/collections HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:53:35.871481359Z 2026-06-11 12:53:35 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=2.17 method=POST path=/api/chat status=200 trace_id=d268c4a4-4c4a-4dcc-a4ba-979f053ce3df
+embedinator-backend  | 2026-06-11T12:53:35.871663152Z INFO:     172.18.0.2:48014 - "POST /api/chat HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:53:35.988395537Z 2026-06-11 12:53:35 [warning  ] agent_classify_intent_failed   component=backend.agent.nodes defaulting_to=rag_query error=AttributeError session_id=14c4c859-9dc7-4cbf-9c73-65534c884383 trace_id=d268c4a4-4c4a-4dcc-a4ba-979f053ce3df
+embedinator-backend  | 2026-06-11T12:53:35.988421536Z ╭───────────────────── Traceback (most recent call last) ──────────────────────╮
+embedinator-backend  | 2026-06-11T12:53:35.988429585Z │ /app/backend/agent/nodes.py:214 in classify_intent                           │
+embedinator-backend  | 2026-06-11T12:53:35.988431122Z │                                                                              │
+embedinator-backend  | 2026-06-11T12:53:35.988432429Z │   211 │   │   )                                                              │
+embedinator-backend  | 2026-06-11T12:53:35.988433752Z │   212 │   │                                                                  │
+embedinator-backend  | 2026-06-11T12:53:35.988435059Z │   213 │   │   # ENH-002: Structured output replaces manual JSON parsing      │
+embedinator-backend  | 2026-06-11T12:53:35.988436294Z │ ❱ 214 │   │   structured_llm = llm.with_structured_output(IntentClassificati │
+embedinator-backend  | 2026-06-11T12:53:35.988437578Z │       method="json_mode")                                                    │
+embedinator-backend  | 2026-06-11T12:53:35.988438942Z │   215 │   │   result: IntentClassification = await structured_llm.ainvoke(   │
+embedinator-backend  | 2026-06-11T12:53:35.988440213Z │   216 │   │   │   [                                                          │
+embedinator-backend  | 2026-06-11T12:53:35.988441666Z │   217 │   │   │   │   SystemMessage(content=CLASSIFY_INTENT_SYSTEM),         │
+embedinator-backend  | 2026-06-11T12:53:35.988442953Z │                                                                              │
+embedinator-backend  | 2026-06-11T12:53:35.988444259Z │ ╭───────────────────────────────── locals ─────────────────────────────────╮ │
+embedinator-backend  | 2026-06-11T12:53:35.988445728Z │ │                   _t0 = 3464.120071081                                   │ │
+embedinator-backend  | 2026-06-11T12:53:35.988447027Z │ │        _VALID_INTENTS = {'rag_query', 'collection_mgmt', 'ambiguous'}    │ │
+embedinator-backend  | 2026-06-11T12:53:35.988448287Z │ │      collections_text = '629d3d8b-4790-4e96-ac37-1f211118883f'           │ │
+embedinator-backend  | 2026-06-11T12:53:35.988449527Z │ │                config = None                                             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988450818Z │ │               content = 'Mention the main topics of this collection'     │ │
+embedinator-backend  | 2026-06-11T12:53:35.988452956Z │ │                   exc = AttributeError("'NoneType' object has no         │ │
+embedinator-backend  | 2026-06-11T12:53:35.988454312Z │ │                         attribute 'with_structured_output'")             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988455596Z │ │         history_lines = [                                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988456841Z │ │                         │   'human: Mention the main topics of this      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988458097Z │ │                         collection'                                      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988460893Z │ │                         ]                                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988463490Z │ │          history_text = 'human: Mention the main topics of this          │ │
+embedinator-backend  | 2026-06-11T12:53:35.988464920Z │ │                         collection'                                      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988466244Z │ │          last_message = 'Mention the main topics of this collection'     │ │
+embedinator-backend  | 2026-06-11T12:53:35.988467536Z │ │                   llm = None                                             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988468813Z │ │                   log = <BoundLoggerFilteringAtNotset(context={'compone… │ │
+embedinator-backend  | 2026-06-11T12:53:35.988470341Z │ │                         'backend.agent.nodes', 'session_id':             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988471653Z │ │                         '14c4c859-9dc7-4cbf-9c73-65534c884383'},         │ │
+embedinator-backend  | 2026-06-11T12:53:35.988472984Z │ │                         processors=[<function merge_contextvars at       │ │
+embedinator-backend  | 2026-06-11T12:53:35.988474329Z │ │                         0x7f1ea9c67d70>, <function add_log_level at      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988475684Z │ │                         0x7f1ea9c597a0>,                                 │ │
+embedinator-backend  | 2026-06-11T12:53:35.988477015Z │ │                         <structlog.processors.StackInfoRenderer object   │ │
+embedinator-backend  | 2026-06-11T12:53:35.988478368Z │ │                         at 0x7f1ea9764880>, <function set_exc_info at    │ │
+embedinator-backend  | 2026-06-11T12:53:35.988479715Z │ │                         0x7f1ea9777c10>,                                 │ │
+embedinator-backend  | 2026-06-11T12:53:35.988481016Z │ │                         <structlog.processors.TimeStamper object at      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988482330Z │ │                         0x7f1eaa03b680>, <structlog.dev.ConsoleRenderer  │ │
+embedinator-backend  | 2026-06-11T12:53:35.988483636Z │ │                         object at 0x7f1ea973cec0>])>                     │ │
+embedinator-backend  | 2026-06-11T12:53:35.988484973Z │ │                   msg = HumanMessage(                                    │ │
+embedinator-backend  | 2026-06-11T12:53:35.988486418Z │ │                         │   content='Mention the main topics of this     │ │
+embedinator-backend  | 2026-06-11T12:53:35.988487739Z │ │                         collection',                                     │ │
+embedinator-backend  | 2026-06-11T12:53:35.988489029Z │ │                         │   additional_kwargs={},                        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988490315Z │ │                         │   response_metadata={},                        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988491619Z │ │                         │   id='5dec6b6d-f8ca-4b85-8172-222e23edce75'    │ │
+embedinator-backend  | 2026-06-11T12:53:35.988492904Z │ │                         )                                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988494160Z │ │ preferred_collections = []                                               │ │
+embedinator-backend  | 2026-06-11T12:53:35.988495456Z │ │            prefs_item = None                                             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988497781Z │ │                  role = 'human'                                          │ │
+embedinator-backend  | 2026-06-11T12:53:35.988499740Z │ │                 state = {                                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988501025Z │ │                         │   'session_id':                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988502322Z │ │                         '14c4c859-9dc7-4cbf-9c73-65534c884383',          │ │
+embedinator-backend  | 2026-06-11T12:53:35.988503612Z │ │                         │   'messages': [                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988504930Z │ │                         │   │   HumanMessage(                            │ │
+embedinator-backend  | 2026-06-11T12:53:35.988506276Z │ │                         │   │   │   content='Mention the main topics of  │ │
+embedinator-backend  | 2026-06-11T12:53:35.988507608Z │ │                         this collection',                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988508874Z │ │                         │   │   │   additional_kwargs={},                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988510209Z │ │                         │   │   │   response_metadata={},                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988511504Z │ │                         │   │   │                                        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988512917Z │ │                         id='5dec6b6d-f8ca-4b85-8172-222e23edce75'        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988514195Z │ │                         │   │   )                                        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988515521Z │ │                         │   ],                                           │ │
+embedinator-backend  | 2026-06-11T12:53:35.988517026Z │ │                         │   'query_analysis': None,                      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988518353Z │ │                         │   'sub_answers': [],                           │ │
+embedinator-backend  | 2026-06-11T12:53:35.988519640Z │ │                         │   'selected_collections': [                    │ │
+embedinator-backend  | 2026-06-11T12:53:35.988520964Z │ │                         │   │   '629d3d8b-4790-4e96-ac37-1f211118883f'   │ │
+embedinator-backend  | 2026-06-11T12:53:35.988522265Z │ │                         │   ],                                           │ │
+embedinator-backend  | 2026-06-11T12:53:35.988523589Z │ │                         │   'llm_model': 'qwen2.5:7b',                   │ │
+embedinator-backend  | 2026-06-11T12:53:35.988524862Z │ │                         │   'embed_model': 'nomic-embed-text',           │ │
+embedinator-backend  | 2026-06-11T12:53:35.988526155Z │ │                         │   'intent': 'rag_query',                       │ │
+embedinator-backend  | 2026-06-11T12:53:35.988527417Z │ │                         │   'final_response': None,                      │ │
+embedinator-backend  | 2026-06-11T12:53:35.988528719Z │ │                         │   'citations': [],                             │ │
+embedinator-backend  | 2026-06-11T12:53:35.988530015Z │ │                         │   ... +4                                       │ │
+embedinator-backend  | 2026-06-11T12:53:35.988532343Z │ │                         }                                                │ │
+embedinator-backend  | 2026-06-11T12:53:35.988534179Z │ │                 store = <langgraph.store.memory.InMemoryStore object at  │ │
+embedinator-backend  | 2026-06-11T12:53:35.988535522Z │ │                         0x7f1e6f024500>                                  │ │
+embedinator-backend  | 2026-06-11T12:53:35.988536834Z │ │               user_id = 'default'                                        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988538123Z │ │           user_prompt = 'Conversation history:\nhuman: Mention the main  │ │
+embedinator-backend  | 2026-06-11T12:53:35.988539453Z │ │                         topics of this collection\n\nUser me'+109        │ │
+embedinator-backend  | 2026-06-11T12:53:35.988540842Z │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+embedinator-backend  | 2026-06-11T12:53:35.988542303Z ╰──────────────────────────────────────────────────────────────────────────────╯
+embedinator-backend  | 2026-06-11T12:53:35.988543824Z AttributeError: 'NoneType' object has no attribute 'with_structured_output'
+embedinator-backend  | 2026-06-11T12:53:35.988545157Z 
+embedinator-backend  | 2026-06-11T12:53:35.991211055Z 2026-06-11 12:53:35 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=44.8 method=GET path=/api/collections status=200 trace_id=e7815d59-e41a-434b-8b15-0d0e56b2bf34
+embedinator-backend  | 2026-06-11T12:53:35.991321434Z INFO:     172.18.0.2:48016 - "GET /api/collections HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:53:35.994595431Z 2026-06-11 12:53:35 [error    ] http_chat_stream_error         component=backend.api.chat detail="'NoneType' object has no attribute 'with_structured_output'" error=AttributeError session_id=14c4c859-9dc7-4cbf-9c73-65534c884383 trace_id=d268c4a4-4c4a-4dcc-a4ba-979f053ce3df
+embedinator-backend  | 2026-06-11T12:55:04.466622086Z 2026-06-11 12:55:04 [info     ] http_request                   client=172.18.0.2 component=backend.middleware duration_ms=0.62 method=POST path=/api/chat status=200 trace_id=43666bb2-74ed-4576-be5a-251043c60900
+embedinator-backend  | 2026-06-11T12:55:04.466757853Z INFO:     172.18.0.2:39850 - "POST /api/chat HTTP/1.1" 200 OK
+embedinator-backend  | 2026-06-11T12:55:04.498009430Z 2026-06-11 12:55:04 [warning  ] agent_classify_intent_failed   component=backend.agent.nodes defaulting_to=rag_query error=AttributeError session_id=14c4c859-9dc7-4cbf-9c73-65534c884383 trace_id=43666bb2-74ed-4576-be5a-251043c60900
+embedinator-backend  | 2026-06-11T12:55:04.498030865Z ╭───────────────────── Traceback (most recent call last) ──────────────────────╮
+embedinator-backend  | 2026-06-11T12:55:04.498033270Z │ /app/backend/agent/nodes.py:214 in classify_intent                           │
+embedinator-backend  | 2026-06-11T12:55:04.498034778Z │                                                                              │
+embedinator-backend  | 2026-06-11T12:55:04.498036050Z │   211 │   │   )                                                              │
+embedinator-backend  | 2026-06-11T12:55:04.498037337Z │   212 │   │                                                                  │
+embedinator-backend  | 2026-06-11T12:55:04.498038581Z │   213 │   │   # ENH-002: Structured output replaces manual JSON parsing      │
+embedinator-backend  | 2026-06-11T12:55:04.498039824Z │ ❱ 214 │   │   structured_llm = llm.with_structured_output(IntentClassificati │
+embedinator-backend  | 2026-06-11T12:55:04.498041225Z │       method="json_mode")                                                    │
+embedinator-backend  | 2026-06-11T12:55:04.498042639Z │   215 │   │   result: IntentClassification = await structured_llm.ainvoke(   │
+embedinator-backend  | 2026-06-11T12:55:04.498043888Z │   216 │   │   │   [                                                          │
+embedinator-backend  | 2026-06-11T12:55:04.498045176Z │   217 │   │   │   │   SystemMessage(content=CLASSIFY_INTENT_SYSTEM),         │
+embedinator-backend  | 2026-06-11T12:55:04.498046432Z │                                                                              │
+embedinator-backend  | 2026-06-11T12:55:04.498047724Z │ ╭───────────────────────────────── locals ─────────────────────────────────╮ │
+embedinator-backend  | 2026-06-11T12:55:04.498049149Z │ │                   _t0 = 3552.647667037                                   │ │
+embedinator-backend  | 2026-06-11T12:55:04.498050593Z │ │        _VALID_INTENTS = {'rag_query', 'collection_mgmt', 'ambiguous'}    │ │
+embedinator-backend  | 2026-06-11T12:55:04.498051846Z │ │      collections_text = '629d3d8b-4790-4e96-ac37-1f211118883f'           │ │
+embedinator-backend  | 2026-06-11T12:55:04.498053113Z │ │                config = None                                             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498054376Z │ │               content = 'Mention the main topics of this collection'     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498056182Z │ │                   exc = AttributeError("'NoneType' object has no         │ │
+embedinator-backend  | 2026-06-11T12:55:04.498062665Z │ │                         attribute 'with_structured_output'")             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498070547Z │ │         history_lines = [                                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498071969Z │ │                         │   'human: Mention the main topics of this      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498073278Z │ │                         collection',                                     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498074569Z │ │                         │   'human: Mention the main topics of this      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498076062Z │ │                         collection'                                      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498077362Z │ │                         ]                                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498078646Z │ │          history_text = 'human: Mention the main topics of this          │ │
+embedinator-backend  | 2026-06-11T12:55:04.498079936Z │ │                         collection\nhuman: Mention the main topics'+19   │ │
+embedinator-backend  | 2026-06-11T12:55:04.498081256Z │ │          last_message = 'Mention the main topics of this collection'     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498082538Z │ │                   llm = None                                             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498083830Z │ │                   log = <BoundLoggerFilteringAtNotset(context={'compone… │ │
+embedinator-backend  | 2026-06-11T12:55:04.498085339Z │ │                         'backend.agent.nodes', 'session_id':             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498086640Z │ │                         '14c4c859-9dc7-4cbf-9c73-65534c884383'},         │ │
+embedinator-backend  | 2026-06-11T12:55:04.498087936Z │ │                         processors=[<function merge_contextvars at       │ │
+embedinator-backend  | 2026-06-11T12:55:04.498089278Z │ │                         0x7f1ea9c67d70>, <function add_log_level at      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498090695Z │ │                         0x7f1ea9c597a0>,                                 │ │
+embedinator-backend  | 2026-06-11T12:55:04.498092004Z │ │                         <structlog.processors.StackInfoRenderer object   │ │
+embedinator-backend  | 2026-06-11T12:55:04.498093302Z │ │                         at 0x7f1ea9764880>, <function set_exc_info at    │ │
+embedinator-backend  | 2026-06-11T12:55:04.498094612Z │ │                         0x7f1ea9777c10>,                                 │ │
+embedinator-backend  | 2026-06-11T12:55:04.498095947Z │ │                         <structlog.processors.TimeStamper object at      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498097266Z │ │                         0x7f1eaa03b680>, <structlog.dev.ConsoleRenderer  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498098700Z │ │                         object at 0x7f1ea973cec0>])>                     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498100106Z │ │                   msg = HumanMessage(                                    │ │
+embedinator-backend  | 2026-06-11T12:55:04.498101369Z │ │                         │   content='Mention the main topics of this     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498102658Z │ │                         collection',                                     │ │
+embedinator-backend  | 2026-06-11T12:55:04.498105305Z │ │                         │   additional_kwargs={},                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498107574Z │ │                         │   response_metadata={},                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498108921Z │ │                         │   id='6249f042-5e34-4a38-a95a-b499b357575f'    │ │
+embedinator-backend  | 2026-06-11T12:55:04.498110220Z │ │                         )                                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498111532Z │ │ preferred_collections = []                                               │ │
+embedinator-backend  | 2026-06-11T12:55:04.498112801Z │ │            prefs_item = None                                             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498114099Z │ │                  role = 'human'                                          │ │
+embedinator-backend  | 2026-06-11T12:55:04.498115363Z │ │                 state = {                                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498116629Z │ │                         │   'session_id':                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498117931Z │ │                         '14c4c859-9dc7-4cbf-9c73-65534c884383',          │ │
+embedinator-backend  | 2026-06-11T12:55:04.498119220Z │ │                         │   'messages': [                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498120531Z │ │                         │   │   HumanMessage(                            │ │
+embedinator-backend  | 2026-06-11T12:55:04.498121820Z │ │                         │   │   │   content='Mention the main topics of  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498123108Z │ │                         this collection',                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498124381Z │ │                         │   │   │   additional_kwargs={},                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498125667Z │ │                         │   │   │   response_metadata={},                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498126980Z │ │                         │   │   │                                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498128274Z │ │                         id='5dec6b6d-f8ca-4b85-8172-222e23edce75'        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498129706Z │ │                         │   │   ),                                       │ │
+embedinator-backend  | 2026-06-11T12:55:04.498131047Z │ │                         │   │   HumanMessage(                            │ │
+embedinator-backend  | 2026-06-11T12:55:04.498132335Z │ │                         │   │   │   content='Mention the main topics of  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498133634Z │ │                         this collection',                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498134922Z │ │                         │   │   │   additional_kwargs={},                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498136987Z │ │                         │   │   │   response_metadata={},                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498138329Z │ │                         │   │   │                                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498140778Z │ │                         id='6249f042-5e34-4a38-a95a-b499b357575f'        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498142648Z │ │                         │   │   )                                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498143981Z │ │                         │   ],                                           │ │
+embedinator-backend  | 2026-06-11T12:55:04.498145276Z │ │                         │   'query_analysis': None,                      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498146589Z │ │                         │   'sub_answers': [],                           │ │
+embedinator-backend  | 2026-06-11T12:55:04.498147890Z │ │                         │   'selected_collections': [                    │ │
+embedinator-backend  | 2026-06-11T12:55:04.498149217Z │ │                         │   │   '629d3d8b-4790-4e96-ac37-1f211118883f'   │ │
+embedinator-backend  | 2026-06-11T12:55:04.498150791Z │ │                         │   ],                                           │ │
+embedinator-backend  | 2026-06-11T12:55:04.498152160Z │ │                         │   'llm_model': 'qwen2.5:7b',                   │ │
+embedinator-backend  | 2026-06-11T12:55:04.498153501Z │ │                         │   'embed_model': 'nomic-embed-text',           │ │
+embedinator-backend  | 2026-06-11T12:55:04.498154779Z │ │                         │   'intent': 'rag_query',                       │ │
+embedinator-backend  | 2026-06-11T12:55:04.498156058Z │ │                         │   'final_response': None,                      │ │
+embedinator-backend  | 2026-06-11T12:55:04.498157332Z │ │                         │   'citations': [],                             │ │
+embedinator-backend  | 2026-06-11T12:55:04.498158644Z │ │                         │   ... +4                                       │ │
+embedinator-backend  | 2026-06-11T12:55:04.498159965Z │ │                         }                                                │ │
+embedinator-backend  | 2026-06-11T12:55:04.498161412Z │ │                 store = <langgraph.store.memory.InMemoryStore object at  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498162761Z │ │                         0x7f1e6f024500>                                  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498164078Z │ │               user_id = 'default'                                        │ │
+embedinator-backend  | 2026-06-11T12:55:04.498165369Z │ │           user_prompt = 'Conversation history:\nhuman: Mention the main  │ │
+embedinator-backend  | 2026-06-11T12:55:04.498166676Z │ │                         topics of this collection\nhuman: M'+159         │ │
+embedinator-backend  | 2026-06-11T12:55:04.498168024Z │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+embedinator-backend  | 2026-06-11T12:55:04.498169463Z ╰──────────────────────────────────────────────────────────────────────────────╯
+embedinator-backend  | 2026-06-11T12:55:04.498170930Z AttributeError: 'NoneType' object has no attribute 'with_structured_output'
+embedinator-backend  | 2026-06-11T12:55:04.498172239Z 
+embedinator-backend  | 2026-06-11T12:55:04.502784705Z 2026-06-11 12:55:04 [error    ] http_chat_stream_error         component=backend.api.chat detail="'NoneType' object has no attribute 'with_structured_output'" error=AttributeError session_id=14c4c859-9dc7-4cbf-9c73-65534c884383 trace_id=43666bb2-74ed-4576-be5a-251043c60900

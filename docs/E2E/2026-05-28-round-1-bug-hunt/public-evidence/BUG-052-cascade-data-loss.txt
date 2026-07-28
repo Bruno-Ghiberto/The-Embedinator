@@ -1,0 +1,20 @@
+# BUG-052 — Cascade data-loss event table
+# Three-upload sequence during P2.S5 extended probing
+
+# Event 1: 2026-06-11T14:02:45Z
+# trace_id: 23a1149b | doc_id: b903832f | hash: 30a52d1a (corrupt file)
+# change_detected -> bc68288b deleted (1074 vectors destroyed) -> worker FAILED "Invalid file header"
+
+# Event 2: 2026-06-11T14:03:29Z
+# trace_id: 49228c2e | doc_id: a631d3b2 | hash: af8dc16a (older file version)
+# fresh ingest -> 951 chunks -> COMPLETED
+
+# Event 3: 2026-06-11T14:04:32Z
+# trace_id: b7ea20cc | doc_id: b903832f (reused) | hash: 30a52d1a (corrupt file again)
+# change_detected -> a631d3b2 deleted (951 vectors destroyed) -> worker FAILED
+
+# Final state:
+# emb-629d3d8b Qdrant collection: 61 points (down from 1135; only .md + .txt remain)
+# Documents: 79 total — 75 completed / 2 failed / 2 deleted
+# Jobs: 80 total
+# Net vectors permanently destroyed: 2,025

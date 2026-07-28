@@ -1,0 +1,50 @@
+# BUG-073: Streaming handler swallows CancelledError → cancelled requests die invisibly
+
+- **Severity**: MAJOR
+- **Layer**: Backend
+- **Discovered**: 2026-07-03T00:00:00Z in Phase 3 (Q-014, P3 exit-checklist)
+- **Phase scenario**: P3-S7
+- **BLOCKER-PATCHED**: no
+  <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
+
+## Steps to Reproduce
+1. Run a chat query where a SINGLE node dwell goes silent (no NDJSON bytes emitted) for more than ~30s — Q-014 (analytical multi-source, `nag-corpus-spec28`) first run = 50.2s total with a 34.79s silent gap during the research orchestrator's 2nd iteration.
+2. The ~30s idle proxy timeout (BUG-054) cancels the connection during that silent gap.
+3. Observe: the request task unwinds with ZERO logging, NO `query_traces` row written, NO error event, NO done event — the failure is completely invisible (py-spy shows an idle event loop; `/proc/net/tcp` shows the connection already `TIME_WAIT`).
+4. Confirm via a control retest (trace `552e3cf6`) that a healthy run's post-research chain (research_loop_end → aggregate → verify → format) takes ~9ms — proving the original multi-minute silence was a cancellation, not slow compute.
+
+## Expected
+A cancelled/disconnected request is caught and logged (and ideally a partial trace is written) so the failure is observable rather than silent.
+
+## Actual
+The cancellation unwinds through the streaming handler with no logging path at all — no trace row, no log line, no client-visible signal.
+
+## Artifacts
+- Screenshot: null
+- Log excerpt: logs/BUG-073-research-hang-dump.txt (gitignored) — py-spy idle-event-loop dump captured during the hang; logs/P3-Q014-retest-control.log (gitignored) — control retest (trace 552e3cf6) proving the healthy post-research chain is ~9ms.
+- Trace: null
+
+## Root-cause hypothesis
+HIGH confidence, code-confirmed — `backend/api/chat.py` (~316-380) catches `GraphRecursionError`, `RuntimeError`, `CircuitOpenError`, and a bare `except Exception` — but there is NO `except asyncio.CancelledError` and NO `except BaseException`. Since Python 3.8, `asyncio.CancelledError` inherits from `BaseException` (NOT `Exception`), so it unwinds past all four `except` clauses with no logging and no trace write. The control retest (trace `552e3cf6`) independently confirms the mechanism: when nothing cancels the task, the post-research chain completes in ~9ms, ruling out slow compute as the explanation for the original 34.79s silent gap.
+
+## Triage (filled in Phase 8 for MAJOR+)
+- **Decision**: v1.1-defer
+- **GitHub issue**: https://github.com/Bruno-Ghiberto/The-Embedinator/issues/147
+- **Rationale**: Team-lead reviewed after the 553s evidence and deliberately kept MAJOR because the user-facing no-answer harm is already carried by BUG-074/BUG-088; what remains is an observability gap that omits rather than misstates.
+
+## Notes
+Traces: hung = `cda553a5-c0af-4b23-a1ac-770000c9a98f` (session `f28869df`); control = `552e3cf6`.
+
+Cross-refs: BUG-074 (frontend counterpart — the client never detects this silent server-side death); BUG-054 (the idle-timeout trigger that initiates the cancellation); BUG-055 (the 2nd research-loop iteration's latency is what creates the long silent gap in the first place); BUG-075 (the missing keepalive that would otherwise prevent the gap from ever reaching the idle-timeout threshold).
+
+Fix surface: add `except asyncio.CancelledError` (log + re-raise, since re-raising is required for correct asyncio cancellation propagation) and ideally `except BaseException` as a final catch-all that persists a partial trace before re-raising, so cancelled requests are never silent again.
+
+**UPDATE 2026-07-03 (P4-S4 repro)**: same silent-swallow reproduced on the BUG-082 unbounded ambiguous-intent loop — the ~30s idle cutoff (BUG-054) cancelled the request at `21:37:04` with no log line and no `query_traces` row written, trace `56c94450-b6b8-46d1-a0cc-d47647f072e7`. Confirms this defect fires regardless of WHY the task ran long (slow-but-progressing research loop, per the original Q-014 finding, OR a backend intent-routing infinite loop, per BUG-082) — the cancellation-swallow is agnostic to root cause upstream. Cross-ref BUG-082.
+
+**STRONG UPDATE 2026-07-08 (P4-S6, trace `8ba310a8-661e-4979-a9b3-b54480ec298b`)**: live confirmation in a more severe form. After a 553s in-flight LLM stall (BUG-088), the graph returned, the loop-exit deadline fired correctly at 555.1s, and `fallback_response()` generated a correct, deterministic answer (`agent_fallback_triggered`, 19:59:33.344987Z) — then TOTAL SILENCE: no `query_traces` row (checked through 20:03:37Z), no `done` event, no error log. Root cause code-confirmed: `chat.py` yields NDJSON events (lines 240-294) BEFORE `await db.create_query_trace()` at line 298; no `http_query_trace_write_failed` was logged, meaning execution never reached line 298 — it died somewhere in the yield sequence. `chat.py` has NO `except CancelledError` (grep confirms only `GraphRecursionError`/`RuntimeError`/`CircuitOpenError`/generic `Exception` at line 376); since Python 3.8, `asyncio.CancelledError` is a `BaseException`, so the `except Exception` clause at line 376 does not catch it. When the `StreamingResponse` generator yields into an already-disconnected client's ASGI channel, the server cancels the task and it dies silently — exactly the mechanism this record already documents, now observed at 553s instead of ~30s.
+
+**Impact escalation**: this occurrence discards FULLY-COMPUTED, CORRECT results — 9 minutes of real backend work, a correct fallback answer, and correct deadline detection — and permanently loses the trace record (an observability gap on top of the user-facing loss; no `query_traces` row exists for this request at all). This is the same uncaught-`CancelledError` class as the original ~30s-idle-path finding, now confirmed to also fire on a much longer-running, otherwise-successful request. Cross-ref BUG-088 (the 553s stall whose correct output this defect discarded), BUG-074 (empty bubble — the frontend-visible consequence). Severity left at MAJOR pending Lead review of whether this evidence (loss of a fully-correct 9-minute computation + total observability loss, vs. the original MAJOR framing of losing a slow-but-recoverable research pass) warrants escalation — Lead's call, not registrar-adjudicated.
+
+Severity reviewed by team-lead 2026-07-08 after the 553s live confirmation; KEPT MAJOR — escalated impact (silent discard of a fully-computed result + permanent trace/observability loss) is a strong robustness/observability defect but not CRITICAL: no data corruption, no cross-request impact, and the user-facing no-answer harm is already carried by BUG-074/BUG-088. Deliberate decision, not an oversight.
+
+**Scenario id normalized 2026-07-28 (schema compliance, no semantic change)**: `scenario_id` set to `P3-S7`; originally logged as `Q-014 (P3 exit-checklist, analytical multi-source)`, which does not satisfy the `bug-registry-schema.json` pattern `^P[0-7]-S[0-9]+$`. Phase 3 ran P3-S1..S6, so the exit checklist is its 7th step. The `Discovered` line above retains the original `Q-014` provenance verbatim.
