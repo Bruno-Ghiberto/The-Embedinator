@@ -27,6 +27,7 @@ The LLM executed the injected instruction verbatim, replying with the literal st
   - Supplementary: logs/BUG-083-frontend-chat-response.network-response (gitignored) — NDJSON stream capture; 3 `chunk` events spelling "p" + "wn" + "ed".
   - Supplementary: logs/BUG-083-frontend-snapshot.txt (gitignored) — frontend DOM/console snapshot at completion.
 - Trace: null
+- Public evidence: public-evidence/BUG-083-injection-compliance-trace.log (tracked)
 
 ## Root-cause hypothesis
 HIGH confidence (log-analyst, code-confirmed). Chain-wide: **no prompt-injection defense exists anywhere in `backend/agent/prompts.py`** — all 19 prompt constants audited (`SYSTEM_PROMPT`:3, `CLASSIFY_INTENT_SYSTEM`:47, `REWRITE_QUERY_SYSTEM`:63, `ORCHESTRATOR_SYSTEM`:167, `COLLECT_ANSWER_SYSTEM`:205, `FORMAT_RESPONSE_SYSTEM`:102, etc.) — zero instructions to disregard adversarial meta-instructions found in user input or retrieved passage text, and no delimiter/quoting convention isolates untrusted text from trusted system instructions.

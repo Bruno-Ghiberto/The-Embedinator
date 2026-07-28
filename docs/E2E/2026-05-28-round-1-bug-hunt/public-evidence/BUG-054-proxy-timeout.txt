@@ -1,0 +1,10 @@
+# BUG-054 — Proxy timeout evidence
+# P2.S6 upload attempt: 26.1 MB text file via UI
+
+# Backend structlog event (sole http_request record for this trace):
+# 2026-06-11T16:23:19Z http_request status=400 duration_ms=30028.41
+# trace_id: a9128936-9f4b-4571-9cd6-752b91c28661
+
+# Zero structlog error events in window 16:22:49–16:23:19Z
+# No document or job rows created
+# /data/uploads/f0539bbf.../ contains only s6-probe.txt (probe upload, clean)

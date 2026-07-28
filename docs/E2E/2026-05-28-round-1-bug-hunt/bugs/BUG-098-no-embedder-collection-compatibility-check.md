@@ -24,6 +24,7 @@ The retrieval path never checks embedder compatibility; it embeds with whatever 
 - Screenshot: screenshots/BUG-098-fifty-citations-zero-retrievals.png (gitignored)
 - Log excerpt: logs/BUG-098-embedder-collection-mismatch.log (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-098-embedder-collection-mismatch.log (tracked)
 
 ## Root-cause hypothesis
 The retrieval path never checks which embedder built the target collection. `collections.embedding_model` is recorded at ingest (`api/collections.py:77`) and, per a repo-wide `rg "embedding_model" backend/` (7 hits, all in collections.py/sqlite_db.py/schemas.py), is read by NOTHING at query time. `searcher.py`, `agent/tools.py`, and `agent/research_nodes.py` never reference it. The query is embedded with `body.embed_model or settings.default_embed_model` (`chat.py:106`) — whatever the request or config says, never what the collection requires. Fixing this needs new plumbing: thread the collection's recorded `embedding_model` through `ResearchState` and compare it to the request embedder before searching.

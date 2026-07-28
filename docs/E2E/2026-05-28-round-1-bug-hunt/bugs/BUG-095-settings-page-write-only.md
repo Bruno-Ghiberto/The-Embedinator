@@ -25,6 +25,7 @@ The setting persists to SQLite and reads back correctly from the API, but nothin
 - Screenshot: screenshots/BUG-095-settings-saved-no-effect.png (gitignored)
 - Log excerpt: logs/BUG-095-settings-write-only.log (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-095-settings-write-only.log (tracked)
 
 ## Root-cause hypothesis
 The DB `settings` table and the `backend.config.settings` Pydantic singleton are two disconnected systems with no bridge in either direction.

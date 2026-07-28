@@ -24,6 +24,7 @@ Live-reproduced during P4-S6 (trace `8ba310a8-661e-4979-a9b3-b54480ec298b`, coll
 - Log excerpt: logs/BUG-088-orchestrator-hang.log (gitignored) — backend log window covering the full stall + eventual return + deadline-triggered fallback, trace `8ba310a8-661e-4979-a9b3-b54480ec298b`.
 - Screenshot: null
 - Trace: null
+- Public evidence: public-evidence/BUG-088-orchestrator-hang.log (tracked)
 
 ## Root-cause hypothesis
 HIGH confidence, code-confirmed (log-analyst). Two compounding gaps, both confirmed by the corrected timeline:

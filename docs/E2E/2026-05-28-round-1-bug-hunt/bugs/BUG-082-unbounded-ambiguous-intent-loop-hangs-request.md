@@ -22,6 +22,7 @@ An ambiguous message either triggers a real clarification interrupt (pausing for
 - Screenshot: screenshots/BUG-082-ambiguous-intent-loop-hang.png (gitignored) — stuck skeleton + active Stop button, no content.
 - Log excerpt: null — `docker logs embedinator-backend --since 15m | grep -E "56c94450|agent_intent_classified"` returned EMPTY (container log window had already rotated past the incident by the time of registration); NOT invented, evidence below is drawn from the log-analyst's live-session diagnosis, not a persisted artifact.
 - Trace: null — no `query_traces` row was ever written for this request (consistent with the finding: the cancellation swallows before persistence).
+- Public evidence: public-evidence/BUG-082-ambiguous-intent-loop-hang.png (tracked)
 
 ## Root-cause hypothesis
 HIGH confidence (log-analyst, code + live log evidence observed during the P4-S4 session, prior to log rotation). Evidence: 24 consecutive `agent_intent_classified` events, all `intent="ambiguous"`, trace `56c94450-b6b8-46d1-a0cc-d47647f072e7`, session `bdc7f371-ca40-4ff3-9dec-c6b9824708f3`, spanning `21:36:34`→`21:37:04`, then total silence; backend remained ALIVE (`/api/health` OK), Ollama idle (no `/api/generate` calls after the cutoff).

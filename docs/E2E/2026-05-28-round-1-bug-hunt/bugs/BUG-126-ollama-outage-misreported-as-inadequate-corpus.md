@@ -33,6 +33,7 @@ So the trace attributes work to a model, a provider and a collection that were n
 - Screenshot: null
 - Log excerpt: null
 - Trace: traces/P7-S2-ollama-unavailable.md (gitignored) — full scenario record incl. the query_traces field table; traces/P7-S2-stream.ndjson — the clean `done`-terminated stream
+- Public evidence: public-evidence/P7-S2-ollama-unavailable.md (tracked)
 
 ## Root-cause hypothesis
 HIGH confidence, evidence-confirmed — and the mechanism is more fundamental than first assumed.

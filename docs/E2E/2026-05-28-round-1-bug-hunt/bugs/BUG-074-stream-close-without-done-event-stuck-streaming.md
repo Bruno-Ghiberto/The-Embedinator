@@ -22,6 +22,7 @@ The reader loop exits silently when the connection closes with no terminal NDJSO
 - Screenshot: null
 - Log excerpt: logs/BUG-074-075-hang-frontend-code-trace.log (gitignored) — frontend-inspector's code trace, covers both BUG-074 and BUG-075.
 - Trace: null
+- Public evidence: public-evidence/BUG-074-075-hang-frontend-code-trace.log (tracked)
 
 ## Root-cause hypothesis
 HIGH confidence, code-confirmed (frontend-inspector) — `frontend/lib/api.ts:158-159`: `const {done, value} = await reader.read(); if (done) break;` — on close, `done:true` and the loop breaks SILENTLY (no exception thrown); execution falls out of the surrounding `try`/`catch` (~`api.ts:207-208`) with NO `onDone`/`onError` call. The terminal state is reachable ONLY via the explicit `case "done"` / `case "error"` NDJSON line handlers (`api.ts:191-195`), which require the SERVER to have actually sent that line — which it never does when cancelled (see BUG-073). In `frontend/hooks/useStreamChat.ts`, the hook-level `isStreaming` (~L8) and the per-message `isStreaming` flag (~L25) are reset ONLY by `onDone` (~L90), `onClarification` (~L58), or `onError` (~L106) — none of which fire on a silent close, so both stay `true` forever. There is NO client-side timeout anywhere in the streaming path (no `setTimeout`, no `AbortSignal.timeout`); the `AbortController` only fires on an explicit user Stop / Escape action or on component unmount (see BUG-072, a related but distinct trigger).

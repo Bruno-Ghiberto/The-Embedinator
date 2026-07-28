@@ -27,6 +27,7 @@ Since-when evidence: last successful query_traces row 2026-05-05T20:24:58Z (981 
 - Log excerpt: logs/BUG-045-P2-S2-chat-backend.log (gitignored)
 - Log excerpt: logs/BUG-045-startup-clean.log (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-045-P2-S2-chat-backend.log (tracked)
 
 ## Root-cause hypothesis
 PEP 563 + framework reflection incompatibility — LangGraph resolves the bare annotation string "RunnableConfig" but not the union string "RunnableConfig | None"; mypy-correct code is runtime-broken. Hypotheses registry-init-failure and swallowed-exception were investigated and REFUTED (lifespan completed; get_active_langchain_model has no None path). Root-caused by on-demand Opus investigator, HIGH confidence.

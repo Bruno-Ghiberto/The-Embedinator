@@ -1,0 +1,32 @@
+=== BUG-098 EVIDENCE — query embedder never checked against the collection's embedder ===
+captured: 2026-07-10T12:35:48-03:00  HEAD: b949c8c
+
+--- [1] the collection and its index ---
+  nag-corpus-bge-m3  embedding_model=bge-m3  qdrant=emb-3a945264-...  dense dim=1024
+  nag-corpus-spec28  embedding_model=nomic-embed-text                 dense dim=768
+
+--- [2] what Qdrant said, verbatim, four times ---
+        4 Wrong input: Vector dimension error: expected dim: 1024, got 768
+
+--- [3] trace c9d5d6c5: zero searches succeeded ---
+  retrieval_hybrid_search_complete : 0
+  retrieval_hybrid_search_failed   : 4
+  circuit_searcher_opened          : 0
+  (previous trace c741ce14, on the 768-dim collection: 1 complete)
+
+--- [4] yet the trace records 50 citations ---
+  entries: 50  unique passage_ids: 5
+  repetition: {10}
+  relevance_scores: [-4.03, -2.06, -1.97, 1.24, 3.15]
+
+--- [5] the user-facing message ---
+  "I could not find any relevant information to answer: ... The indexed documents
+   may not cover this topic."   <- FALSE. The documents are present. The collection
+   is unqueryable with the embedder the app chose for it.
+  ...followed immediately by 50 numbered references.
+
+--- [6] no validation exists ---
+  collections.embedding_model is recorded at ingest (api/collections.py:77)
+  and read by NOTHING at query time.
+  chat.py:106  embed_model = body.embed_model or settings.default_embed_model
+  searcher.py raises QdrantConnectionError on failure; it does not return [].

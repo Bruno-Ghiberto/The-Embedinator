@@ -23,6 +23,7 @@ Banner displayed "Backend connected" for ~6-9s while `/api/health` returned HTTP
 - Screenshot: screenshots/P1-S3-during-pause.png (gitignored)
 - Log excerpt: logs/P1-S3-health-poll.log (gitignored)
 - Trace: null
+- Public evidence: public-evidence/P1-S3-health-poll.log (tracked)
 
 ## Root-cause hypothesis
 The banner component reacts only to the circuit-breaker error string in the health response body, not to raw HTTP 503 status codes or timeout responses; non-CB-tripped degradation states (early 503s) are silently swallowed, leaving the banner green.

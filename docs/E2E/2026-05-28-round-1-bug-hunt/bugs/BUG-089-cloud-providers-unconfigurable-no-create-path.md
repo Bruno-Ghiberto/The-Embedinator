@@ -23,6 +23,7 @@ There is no path to do so — not in the UI, not in the API, not in env/config. 
 - Screenshot: null
 - Log excerpt: logs/BUG-089-cloud-provider-unreachable.log (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-089-cloud-provider-unreachable.log (tracked)
 
 ## Root-cause hypothesis
 Day-one wiring gap between the storage contract and the API surface:

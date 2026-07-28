@@ -24,6 +24,7 @@ Deletion runs unconditionally before worker execution (backend/ingestion/pipelin
 - Screenshot: screenshots/BUG-052-collection-state.png (gitignored)
 - Log excerpt: logs/BUG-052-cascade-data-loss.txt (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-052-cascade-data-loss.txt (tracked)
 
 ## Root-cause hypothesis
 Cross-store delete→ingest sequence has no atomicity or compensation; sibling of BUG-039 (inverse failure: BUG-039 = vectors without rows, BUG-052 = rows without vectors — both from missing cross-store transactional discipline; cross-ref).

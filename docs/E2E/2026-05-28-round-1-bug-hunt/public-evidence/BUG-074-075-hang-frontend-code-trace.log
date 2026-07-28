@@ -1,0 +1,62 @@
+# P3-Q014 hang — frontend code trace (BUG-074, BUG-075, trigger)
+# Source: frontend-inspector correlation (spec30-hunt), 2026-07-03. Pure code trace (api.ts, useStreamChat.ts, next.config.ts); transcribed by Lead for durable evidence. No runtime capture — evidence is source-level, file:line cited below.
+# Incident: Q-014 first run (trace cda553a5, 50.2s) hung on a red-■-forever after a ~30s idle timeout cancelled the socket during a 34.79s silent research gap. Backend swallowed the CancelledError (BUG-073); frontend never detected the close (BUG-074); the silent gap exists because there's no keepalive during long node dwells (BUG-075).
+
+============================================================
+BUG-074 — Frontend: stream close without a `done` event leaves the chat stuck streaming forever
+============================================================
+frontend/lib/api.ts:158-159
+    const { done, value } = await reader.read();
+    if (done) break;
+  → When the underlying stream/connection closes (proxy idle-timeout kill, network reset, OR a clean end),
+    reader.read() resolves { done: true } and the loop BREAKS SILENTLY — no exception thrown.
+
+frontend/lib/api.ts:~207-208 (outer try/catch end)
+  → After the break, execution falls straight out of the try/catch with NO call to callbacks.onDone()
+    or callbacks.onError(). The ONLY paths to a terminal state are the `case "done"` / `case "error"`
+    NDJSON-event handlers inside the loop (api.ts:191-195) — both require the SERVER to have actually
+    sent that NDJSON line before the connection closed. If the socket dies mid-stream (before the backend
+    writes a done/error line), neither handler ever fires.
+
+frontend/hooks/useStreamChat.ts
+  - isStreaming component state: line 8
+  - per-message isStreaming flag set true: line 25
+  - reset ONLY by: onDone (line 90), onClarification (line 58), onError (line 106) — all inside the
+    now-never-reached switch dispatch.
+  → Nothing resets isStreaming on a silent stream-close → isStreaming stays TRUE forever → stuck
+    spinner / red ■ stop button, exactly as observed.
+
+Client-side timeout: NONE. Full streamChat() body checked — no setTimeout, no AbortSignal.timeout(),
+  no timer racing the fetch. The AbortController is triggered ONLY by explicit user action (Escape/Stop)
+  or component unmount (see BUG-072). The frontend has zero defense against "connection died without a
+  done event."
+
+Fix surface: track a local `receivedTerminalEvent` flag; if the reader loop exits without ever having
+  dispatched done/error/clarification, call callbacks.onError("Stream ended unexpectedly",
+  "STREAM_INCOMPLETE"). Add a client-side idle timeout as defense-in-depth.
+
+============================================================
+BUG-075 — Backend: no keepalive during long node dwells → silent stream trips the idle timeout
+============================================================
+Observed via NDJSON captures (P3-S1/S5): exactly 8 `status` events, fired ONCE each on NODE TRANSITIONS:
+  classify_intent → rewrite_query → orchestrator → tools → orchestrator → tools → orchestrator → collect_answer
+  → NOT a repeating/periodic heartbeat WHILE inside a node.
+Consequence: during a long single-node dwell (e.g. a slow Ollama call inside "orchestrator"/"tools" —
+  Q-014's orchestrator iteration-2 = 34.79s), the byte stream to the client goes FULLY SILENT for that
+  entire duration. That is the 34.79s gap that crosses the ~30s idle timeout.
+Distinct from BUG-065: BUG-065 is the FRONTEND `onStatus: () => {}` no-op (useStreamChat.ts:40) that
+  hides the status events that DO arrive — it is NOT the cause of the silence. The silence is backend-side:
+  the backend emits zero events during a single node's LLM-call wait.
+Fix surface: backend-side periodic keepalive/ping event during long node dwells (independent of BUG-065).
+
+============================================================
+TRIGGER — ~30s idle timeout source (context for BUG-054 update)
+============================================================
+frontend/next.config.ts:4-10 — the ONLY relevant config: a bare Next.js rewrites() mapping
+  /api/:path* → ${BACKEND_URL}/api/:path*. NO timeout override anywhere (no experimental timeout flags,
+  no custom server.js, no httpAgentOptions). The ~30s is NOT set in next.config.ts.
+docker-compose.yml + overlays + Dockerfile.frontend: no request/proxy timeout (only healthcheck probe
+  timeouts); no nginx/reverse-proxy service in the stack.
+→ Best evidence: ~30s IDLE/inactivity timeout = Next.js standalone-server / Node-undici proxy default,
+  exact constant unconfirmed without a frontend-source grep for a literal 30000/30_000. Same layer as
+  BUG-054's measured 30028ms on the upload path.

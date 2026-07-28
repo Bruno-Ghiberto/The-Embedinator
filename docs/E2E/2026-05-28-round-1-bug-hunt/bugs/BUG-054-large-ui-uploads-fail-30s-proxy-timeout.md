@@ -22,6 +22,7 @@ The Next.js dev server (or proxy layer in front of FastAPI) enforces a ~30-secon
 - Screenshot: screenshots/BUG-054-retry-500.png (gitignored)
 - Log excerpt: logs/BUG-054-proxy-timeout.txt (gitignored)
 - Trace: null
+- Public evidence: public-evidence/BUG-054-proxy-timeout.txt (tracked)
 
 ## Root-cause hypothesis
 The Next.js API proxy (or its default 30-second `bodyParser` / response-limit timeout) kills large multipart uploads before the FastAPI handler completes reading the body. FastAPI sees an abrupt connection close, emits a bare `http_request status=400`, but structlog never records an `error` event because the handler never entered structured error handling. The proxy synthesises or propagates the 400 upstream; the UI's throwApiError then further degrades the message (BUG-050).

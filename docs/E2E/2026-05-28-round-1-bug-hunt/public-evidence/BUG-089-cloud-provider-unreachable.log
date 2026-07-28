@@ -1,0 +1,40 @@
+=== BUG-089 EVIDENCE — cloud providers unreachable ===
+captured: 2026-07-10T11:27:22-03:00   branch: 030-e2e-test-v3   HEAD: b949c8c
+
+--- [1] GET /api/providers (only ollama) ---
+{"providers":[{"name":"ollama","is_active":true,"has_key":false,"base_url":null,"model_count":0}]}
+
+--- [2] SQLite providers table ---
+ name   provider_type  is_active  key
+------  -------------  ---------  ----
+ollama  local                  1  NULL
+
+--- [3] LIVE PROBE: PUT /api/providers/openai/key (dummy, non-secret) ---
+{"detail":{"error":{"code":"PROVIDER_NOT_FOUND","message":"Provider 'openai' not found","details":{}},"trace_id":"f918b218-c87e-48d9-84d3-1c42ea905d24"}}
+HTTP 404
+
+--- [4] DB after probe (unchanged, no row created) ---
+ name
+------
+ollama
+
+--- [5] routes defined in backend/api/providers.py (no POST/create) ---
+15:@router.get("/api/providers")
+49:@router.put("/api/providers/{name}/key")
+89:@router.get("/api/providers/health")
+152:@router.delete("/api/providers/{name}/key")
+
+--- [6] create_provider() production callers ---
+backend/storage/sqlite_db.py:603:    async def create_provider(
+
+--- [7] set_active_provider() callers (can upsert a cloud row, never called) ---
+ZERO callers
+
+--- [8] README claims ---
+29:providers (OpenAI, Anthropic, OpenRouter) are supported as optional
+65:- **Multi-provider LLM support** -- Ollama (local), OpenAI, Anthropic, and OpenRouter with encrypted API key storage
+150:| Cloud providers| OpenAI, Anthropic, OpenRouter (optional)             |
+399:|   |   |-- openai.py             # OpenAI adapter
+
+--- [9] backend/config.py cloud settings (no env escape hatch) ---
+(zero hits in config.py)

@@ -1,0 +1,22 @@
+# Promoted public evidence MUST be tracked (FR-027: >=1 tracked artifact per CRITICAL).
+#
+# The repository root .gitignore carries an unscoped `*.log` (line 41) and `*.log*`
+# (line 64). Both apply inside this directory too, so 8 of the 12 promoted artifacts —
+# including the sole BLOCKER — would have been silently untracked: `ls` would show 12
+# files while `git show HEAD` showed 4, and an SC-012 scan run against the working
+# directory would report 12/12 clean for a commit that carried 4.
+#
+# These negations re-include them. This works because only file *patterns* are excluded
+# at the root, not this directory itself — git's "cannot re-include a file whose parent
+# directory is excluded" caveat does not apply here.
+#
+# Scoped here rather than in the root .gitignore deliberately: it keeps the change inside
+# the hunt's session directory (this change's only ALLOWED write path) and cannot affect
+# log handling anywhere else in the repository.
+#
+# Verified with three independent tools, because `git check-ignore -v` reports a matching
+# *negation* while still exiting 0 and reads as "ignored": `git status --porcelain` lists
+# the file as untracked, `git add --dry-run` accepts it, and `git check-ignore -q` returns
+# non-zero.
+!*.log
+!*.log.*
