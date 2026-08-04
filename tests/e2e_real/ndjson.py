@@ -27,7 +27,7 @@ distinction. Keeping them apart is the contract.
 from __future__ import annotations
 
 import asyncio
-import json
+import json as _json
 import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
@@ -142,7 +142,7 @@ async def read_ndjson_stream(
                         # Body ended at a frame boundary — the server is done.
                         result.eof_reason = "clean_eof"
                         return _finish(result, started)
-                    except (asyncio.TimeoutError, httpx.ReadTimeout):
+                    except asyncio.TimeoutError, httpx.ReadTimeout:
                         # Nobody ended it; we gave up. Not an EOF.
                         result.eof_reason = "still_open"
                         return _finish(result, started)
@@ -178,8 +178,6 @@ async def read_ndjson_stream(
 
 
 def _loads(line: str) -> dict[str, Any]:
-    import json as _json
-
     parsed = _json.loads(line)
     if not isinstance(parsed, dict):
         raise ValueError("NDJSON frame was not an object")

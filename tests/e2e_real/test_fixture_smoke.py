@@ -135,9 +135,7 @@ async def test_teardown_leaves_zero_orphan_pids_after_a_stall_forever_turn(spawn
 
     # Fire a turn and walk away while it is still hung inside the LLM call.
     with pytest.raises((httpx.ReadTimeout, httpx.RemoteProtocolError)):
-        async with httpx.AsyncClient(
-            base_url=server.base_url, timeout=httpx.Timeout(30.0, read=8.0)
-        ) as client:
+        async with httpx.AsyncClient(base_url=server.base_url, timeout=httpx.Timeout(30.0, read=8.0)) as client:
             async with client.stream(
                 "POST",
                 "/api/chat",

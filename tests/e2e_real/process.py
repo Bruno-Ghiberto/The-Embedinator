@@ -60,7 +60,7 @@ def process_group_pids(pgid: int) -> list[int]:
             continue
         try:
             stat = (entry / "stat").read_text()
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue  # process exited between listdir and read — not an orphan
         # comm may contain spaces and parentheses, so split after the final ')'.
         close_paren = stat.rfind(")")
@@ -147,7 +147,7 @@ class ServerProcess:
     def _signal_group(self, sig: int) -> None:
         try:
             os.killpg(self.pgid, sig)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError, PermissionError:
             pass
 
 
@@ -258,8 +258,7 @@ def _await_port(
             for marker in _FATAL_MARKERS:
                 if marker in text:
                     raise ServerStartupError(
-                        f"uvicorn reported a fatal startup error ({marker!r}).\n"
-                        f"--- {path.name} ---\n{_tail(path)}"
+                        f"uvicorn reported a fatal startup error ({marker!r}).\n--- {path.name} ---\n{_tail(path)}"
                     )
 
         time.sleep(0.05)
@@ -286,7 +285,7 @@ def _emergency_kill(proc: subprocess.Popen) -> None:
         return
     try:
         os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):  # pragma: no cover - defensive
+    except ProcessLookupError, PermissionError:  # pragma: no cover - defensive
         pass
     try:
         proc.wait(timeout=5.0)

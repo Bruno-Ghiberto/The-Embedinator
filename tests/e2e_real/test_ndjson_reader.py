@@ -52,9 +52,7 @@ async def test_a_wedged_turn_is_still_open_not_clean_eof(backend_server, fake_ol
     """
     fake_ollama.set_mode(Mode.STALL_FOREVER)
 
-    result = await read_ndjson_stream(
-        backend_server.base_url, "/api/chat", json=_CHAT_BODY, idle_timeout=6.0
-    )
+    result = await read_ndjson_stream(backend_server.base_url, "/api/chat", json=_CHAT_BODY, idle_timeout=6.0)
 
     assert result.eof_reason == "still_open"
     assert result.saw_terminal is False

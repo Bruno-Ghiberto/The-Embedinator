@@ -313,12 +313,16 @@ def build_app(
 
         async def gen() -> AsyncIterator[bytes]:
             for piece in ANSWER_CHUNKS:
-                yield json.dumps(
-                    {"model": model, "created_at": _now(), "response": piece, "done": False}
-                ).encode() + b"\n"
-            yield json.dumps(
-                {"model": model, "created_at": _now(), "response": "", "done": True, "done_reason": "stop"}
-            ).encode() + b"\n"
+                yield (
+                    json.dumps({"model": model, "created_at": _now(), "response": piece, "done": False}).encode()
+                    + b"\n"
+                )
+            yield (
+                json.dumps(
+                    {"model": model, "created_at": _now(), "response": "", "done": True, "done_reason": "stop"}
+                ).encode()
+                + b"\n"
+            )
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
 
