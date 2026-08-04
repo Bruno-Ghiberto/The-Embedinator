@@ -186,6 +186,7 @@ def _start_backend(
     sandbox: Path,
     log_dir: Path,
     ollama_base_url: str,
+    port: int | None = None,
 ) -> ServerProcess:
     return spawn_uvicorn(
         name=name,
@@ -198,6 +199,7 @@ def _start_backend(
         ready_timeout=BACKEND_READY_TIMEOUT,
         graceful_shutdown=5,
         python=sys.executable,
+        port=port,
     )
 
 
@@ -248,6 +250,145 @@ def spawn_backend(tmp_path_factory, harness_log_dir, fake_ollama):
     finally:
         for server in started:
             server.terminate()
+
+
+@pytest.fixture(scope="session")
+def backend_on_baked_port(tmp_path_factory, harness_log_dir, fake_ollama) -> ServerProcess:
+    """The backend bound to the port the standalone build was compiled against.
+
+    Every other backend fixture uses an ephemeral port, which is strictly better.
+    This one cannot: ``next.config.ts`` interpolates ``BACKEND_URL`` inside
+    ``rewrites()`` and Next resolves it at BUILD time, so the standalone server's
+    proxy destination is a fixed literal. The build and the backend have to agree
+    on a number in advance.
+
+    Fails loudly rather than skipping if the port is taken — a silent skip here
+    would read as "the proxy gate passed".
+    """
+    from tests.e2e_real.standalone_proxy import HARNESS_BACKEND_PORT
+
+    if _port_in_use(HARNESS_BACKEND_PORT):
+        pytest.fail(
+            f"port {HARNESS_BACKEND_PORT} is already in use, and the standalone "
+            f"build proxies to it by construction. Free it before running the "
+            f"proxy gate.",
+            pytrace=False,
+        )
+
+    sandbox = tmp_path_factory.mktemp("backend-baked-port")
+    server = _start_backend(
+        name="backend-baked-port",
+        sandbox=sandbox,
+        log_dir=harness_log_dir,
+        ollama_base_url=fake_ollama.base_url,
+        port=HARNESS_BACKEND_PORT,
+    )
+    try:
+        yield server
+    finally:
+        server.terminate()
+
+
+@pytest.fixture(scope="session")
+def standalone_proxy(backend_on_baked_port, harness_log_dir):
+    """The Next **standalone** server — the mode BUG-054 was actually measured on.
+
+    Prefer this over ``next_proxy`` for any proxy-timeout assertion. ``next dev``
+    was measured on 2026-08-04 to apply no idle cut at all, so it cannot
+    reproduce BUG-054 or BUG-123.
+    """
+    from tests.e2e_real.next_proxy import NextProxyError
+    from tests.e2e_real.standalone_proxy import standalone_proxy as _standalone_proxy
+
+    try:
+        with _standalone_proxy(log_dir=harness_log_dir) as proxy:
+            yield proxy
+    except NextProxyError as exc:
+        # Missing or wrongly-baked build is an environment problem, not a defect
+        # in the code under test. Skip with the exact build command rather than
+        # reporting a false red against the product.
+        pytest.skip(str(exc))
+
+
+def _port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        return sock.connect_ex((host, port)) == 0
+
+
+def _find_foreign_next_dev(project_dir: Path) -> int | None:
+    """PID of a ``next dev`` already serving ``project_dir``, or ``None``.
+
+    Matches on the process's *working directory*, not its command line, because
+    that is what Next's lock is keyed on. A containerised frontend does not
+    false-positive: its ``cwd`` symlink resolves inside the container's mount
+    namespace, so from the host it never equals the repository path.
+
+    Returns ``None`` on non-Linux, where there is no ``/proc`` to consult — the
+    collision then surfaces as ``next dev``'s own startup error instead.
+    """
+    proc_root = Path("/proc")
+    if not proc_root.is_dir():
+        return None
+
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            cmdline = (entry / "cmdline").read_bytes().decode(errors="replace")
+            if "next" not in cmdline:
+                continue
+            if (entry / "cwd").resolve() == project_dir:
+                return int(entry.name)
+        except OSError:
+            # Process exited mid-scan, or belongs to another user. Neither is
+            # something this check should fail on.
+            continue
+    return None
+
+
+@pytest.fixture(scope="session")
+def next_proxy(backend_server, harness_log_dir):
+    """A real ``next dev`` server forwarding ``/api/*`` to the backend under test.
+
+    This is the only place the proxy is wired. ``tests/e2e_real/next_proxy.py``
+    deliberately declares no fixture of its own so fixture declaration stays in
+    one file.
+
+    Session-scoped for cost, not convenience: a cold Turbopack compile can take
+    most of a minute, and ``BACKEND_URL`` is read when ``next.config.ts`` loads,
+    so it cannot be changed on a running server anyway. Every test here targets
+    the same session backend, so one server serves them all.
+
+    Skipped rather than failed when ``node_modules`` is absent: a machine without
+    a frontend install should report "not exercised", never a false green.
+    """
+    from tests.e2e_real.next_proxy import NEXT_BIN, frontend_dir, next_dev_proxy
+
+    if not NEXT_BIN.exists():
+        pytest.skip(f"next binary missing at {NEXT_BIN} — run `npm ci` in {frontend_dir()}")
+
+    # Next 16's dev lock is per-DIRECTORY, not per-port: a second `next dev` on
+    # the same folder exits with "Another next dev server is already running"
+    # however free the requested port is. Reserving a port is necessary and not
+    # sufficient. Caught here because the raw failure surfaces as a readiness
+    # ERROR, which reads like a broken harness rather than a busy machine.
+    foreign_pid = _find_foreign_next_dev(frontend_dir())
+    if foreign_pid is not None:
+        pytest.fail(
+            f"a next dev server (PID {foreign_pid}) is already running on "
+            f"{frontend_dir()}. Next's dev lock is per-directory, so this fixture "
+            f"cannot start its own however free the port is. Stop it first: "
+            f"kill {foreign_pid}",
+            pytrace=False,
+        )
+
+    with next_dev_proxy(
+        backend_url=backend_server.base_url,
+        log_dir=harness_log_dir,
+    ) as proxy:
+        yield proxy
 
 
 @pytest.fixture(autouse=True)

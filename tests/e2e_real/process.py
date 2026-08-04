@@ -162,6 +162,7 @@ def spawn_uvicorn(
     graceful_shutdown: int = 5,
     python: str | None = None,
     extra_args: Sequence[str] = (),
+    port: int | None = None,
 ) -> ServerProcess:
     """Start ``app_target`` under uvicorn on an ephemeral port and wait for readiness.
 
@@ -198,7 +199,13 @@ def spawn_uvicorn(
         "--host",
         "127.0.0.1",
         "--port",
-        "0",
+        # Ephemeral by default. An explicit port exists for one reason: the Next
+        # standalone server bakes its proxy destination into routes-manifest.json
+        # at BUILD time (verified — frontend/Dockerfile:14 passes BACKEND_URL as an
+        # ARG for exactly this reason), so a standalone proxy fixture cannot point
+        # at whatever port the OS happened to hand out. The build and the backend
+        # have to agree on a number in advance.
+        str(port if port is not None else 0),
         "--no-access-log",
         "--timeout-graceful-shutdown",
         str(graceful_shutdown),
