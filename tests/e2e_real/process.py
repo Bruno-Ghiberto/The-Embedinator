@@ -83,6 +83,9 @@ class ServerProcess:
     stdout_path: Path
     stderr_path: Path
     pgid: int
+    #: The exact environment handed to the child. Kept so tests can assert it is
+    #: an allowlist and not ``os.environ.copy()``.
+    child_env: dict[str, str] = field(default_factory=dict, repr=False)
     _handles: list[IO[bytes]] = field(default_factory=list, repr=False)
 
     @property
@@ -227,6 +230,7 @@ def spawn_uvicorn(
         stdout_path=stdout_path,
         stderr_path=stderr_path,
         pgid=os.getpgid(proc.pid),
+        child_env=dict(env),
         _handles=[stdout_handle, stderr_handle],
     )
 
