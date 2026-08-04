@@ -232,6 +232,28 @@ expect_exit 2 "evidence outside a narrowed window is rejected" "$(payload "$root
 rm -rf "$root"
 
 # ---------------------------------------------------------------------------
+# Case 16 — a teammate in a git worktree is judged on its own evidence.
+#   Teammates run in isolated worktrees, and run-tests-external.sh derives its
+#   output directory from wherever it was invoked, so a worktree's results land in
+#   that worktree's Docs/Tests. CLAUDE_PROJECT_DIR can still point at the main
+#   checkout. If that won, a teammate would be blocked while holding a green run,
+#   or cleared by somebody else's — so the payload's own cwd has to win.
+# ---------------------------------------------------------------------------
+worktree_root="$(make_root)"
+main_root="$(make_root)"
+put_status "$worktree_root" "s31-b0-054-green" "PASSED"
+expect_exit 0 "worktree evidence beats CLAUDE_PROJECT_DIR" \
+  "$(payload "$worktree_root" "Fix BUG-054")" \
+  "CLAUDE_PROJECT_DIR=$main_root"
+
+# And the reverse: a green run in the main checkout must not clear a worktree claim.
+put_status "$main_root" "s31-b0-054-green" "PASSED"
+expect_exit 2 "another checkout's green run is not this one's evidence" \
+  "$(payload "$worktree_root/empty" "Fix BUG-054")" \
+  "CLAUDE_PROJECT_DIR=$main_root"
+rm -rf "$worktree_root" "$main_root"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

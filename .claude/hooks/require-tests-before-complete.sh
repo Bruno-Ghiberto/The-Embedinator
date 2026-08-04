@@ -178,11 +178,16 @@ if ! printf '%s' "$task_text" | grep -qEi "$FIX_CLAIM_PATTERN"; then
   allow
 fi
 
-# Resolve the project root. CLAUDE_PROJECT_DIR is set by Claude Code; the payload's
-# cwd is the fallback. Teammates run in git worktrees and the external runner writes
-# Docs/Tests/ relative to whichever root it was invoked from, so these agree.
-project_root="${CLAUDE_PROJECT_DIR:-}"
-[[ -z "$project_root" ]] && project_root="$reported_cwd"
+# Resolve the project root the evidence is read from.
+#
+# The payload's own cwd wins, and the order matters. Teammates run in isolated git
+# worktrees, and `run-tests-external.sh` derives its output directory from wherever it
+# was invoked, so a worktree's results land in that worktree's Docs/Tests. Meanwhile
+# CLAUDE_PROJECT_DIR can still name the main checkout. Letting that win would fail in
+# both directions at once: a teammate holding a genuine green run gets blocked, and
+# somebody else's green run in the main checkout clears a claim it never tested.
+project_root="$reported_cwd"
+[[ -z "$project_root" ]] && project_root="${CLAUDE_PROJECT_DIR:-}"
 [[ -z "$project_root" ]] && project_root="$PWD"
 
 evidence_dir="$project_root/Docs/Tests"
