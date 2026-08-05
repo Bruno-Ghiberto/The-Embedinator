@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import useSWR from "swr";
 import type {
   BackendStatus,
@@ -18,20 +18,39 @@ const BackendStatusContext = createContext<BackendStatusContextValue>({
   services: [],
 });
 
+// BUG-034: one cadence for every state. The previous adaptive schedule polled every
+// 30s while healthy, so a healthy -> degraded transition stayed invisible for up to
+// 30 seconds and the banner kept claiming "Backend connected" through a stream of
+// 503s. Detection latency while healthy is the whole bug, and a healthy backend is
+// exactly the state you are in when degradation starts.
+const POLL_INTERVAL_MS = 5000;
+
+// BUG-035: /api/health probes SQLite, Qdrant and Ollama and has been observed hanging
+// ~18s. An un-aborted hang never settles, so SWR holds the last healthy payload with
+// no error and the UI shows a stale green for the whole hang. Bounding the request
+// converts that silence into an honest "unreachable".
+const PROBE_TIMEOUT_MS = 3000;
+
 async function fetchHealth(url: string): Promise<BackendHealthResponse> {
-  const res = await fetch(url);
-  if (res.status === 503) {
-    // Backend reachable but degraded — parse body if available
-    try {
-      return await res.json();
-    } catch {
-      return { status: "degraded", services: [] };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (res.status === 503) {
+      // Backend reachable but degraded — parse body if available
+      try {
+        return await res.json();
+      } catch {
+        return { status: "degraded", services: [] };
+      }
     }
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  return res.json();
 }
 
 export function BackendStatusProvider({
@@ -39,13 +58,10 @@ export function BackendStatusProvider({
 }: {
   children: React.ReactNode;
 }) {
-  // Track current status to drive adaptive polling intervals
-  const [refreshInterval, setRefreshInterval] = useState<number>(5000);
-
   const { data, error } = useSWR<BackendHealthResponse>(
     "/api/health",
     fetchHealth,
-    { refreshInterval, revalidateOnFocus: false },
+    { refreshInterval: POLL_INTERVAL_MS, revalidateOnFocus: false },
   );
 
   const state = useMemo((): BackendStatus => {
@@ -53,13 +69,6 @@ export function BackendStatusProvider({
     if (data.status === "healthy") return "ready";
     return "degraded";
   }, [data, error]);
-
-  // Update polling interval based on derived status
-  useEffect(() => {
-    if (state === "unreachable") setRefreshInterval(5000);
-    else if (state === "degraded") setRefreshInterval(10000);
-    else setRefreshInterval(30000);
-  }, [state]);
 
   const value = useMemo(
     () => ({ state, services: data?.services ?? [] }),
