@@ -137,7 +137,9 @@ export interface QueryTraceDetail extends QueryTrace {
   chunks_retrieved: Record<string, unknown>[];
   reasoning_steps: Record<string, unknown>[];
   strategy_switches: Record<string, unknown>[];
-  stage_timings?: Record<string, { duration_ms: number; failed?: boolean }>;
+  // Mixed shape by construction: graph nodes write {duration_ms}, the research
+  // accumulators write bare numbers (research_nodes.py:139-140). See BUG-102.
+  stage_timings?: Record<string, number | { duration_ms: number; failed?: boolean }>;
 }
 
 export interface HealthStatus {

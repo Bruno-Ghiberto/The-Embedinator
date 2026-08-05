@@ -14,8 +14,16 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * A stage entry is either a graph-node record or a bare number. The research
+ * accumulators (`research_orchestrator_ms`, `research_tools_ms` and their `_calls`
+ * counters) are written straight into `stage_timings` as numbers, as siblings of the
+ * `{duration_ms}` records — see research_nodes.py:139-140.
+ */
+export type StageTiming = number | { duration_ms: number; failed?: boolean };
+
 export interface StageTimingsChartProps {
-  timings: Record<string, { duration_ms: number; failed?: boolean }>;
+  timings: Record<string, StageTiming>;
 }
 
 interface StageDataPoint {
@@ -26,14 +34,32 @@ interface StageDataPoint {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function buildChartData(
-  timings: Record<string, { duration_ms: number; failed?: boolean }>,
+// `*_calls` entries count invocations, not milliseconds. They were previously drawn
+// as empty rows; plotting them at face value on a millisecond axis would replace one
+// misreport with another, so they are excluded from a duration chart entirely.
+const COUNTER_KEY = /_calls$/;
+
+function toDataPoint(stage: string, timing: StageTiming): StageDataPoint | null {
+  if (typeof timing === "number") {
+    return Number.isFinite(timing)
+      ? { stage, duration_ms: timing, failed: false }
+      : null;
+  }
+  if (timing && typeof timing.duration_ms === "number" && Number.isFinite(timing.duration_ms)) {
+    return { stage, duration_ms: timing.duration_ms, failed: timing.failed ?? false };
+  }
+  // Unreadable entry: omit it. An empty bar reads as "this stage took no time",
+  // which is a stronger and falser claim than not charting it at all.
+  return null;
+}
+
+export function buildChartData(
+  timings: Record<string, StageTiming>,
 ): StageDataPoint[] {
-  return Object.entries(timings).map(([stage, timing]) => ({
-    stage,
-    duration_ms: timing.duration_ms,
-    failed: timing.failed ?? false,
-  }));
+  return Object.entries(timings)
+    .filter(([stage]) => !COUNTER_KEY.test(stage))
+    .map(([stage, timing]) => toDataPoint(stage, timing))
+    .filter((point): point is StageDataPoint => point !== null);
 }
 
 // Stage color map — uses CSS variable values for theme compatibility.
