@@ -1,7 +1,14 @@
 # The Embedinator — Python Backend Dependencies
 
 # Web framework
-fastapi>=0.135
+# Upper bound is deliberate. 0.135.x is the line the suite is validated against.
+# 0.141 changed include_router() to append a fastapi.routing._IncludedRouter
+# wrapper instead of flattening routes into app.routes — endpoints still serve,
+# but anything introspecting app.routes silently sees nothing. Without a bound,
+# CI resolved 0.141 on every fresh install while local venvs stayed on 0.135,
+# so the two were testing different code. Raise this only as a deliberate,
+# verified upgrade, not as a side effect of an unrelated install.
+fastapi>=0.135,<0.136
 uvicorn[standard]>=0.46.0
 python-multipart>=0.0.18
 
