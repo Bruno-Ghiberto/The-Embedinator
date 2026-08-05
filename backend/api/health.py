@@ -135,13 +135,10 @@ async def _probe_ollama() -> HealthServiceStatus:
             latency = round((time.monotonic() - start) * 1000, 1)
             if resp.status_code == 200:
                 data = resp.json()
-                available_names = {
-                    _normalize_model_name(m["name"]) for m in data.get("models", [])
-                }
+                available_names = {_normalize_model_name(m["name"]) for m in data.get("models", [])}
                 # Keys stay as configured so callers read back the name they set.
                 models = {
-                    settings.default_llm_model: _normalize_model_name(settings.default_llm_model)
-                    in available_names,
+                    settings.default_llm_model: _normalize_model_name(settings.default_llm_model) in available_names,
                     settings.default_embed_model: _normalize_model_name(settings.default_embed_model)
                     in available_names,
                 }
