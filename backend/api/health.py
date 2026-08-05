@@ -61,6 +61,11 @@ async def health(request: Request):
     services.append(ollama_status)
     if ollama_status.status == "error":
         all_ok = False
+    elif ollama_status.models and not all(ollama_status.models.values()):
+        # BUG-026: a reachable Ollama missing a required model is a degraded
+        # capability, not a healthy system. The service entry stays "ok" — the
+        # service really is up — but the aggregate must not claim health.
+        all_ok = False
 
     from typing import Literal
 
@@ -105,6 +110,18 @@ async def _probe_qdrant(request: Request) -> HealthServiceStatus:
         return HealthServiceStatus(name="qdrant", status="error", error_message=str(e))
 
 
+def _normalize_model_name(name: str) -> str:
+    """Qualify an untagged Ollama model name with the implicit ``:latest`` tag.
+
+    BUG-025: ``/api/tags`` lists a bare-named model as ``<name>:latest``, while the
+    configured defaults carry no tag (config.py: ``nomic-embed-text``). Comparing the
+    two raw strings reported an installed model as missing on every boot. Normalising
+    both sides makes the comparison tag-explicit without collapsing distinct tags —
+    ``qwen3:14b`` and ``qwen3:some-other-tag`` remain different models.
+    """
+    return name if ":" in name else f"{name}:latest"
+
+
 async def _probe_ollama() -> HealthServiceStatus:
     """Probe Ollama via /api/tags and check model availability (FR-034).
 
@@ -118,10 +135,15 @@ async def _probe_ollama() -> HealthServiceStatus:
             latency = round((time.monotonic() - start) * 1000, 1)
             if resp.status_code == 200:
                 data = resp.json()
-                available_names = {m["name"] for m in data.get("models", [])}
+                available_names = {
+                    _normalize_model_name(m["name"]) for m in data.get("models", [])
+                }
+                # Keys stay as configured so callers read back the name they set.
                 models = {
-                    settings.default_llm_model: settings.default_llm_model in available_names,
-                    settings.default_embed_model: settings.default_embed_model in available_names,
+                    settings.default_llm_model: _normalize_model_name(settings.default_llm_model)
+                    in available_names,
+                    settings.default_embed_model: _normalize_model_name(settings.default_embed_model)
+                    in available_names,
                 }
                 return HealthServiceStatus(name="ollama", status="ok", latency_ms=latency, models=models)
             else:
