@@ -80,6 +80,11 @@ PYTHON="$VENV_DIR/bin/python"
 PIP="$VENV_DIR/bin/pip"
 DEPS_HASH_FILE="$VENV_DIR/.deps-hash"
 
+# ── Shared helpers ─────────────────────────────────────────────
+# Sourced before any work so a missing library fails immediately rather than
+# after a full test run. Driven directly by scripts/lib/test-coverage-gate.sh.
+source "$SCRIPT_DIR/lib/coverage-gate.sh"
+
 # ── Defaults ───────────────────────────────────────────────────
 RUN_NAME=""
 MARKERS=""
@@ -423,32 +428,15 @@ echo "=== Completed in ${DURATION}s (exit code: $EXIT_CODE) ===" >> "$LOG_FILE"
 # .status reading PASSED. Left alone, every legitimately green single-file run
 # would be refused as evidence.
 #
+# The classifier lives in scripts/lib/coverage-gate.sh so it can be tested
+# directly; see scripts/lib/test-coverage-gate.sh for the behaviour it owes.
+#
 # The exit code is still propagated verbatim at the end of this script, so any
 # caller that cares about the coverage gate keeps seeing it.
-coverage_only_failure() {
-    # Positive evidence on every clause. Never infer a pass from absence alone:
-    # a collection error also produces exit 1 with no "FAILED" lines.
-    if grep -qE '^(FAILED|ERROR) ' "$LOG_FILE"; then
-        return 1
-    fi
-    if ! grep -qE '^FAIL Required test coverage of' "$LOG_FILE"; then
-        return 1
-    fi
-    local result_line
-    result_line=$(grep -E '[0-9]+ passed' "$LOG_FILE" | tail -1 || true)
-    if [[ -z "$result_line" ]]; then
-        return 1
-    fi
-    if printf '%s\n' "$result_line" | grep -qE '[0-9]+ (failed|error)'; then
-        return 1
-    fi
-    return 0
-}
-
 case $EXIT_CODE in
     0) FINAL_STATUS="PASSED" ;;
     1)
-        if coverage_only_failure; then
+        if coverage_only_failure "$LOG_FILE"; then
             FINAL_STATUS="PASSED"
             {
                 echo ""
