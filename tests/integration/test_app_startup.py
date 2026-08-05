@@ -44,12 +44,24 @@ def test_app_creates_successfully(mock_services):
     app = create_app()
     assert app.title == "The Embedinator"
 
-    routes = [r.path for r in app.routes if hasattr(r, "path")]
-    assert "/api/health" in routes
-    assert "/api/collections" in routes
-    assert "/api/documents" in routes
-    assert "/api/chat" in routes
-    assert "/api/providers" in routes
+    # Assert on the OpenAPI schema rather than app.routes.
+    #
+    # FastAPI 0.141 stopped flattening included routers into app.routes: it now
+    # appends a single fastapi.routing._IncludedRouter wrapper that has no
+    # `.path` attribute. The previous `hasattr(r, "path")` guard silently
+    # dropped that wrapper, so this list collapsed to FastAPI's four built-in
+    # doc routes and the assertions below failed — while every endpoint kept
+    # serving normally. A filter that can discard the very thing under
+    # assertion turns a loud failure into a misleading one.
+    #
+    # The schema is the app's public contract and reports identical paths on
+    # both 0.135.x and 0.141.x, so this assertion survives the next such change.
+    paths = set(app.openapi()["paths"])
+    assert "/api/health" in paths
+    assert "/api/collections" in paths
+    assert "/api/documents" in paths
+    assert "/api/chat" in paths
+    assert "/api/providers" in paths
 
 
 @pytest.mark.xfail(reason="LangGraph strict checkpointer type validation rejects AsyncMock — pre-existing")
