@@ -68,10 +68,13 @@ frontend/tsconfig.tsbuildinfo
 htmlcov/
 .pytest_cache/
 
-# External test runner output
-Docs/Tests/*.status
-Docs/Tests/*.summary
-Docs/Tests/*.log
+# External test runner output.
+# Recursive: run evidence is archived into dated subdirectories when the campaign
+# re-pins its baseline, and a non-recursive glob would silently start tracking it.
+Docs/Tests/**/*.status
+Docs/Tests/**/*.summary
+Docs/Tests/**/*.log
+Docs/Tests/e2e_real_logs/
 
 # Rust
 target/
