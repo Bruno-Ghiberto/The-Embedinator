@@ -130,20 +130,29 @@ jobs:
     name: backend-integration
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # TODO(spec-28): integration tests require Ollama service (not just Qdrant).
-    # Non-blocking until CI services include Ollama or test markers are split.
-    # Tracked in T172 tech-debt issue.
+    # Kept non-blocking ON PURPOSE for now. Until the qdrant health-check fix
+    # below, this job died during service startup and never ran a single test,
+    # so its true pass/fail state is unknown and the first real runs may surface
+    # long-hidden failures. Remove continue-on-error only once a run has been
+    # observed green.
+    #
+    # The previous note here claimed the job was red because integration tests
+    # also need an Ollama service. That may still be true, but it was NOT the
+    # cause of the failures — pytest was never reached. Re-assess against a real
+    # run before acting on it. Tracked in the T172 tech-debt issue.
     continue-on-error: true
     services:
       qdrant:
         image: qdrant/qdrant:v1.17.0
         ports:
           - 6333:6333
-        options: >-
-          --health-cmd "wget -qO- http://localhost:6333/collections || exit 1"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
+        # No --health-cmd on purpose. A service health check runs INSIDE the
+        # container, and qdrant/qdrant:v1.17.0 ships neither wget nor curl, so
+        # the previous probe exited 127 on every retry. Actions then reported
+        # "Failed to initialize container" and killed the job BEFORE pytest ran
+        # — which is why this job has never executed a single integration test,
+        # while qdrant's own log showed it listening on 6333 the whole time.
+        # Readiness is polled from the runner below instead, which does have curl.
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -151,6 +160,20 @@ jobs:
           python-version: "3.14.4"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Wait for Qdrant to become ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:6333/readyz > /dev/null 2>&1; then
+              echo "Qdrant ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Qdrant did not become ready within 60s" >&2
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost:6333/readyz 2>/dev/null || true)"
+          echo "last probe: HTTP ${code:-000} (000 means the connection never opened)"
+          exit 1
       - name: Run integration tests
         run: pytest tests/ -m require_docker --no-cov
         env:
