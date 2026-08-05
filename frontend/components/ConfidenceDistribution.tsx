@@ -11,16 +11,15 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import type { QueryTrace } from "@/lib/types";
+import type { ConfidenceBucketStat } from "@/lib/types";
 
 export interface ConfidenceDistributionProps {
-  traces: QueryTrace[];
-}
-
-interface TierBucket {
-  label: string;
-  count: number;
-  colorVar: string;
+  /**
+   * Tier counts from `/api/stats`, aggregated in SQL over every scored trace.
+   * Deriving them here from the current 20-row page made the panel read
+   * High-dominant while the population averaged Low (BUG-112).
+   */
+  buckets: ConfidenceBucketStat[];
 }
 
 function resolveCssVar(varName: string): string {
@@ -28,45 +27,33 @@ function resolveCssVar(varName: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || "#7c3aed";
 }
 
-// Confidence is INTEGER 0-100
-// green >= 70, yellow 40-69, red < 40
-function buildConfidenceData(traces: QueryTrace[]): TierBucket[] {
-  const withScore = traces.filter((t) => t.confidence_score !== null);
+// Confidence is INTEGER 0-100 \u2014 green >= 70, yellow 40-69, red < 40. The tiers are
+// keyed by name rather than by position so a reordered response cannot paint "Low"
+// with the "High" colour.
+const TIER_COLOR_VARS: Record<ConfidenceBucketStat["tier"], string> = {
+  high: "--success",
+  medium: "--warning",
+  low: "--destructive",
+};
 
-  return [
-    {
-      label: "High (\u226570)",
-      count: withScore.filter((t) => (t.confidence_score as number) >= 70).length,
-      colorVar: "--success",
-    },
-    {
-      label: "Medium (40-69)",
-      count: withScore.filter((t) => {
-        const s = t.confidence_score as number;
-        return s >= 40 && s < 70;
-      }).length,
-      colorVar: "--warning",
-    },
-    {
-      label: "Low (<40)",
-      count: withScore.filter((t) => (t.confidence_score as number) < 40).length,
-      colorVar: "--destructive",
-    },
-  ];
+export function colorVarForTier(tier: ConfidenceBucketStat["tier"]): string {
+  return TIER_COLOR_VARS[tier];
 }
 
 // ─── ConfidenceDistribution (raw) ────────────────────────────────────────────
 // Imported via next/dynamic with { ssr: false } in observability/page.tsx
 
-export function ConfidenceDistribution({ traces }: ConfidenceDistributionProps) {
-  const data = buildConfidenceData(traces);
+export function ConfidenceDistribution({
+  buckets,
+}: ConfidenceDistributionProps) {
+  const data = buckets;
 
   const [resolved, setResolved] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const colors: Record<string, string> = {};
     for (const d of data) {
-      colors[d.colorVar] = resolveCssVar(d.colorVar);
+      colors[colorVarForTier(d.tier)] = resolveCssVar(colorVarForTier(d.tier));
     }
     colors["--muted-foreground"] = resolveCssVar("--muted-foreground");
     colors["--border"] = resolveCssVar("--border");
@@ -98,7 +85,10 @@ export function ConfidenceDistribution({ traces }: ConfidenceDistributionProps) 
           />
           <Bar dataKey="count" name="Queries" radius={[3, 3, 0, 0]}>
             {data.map((entry) => (
-              <Cell key={entry.label} fill={resolved[entry.colorVar] || "#7c3aed"} />
+              <Cell
+                key={entry.tier}
+                fill={resolved[colorVarForTier(entry.tier)] || "#7c3aed"}
+              />
             ))}
           </Bar>
         </BarChart>

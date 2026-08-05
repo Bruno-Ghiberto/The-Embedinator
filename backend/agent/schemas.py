@@ -323,6 +323,21 @@ class SettingsUpdateRequest(BaseModel):
     child_chunk_size: int | None = None
 
 
+class LatencyBucket(BaseModel):
+    """One bar of the latency histogram, counted over every matching query trace."""
+
+    label: str
+    count: int
+
+
+class ConfidenceBucket(BaseModel):
+    """One tier of the confidence distribution, counted over every scored query trace."""
+
+    tier: str
+    label: str
+    count: int
+
+
 class StatsResponse(BaseModel):
     """Aggregate system statistics across all collections, documents, and queries."""
 
@@ -333,6 +348,8 @@ class StatsResponse(BaseModel):
     avg_confidence: float
     avg_latency_ms: float
     meta_reasoning_rate: float
+    latency_buckets: list[LatencyBucket] = []
+    confidence_buckets: list[ConfidenceBucket] = []
 
 
 class QueryTraceResponse(BaseModel):

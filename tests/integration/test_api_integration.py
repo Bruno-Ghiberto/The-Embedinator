@@ -718,7 +718,7 @@ class TestTraces:
         assert data["traces"] == []
 
     def test_get_stats_200(self):
-        """GET /api/stats -> 200 with all 7 numeric fields."""
+        """GET /api/stats -> 200 with 7 numeric fields and 2 distributions."""
         db = _mock_db()
         db.list_collections = AsyncMock(return_value=[])
         # Mock the aggregate query for stats
@@ -740,7 +740,7 @@ class TestTraces:
 
         assert resp.status_code == 200
         data = resp.json()
-        expected_keys = {
+        numeric_keys = {
             "total_collections",
             "total_documents",
             "total_chunks",
@@ -749,10 +749,15 @@ class TestTraces:
             "avg_latency_ms",
             "meta_reasoning_rate",
         }
-        assert expected_keys == set(data.keys())
-        # All values should be numeric
-        for key in expected_keys:
+        # The two distributions are lists of buckets aggregated over every trace,
+        # which is what the Observability charts render instead of re-slicing the
+        # paginated /api/traces response client-side (BUG-112).
+        distribution_keys = {"latency_buckets", "confidence_buckets"}
+        assert numeric_keys | distribution_keys == set(data.keys())
+        for key in numeric_keys:
             assert isinstance(data[key], (int, float))
+        for key in distribution_keys:
+            assert isinstance(data[key], list)
 
 
 # ---------------------------------------------------------------------------

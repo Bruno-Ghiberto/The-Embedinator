@@ -10,33 +10,17 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { QueryTrace } from "@/lib/types";
+import type { LatencyBucketStat } from "@/lib/types";
 
 export interface LatencyChartProps {
-  traces: QueryTrace[];
-}
-
-interface LatencyBucket {
-  label: string;
-  min: number;
-  max: number;
-}
-
-const LATENCY_BUCKETS: LatencyBucket[] = [
-  { label: "0-100ms", min: 0, max: 100 },
-  { label: "100-500ms", min: 100, max: 500 },
-  { label: "500ms-1s", min: 500, max: 1000 },
-  { label: "1-2s", min: 1000, max: 2000 },
-  { label: "2s+", min: 2000, max: Infinity },
-];
-
-function buildLatencyData(traces: QueryTrace[]) {
-  return LATENCY_BUCKETS.map((bucket) => ({
-    label: bucket.label,
-    count: traces.filter(
-      (t) => t.latency_ms >= bucket.min && t.latency_ms < bucket.max,
-    ).length,
-  }));
+  /**
+   * Bucket counts from `/api/stats`, aggregated in SQL over every matching trace.
+   * These used to be derived here from the current 20-row trace page, which made
+   * the histogram describe one page rather than the query population (BUG-112).
+   * The boundaries now live with their labels in the backend so the two cannot
+   * drift apart.
+   */
+  buckets: LatencyBucketStat[];
 }
 
 function resolveCssVar(varName: string): string {
@@ -47,8 +31,8 @@ function resolveCssVar(varName: string): string {
 // ─── LatencyChart (raw) ───────────────────────────────────────────────────────
 // Imported via next/dynamic with { ssr: false } in observability/page.tsx
 
-export function LatencyChart({ traces }: LatencyChartProps) {
-  const data = buildLatencyData(traces);
+export function LatencyChart({ buckets }: LatencyChartProps) {
+  const data = buckets;
 
   const [colors, setColors] = useState({ bar: "#7c3aed", axis: "#6b52b5", grid: "#d1c4f5" });
 

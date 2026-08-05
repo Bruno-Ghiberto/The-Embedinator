@@ -12,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.agent.schemas import (
     CircuitBreakerSnapshot,
+    ConfidenceBucket,
+    LatencyBucket,
     MetricsBucket,
     MetricsResponse,
     StatsResponse,
@@ -148,9 +150,56 @@ async def get_trace(trace_id: str, request: Request) -> dict:
     }
 
 
+# Distribution buckets for the Observability charts. The boundaries live in the SQL
+# below and their display labels live here, together, so the two cannot drift apart.
+# Each entry maps a rendered label to its aggregate column alias.
+_LATENCY_BUCKETS: list[tuple[str, str]] = [
+    ("0-100ms", "lat_0_100"),
+    ("100-500ms", "lat_100_500"),
+    ("500ms-1s", "lat_500_1000"),
+    ("1-2s", "lat_1000_2000"),
+    ("2s+", "lat_2000_plus"),
+]
+
+_CONFIDENCE_BUCKETS: list[tuple[str, str, str]] = [
+    ("high", "High (≥70)", "conf_high"),
+    ("medium", "Medium (40-69)", "conf_medium"),
+    ("low", "Low (<40)", "conf_low"),
+]
+
+_STATS_SQL = """SELECT COUNT(*) as total_queries,
+          AVG(CAST(confidence_score AS FLOAT)) as avg_confidence,
+          AVG(CAST(latency_ms AS FLOAT)) as avg_latency_ms,
+          SUM(CASE WHEN meta_reasoning_triggered = 1 THEN 1 ELSE 0 END) as meta_count,
+          SUM(CASE WHEN latency_ms >= 0 AND latency_ms < 100
+                   THEN 1 ELSE 0 END) as lat_0_100,
+          SUM(CASE WHEN latency_ms >= 100 AND latency_ms < 500
+                   THEN 1 ELSE 0 END) as lat_100_500,
+          SUM(CASE WHEN latency_ms >= 500 AND latency_ms < 1000
+                   THEN 1 ELSE 0 END) as lat_500_1000,
+          SUM(CASE WHEN latency_ms >= 1000 AND latency_ms < 2000
+                   THEN 1 ELSE 0 END) as lat_1000_2000,
+          SUM(CASE WHEN latency_ms >= 2000 THEN 1 ELSE 0 END) as lat_2000_plus,
+          SUM(CASE WHEN confidence_score >= 70 THEN 1 ELSE 0 END) as conf_high,
+          SUM(CASE WHEN confidence_score >= 40 AND confidence_score < 70
+                   THEN 1 ELSE 0 END) as conf_medium,
+          SUM(CASE WHEN confidence_score IS NOT NULL AND confidence_score < 40
+                   THEN 1 ELSE 0 END) as conf_low
+   FROM query_traces"""
+
+
 @router.get("/api/stats")
-async def system_stats(request: Request) -> dict:
-    """Aggregate system statistics from historical query data."""
+async def system_stats(
+    request: Request,
+    session_id: str | None = Query(None),
+) -> dict:
+    """Aggregate system statistics from historical query data.
+
+    The distributions are counted in SQL over every matching row. Bucketing the
+    paginated `/api/traces` response client-side instead would describe one page
+    of 20 rather than the population (BUG-112). `session_id` narrows the query
+    aggregates only, so the charts can honour the trace table's session filter.
+    """
     db = request.app.state.db
 
     # Collection count
@@ -166,13 +215,13 @@ async def system_stats(request: Request) -> dict:
         total_chunks += sum(d.get("chunk_count", 0) or 0 for d in docs)
 
     # Query trace aggregates
-    cursor = await db.db.execute(
-        """SELECT COUNT(*) as total_queries,
-                  AVG(CAST(confidence_score AS FLOAT)) as avg_confidence,
-                  AVG(CAST(latency_ms AS FLOAT)) as avg_latency_ms,
-                  SUM(CASE WHEN meta_reasoning_triggered = 1 THEN 1 ELSE 0 END) as meta_count
-           FROM query_traces"""
-    )
+    sql = _STATS_SQL
+    params: list[Any] = []
+    if session_id:
+        sql += "\n   WHERE session_id = ?"
+        params.append(session_id)
+
+    cursor = await db.db.execute(sql, params)
     row = await cursor.fetchone()
     stats = dict(row) if row else {}
 
@@ -190,6 +239,11 @@ async def system_stats(request: Request) -> dict:
         avg_confidence=avg_confidence,
         avg_latency_ms=avg_latency_ms,
         meta_reasoning_rate=meta_rate,
+        latency_buckets=[LatencyBucket(label=label, count=int(stats.get(key) or 0)) for label, key in _LATENCY_BUCKETS],
+        confidence_buckets=[
+            ConfidenceBucket(tier=tier, label=label, count=int(stats.get(key) or 0))
+            for tier, label, key in _CONFIDENCE_BUCKETS
+        ],
     ).model_dump()
 
 

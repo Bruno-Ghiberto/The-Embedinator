@@ -47,7 +47,7 @@ export function CollectionStats() {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-  } = useSWR<SystemStats>("/api/stats", getStats, {
+  } = useSWR<SystemStats>("/api/stats", () => getStats(), {
     revalidateOnFocus: false,
   });
 

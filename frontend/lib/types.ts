@@ -171,6 +171,19 @@ export interface BackendHealthResponse {
   services: BackendHealthServiceStatus[];
 }
 
+/** One bar of the latency histogram, counted server-side over every matching trace. */
+export interface LatencyBucketStat {
+  label: string;
+  count: number;
+}
+
+/** One tier of the confidence distribution. `tier` keys the bar colour. */
+export interface ConfidenceBucketStat {
+  tier: "high" | "medium" | "low";
+  label: string;
+  count: number;
+}
+
 export interface SystemStats {
   total_collections: number;
   total_documents: number;
@@ -179,6 +192,8 @@ export interface SystemStats {
   avg_confidence: number;
   avg_latency_ms: number;
   meta_reasoning_rate: number;
+  latency_buckets: LatencyBucketStat[];
+  confidence_buckets: ConfidenceBucketStat[];
 }
 
 // ─── NDJSON Stream Types ──────────────────────────────────────────────────
