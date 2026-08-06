@@ -4,6 +4,12 @@
 > has been removed from the title because the qualification it protected no longer applies —
 > see [`../BUG-123-PROBE-VERDICT.md`](../BUG-123-PROBE-VERDICT.md). Triage moved
 > `v1.1-defer` → `v1.0-fix`; scope 38 → 39; design decision D3 **Branch T** activates.
+>
+> **STATUS: OPEN — confirmation is not a fix.** Batch 1 established the mechanism and nothing
+> more. The fix is spec-31 **task 2.4** (Batch 2): a client-side idle watchdog in
+> `frontend/hooks/useStreamChat.ts`, bound by
+> `STREAM_IDLE_TIMEOUT_MS < experimental.proxyTimeout`. This record must NOT be counted as
+> closed in the Phase 9.3 sweep until that lands.
 
 - **Severity**: MAJOR
 - **Layer**: Infrastructure

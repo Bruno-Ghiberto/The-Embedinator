@@ -78,7 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Security hardening: input truncation, filename sanitization, magic-byte file validation, log scrubbing
 - Performance budgets with per-stage timing instrumentation and configurable latency thresholds
 - Full-stack observability with structured logging, trace ID propagation, and time-series metrics
-- Comprehensive test suite: 1400+ backend tests across unit, integration, and E2E tiers with 87% coverage
+- Comprehensive test suite: 1500+ backend tests across unit, integration, and E2E tiers with 85% coverage
 
 **Infrastructure**
 - Docker Compose setup with 4 services (Qdrant, Ollama, backend, frontend) and health checks
@@ -94,6 +94,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Frontend API routing now uses Next.js rewrites instead of build-time environment variables, fixing Docker networking issues
 - Chat responses upgraded from simple text streaming to structured NDJSON events with metadata
 - Confidence scoring upgraded from simple relevance average to 5-signal evidence-based computation
+- Docker Compose healthchecks now probe `/api/health/live` instead of `/api/health`. The latter is a readiness probe gated on model availability, so a missing model would hold the backend container unhealthy and prevent the frontend from starting at all — leaving no UI instead of a UI reporting the problem
+- Backend status polling uses a single 5s interval in every state, replacing an adaptive schedule that slowed to 30s while healthy
+
+### Fixed
+
+**Health & status reporting**
+- Aggregate health no longer reports `healthy` while a required Ollama model is missing, so a system that cannot actually serve a query no longer advertises itself as ready (BUG-026)
+- Model availability checks now normalize Ollama's `:latest` tag suffix. A correctly installed default stack was previously reported as missing its embedding model on every start (BUG-025)
+- The status banner now reflects backend degradation within one ~5s polling cycle instead of up to 30s. Health requests are also bounded by a 3s timeout, so a hung backend can no longer hold the UI on stale green indefinitely. Because backend status also gates the chat input, this previously allowed users to submit into a backend that could not serve them (BUG-034)
+
+**Observability**
+- The trace-detail stage-timings chart now plots every recorded stage. Research orchestrator and tool timings were stored as bare numbers and rendered as empty bars, so on a 26s turn the chart showed a 1.9s stage as dominant while hiding the real 18.1s bottleneck (BUG-102)
+- Query Analytics latency and confidence distributions are now computed across all queries via `/api/stats` instead of re-slicing the visible 20-row page. The panel previously read high-confidence while the true average across all traces was low, and paging the table silently changed the "analytics" (BUG-112)
 
 ---
 
