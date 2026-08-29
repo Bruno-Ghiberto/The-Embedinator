@@ -368,9 +368,7 @@ class TestAggregateReflectsModelAvailability:
 
     def test_200_healthy_when_every_required_model_is_present(self):
         """The degradation must be specific — all models present stays healthy."""
-        resp = _get_health(
-            _mock_httpx_with_models(settings.default_llm_model, settings.default_embed_model)
-        )
+        resp = _get_health(_mock_httpx_with_models(settings.default_llm_model, settings.default_embed_model))
 
         assert resp.status_code == 200
         assert resp.json()["status"] == "healthy"
@@ -406,18 +404,14 @@ class TestModelNameTagNormalization:
 
     def test_explicit_tag_still_matches_exactly(self):
         """A configured model that already carries a tag keeps matching."""
-        resp = _get_health(
-            _mock_httpx_with_models(settings.default_llm_model, settings.default_embed_model)
-        )
+        resp = _get_health(_mock_httpx_with_models(settings.default_llm_model, settings.default_embed_model))
 
         assert _ollama_entry(resp)["models"][settings.default_llm_model] is True
 
     def test_a_different_tag_is_not_a_match(self):
         """Normalisation must not collapse distinct tags of the same model."""
         base = settings.default_llm_model.split(":")[0]
-        resp = _get_health(
-            _mock_httpx_with_models(f"{base}:some-other-tag", settings.default_embed_model)
-        )
+        resp = _get_health(_mock_httpx_with_models(f"{base}:some-other-tag", settings.default_embed_model))
 
         assert _ollama_entry(resp)["models"][settings.default_llm_model] is False
         assert resp.status_code == 503
