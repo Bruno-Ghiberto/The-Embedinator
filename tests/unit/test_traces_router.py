@@ -400,3 +400,105 @@ class TestStats:
         resp = client.get("/api/stats")
         data = resp.json()
         assert data["total_chunks"] == 10
+
+
+# ── GET /api/stats — distributions (BUG-112) ─────────────────────
+
+
+def _stats_db(**row_overrides):
+    """Build a mocked db whose single query_traces aggregate returns `row_overrides`."""
+    db = AsyncMock()
+    db.list_collections = AsyncMock(return_value=[])
+    db.list_documents = AsyncMock(return_value=[])
+    row = {
+        "total_queries": 0,
+        "avg_confidence": None,
+        "avg_latency_ms": None,
+        "meta_count": 0,
+    }
+    row.update(row_overrides)
+    db.db.execute = AsyncMock(return_value=_make_cursor(fetchone_val=row))
+    return db
+
+
+class TestStatsDistributions:
+    """GET /api/stats returns latency + confidence distributions over every row.
+
+    BUG-112: the Observability charts bucketed the 20-row trace page client-side,
+    so "Query Analytics" read High-dominant (8/8/4) while avg_confidence over all
+    1008 traces was 31.1 (Low). The distribution has to come from an aggregate over
+    the full population, which only the backend can compute.
+    """
+
+    def test_latency_buckets_returned_in_display_order(self):
+        db = _stats_db(
+            total_queries=1008,
+            lat_0_100=12,
+            lat_100_500=40,
+            lat_500_1000=100,
+            lat_1000_2000=300,
+            lat_2000_plus=556,
+        )
+        client = TestClient(_make_app(db=db))
+        data = client.get("/api/stats").json()
+
+        assert data["latency_buckets"] == [
+            {"label": "0-100ms", "count": 12},
+            {"label": "100-500ms", "count": 40},
+            {"label": "500ms-1s", "count": 100},
+            {"label": "1-2s", "count": 300},
+            {"label": "2s+", "count": 556},
+        ]
+
+    def test_confidence_buckets_returned_with_tiers(self):
+        db = _stats_db(total_queries=1008, conf_high=20, conf_medium=40, conf_low=948)
+        client = TestClient(_make_app(db=db))
+        data = client.get("/api/stats").json()
+
+        assert data["confidence_buckets"] == [
+            {"tier": "high", "label": "High (≥70)", "count": 20},
+            {"tier": "medium", "label": "Medium (40-69)", "count": 40},
+            {"tier": "low", "label": "Low (<40)", "count": 948},
+        ]
+
+    def test_buckets_cover_the_whole_population_not_one_page(self):
+        """The counts must add up to every query, not to the 20-row page."""
+        db = _stats_db(
+            total_queries=1008,
+            lat_0_100=12,
+            lat_100_500=40,
+            lat_500_1000=100,
+            lat_1000_2000=300,
+            lat_2000_plus=556,
+        )
+        client = TestClient(_make_app(db=db))
+        data = client.get("/api/stats").json()
+
+        assert sum(b["count"] for b in data["latency_buckets"]) == 1008
+
+    def test_bucket_counts_default_to_zero_when_absent(self):
+        client = TestClient(_make_app(db=_stats_db()))
+        data = client.get("/api/stats").json()
+
+        assert [b["count"] for b in data["latency_buckets"]] == [0, 0, 0, 0, 0]
+        assert [b["count"] for b in data["confidence_buckets"]] == [0, 0, 0]
+
+    def test_session_id_filters_the_trace_aggregate(self):
+        """The charts share the trace table's session filter — stats must honour it."""
+        db = _stats_db(total_queries=3)
+        client = TestClient(_make_app(db=db))
+        resp = client.get("/api/stats", params={"session_id": "sess-42"})
+
+        assert resp.status_code == 200
+        sql, params = db.db.execute.call_args[0]
+        assert "session_id = ?" in sql
+        assert list(params) == ["sess-42"]
+
+    def test_no_session_id_aggregates_every_row(self):
+        db = _stats_db(total_queries=1008)
+        client = TestClient(_make_app(db=db))
+        client.get("/api/stats")
+
+        sql, params = db.db.execute.call_args[0]
+        assert "WHERE" not in sql.upper()
+        assert list(params) == []

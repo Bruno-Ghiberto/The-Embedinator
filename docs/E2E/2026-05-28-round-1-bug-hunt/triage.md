@@ -35,15 +35,19 @@ here — they are backlog, not sprint scope.
 
 ## 3. The split
 
-**39 `v1.0-fix` · 16 `v1.1-defer`** across the 55 triaged records.
+**40 `v1.0-fix` · 15 `v1.1-defer`** across the 55 triaged records.
 All 55 have live GitHub issues, `#123`–`#177`, verified 1:1 against the registry — 55 distinct
 issue numbers, no duplicates, no gaps, each issue's severity and decision labels matching its
 record.
 
-One of the 39 — `BUG-045`, the hunt's only BLOCKER — was **already fixed on `develop` during the
+> **Re-triaged 2026-08-05**: `BUG-123` moved `v1.1-defer` → `v1.0-fix` after the spec-31 task 1.6
+> isolation probe confirmed it. The split was `39 / 16` as filed on 2026-05-28. See
+> [`BUG-123-PROBE-VERDICT.md`](BUG-123-PROBE-VERDICT.md).
+
+One of the 40 — `BUG-045`, the hunt's only BLOCKER — was **already fixed on `develop` during the
 hunt** (PR #101, commit `d9107cb`); its issue was filed and closed the same day. It is retained at
 BLOCKER severity because severity grades impact at discovery, not remediation state. **Outstanding
-v1.0-fix scope is therefore 38 records.**
+v1.0-fix scope is therefore 39 records.**
 
 ---
 
@@ -126,14 +130,19 @@ frequently shrink or disappear.
 
 ## 5. Suggested sequencing for the fix wave
 
-The 38 outstanding `v1.0-fix` items are not 38 independent tasks. They cluster, and the clusters
+The 39 outstanding `v1.0-fix` items are not 39 independent tasks. They cluster, and the clusters
 have an order.
 
 **Cluster A — the demo path.** `BUG-054` and `BUG-126` are the two findings a first-time user is
 most likely to hit, and both fail silently or misleadingly. `BUG-074` and `BUG-119` are what turn
 `BUG-054` from a slow request into a permanently dead screen. Fixing `BUG-054` at the proxy and
-`BUG-074` at the reader loop removes the whole visible failure, and `BUG-119`, `BUG-123` and
+`BUG-074` at the reader loop removes the whole visible failure, and `BUG-119` and
 `BUG-124` shrink considerably. Do this cluster first.
+
+> **Corrected 2026-08-05**: `BUG-123` was listed here as shrinking along with the others. The
+> task 1.6 probe shows it does not. `BUG-074`'s Branch E adds a `sawTerminal` check *after* the
+> read loop, and on the proxied path that loop never exits — so on the path where `BUG-123`
+> bites, the `BUG-074` fix never executes. It needs its own idle watchdog (task 2.4, D3 Branch T).
 
 **Cluster B — configuration honesty.** `BUG-095` (settings never read), `BUG-047` (frontend
 override), `BUG-089` (no provider create path) and `BUG-096` are one story told four ways: the
@@ -155,10 +164,14 @@ that they can be used to verify the other fixes.
 
 ---
 
-## 6. `v1.1-defer` — 16 items
+## 6. `v1.1-defer` — 15 items
 
 Deferred means the finding is real and the rationale for waiting is recorded on the record. It
 does not mean disputed.
+
+> **2026-08-05**: was 16. `BUG-123` left this list for `v1.0-fix` — the isolation probe its
+> deferral was contingent on has been run and confirmed it. See
+> [`BUG-123-PROBE-VERDICT.md`](BUG-123-PROBE-VERDICT.md).
 
 | ID | Sev | Layer | Statement | Issue |
 |---|---|---|---|---|
@@ -173,7 +186,6 @@ does not mean disputed.
 | BUG-024 | MAJOR | Frontend | React hydration error #418 on every cold-start first load. | [#123](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/123) |
 | BUG-027 | MAJOR | Frontend | No per-service health badges on the dashboard — one coarse banner only. | [#125](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/125) |
 | BUG-109 | MAJOR | Frontend | Ingest errors dead-end: the UI drops the job id, document id, timestamp and trace id the API returned. | [#166](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/166) |
-| BUG-123 | MAJOR | Infrastructure | **UNCONFIRMED** — the proxy may hold the client stream open after the upstream socket dies. Registered with its evidence-against stated; needs an isolation probe. | [#172](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/172) |
 | BUG-041 | MAJOR | Ingestion | The ingestion status state machine's specified states do not exist in the implementation. | [#131](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/131) |
 | BUG-046 | MAJOR | Observability | The health surface is blind to agent-graph execution — 21 consecutive 200 OKs through a 160s wedged turn. | [#133](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/133) |
 | BUG-068 | MAJOR | Reasoning | Conversational meta-requests are misrouted as `rag_query` by the intent classifier. | [#142](https://github.com/Bruno-Ghiberto/The-Embedinator/issues/142) |
@@ -185,9 +197,11 @@ does not mean disputed.
 
 Recorded so they are not mistaken for untested gaps.
 
-1. **`BUG-123` proxy-EOF isolation** — a controlled probe holding query and turn state fixed,
+1. ~~**`BUG-123` proxy-EOF isolation** — a controlled probe holding query and turn state fixed,
    killed twice (once proxied, once direct to `:8000`), to confirm or retract the UNCONFIRMED
-   record.
+   record.~~ **CLOSED 2026-08-05, spec-31 task 1.6 — record CONFIRMED**, re-triaged to
+   `v1.0-fix`, fix scheduled as task 2.4 (D3 Branch T).
+   See [`BUG-123-PROBE-VERDICT.md`](BUG-123-PROBE-VERDICT.md).
 2. **`BUG-069` turn-depth series** — a controlled series varying conversation depth with model and
    corpus fixed. The escalation to CRITICAL was audited and **declined** on a two-point evidence
    base; this series would settle it.

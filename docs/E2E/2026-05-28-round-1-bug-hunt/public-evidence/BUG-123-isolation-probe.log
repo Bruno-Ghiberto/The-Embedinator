@@ -1,0 +1,32 @@
+# BUG-123 isolation probe — spec-31 task 1.6
+# Captured: 2026-08-05T22:26:05Z  host: Fedora / Docker stack (NOT tests/e2e_real fixtures)
+# next version: 16.2.4
+# proxy: frontend container :3000 -> backend :8000 via next.config.ts rewrites()
+# kill: docker kill embedinator-backend, fired after exactly 3 chunk frames on every run
+# post-kill reader budget: 120.0s idle
+
+
+=== PROXIED :3000 (attempt 1) ===
+  [PROXIED :3000 #1] killed backend after 3 chunks at t+30.3s
+  PROXIED :3000 #1       eof_reason=still_open   kill->eof=never  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=None
+
+=== DIRECT :8000 (attempt 1) ===
+  [DIRECT :8000 #1] killed backend after 3 chunks at t+14.8s
+  DIRECT :8000 #1        eof_reason=peer_closed  kill->eof=   0.3s  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=RemoteProtocolError
+
+=== PROXIED :3000 (attempt 2) ===
+  [PROXIED :3000 #2] killed backend after 3 chunks at t+23.5s
+  PROXIED :3000 #2       eof_reason=still_open   kill->eof=never  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=None
+
+=== DIRECT :8000 (attempt 2) ===
+  [DIRECT :8000 #2] killed backend after 3 chunks at t+21.1s
+  DIRECT :8000 #2        eof_reason=peer_closed  kill->eof=   0.3s  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=RemoteProtocolError
+
+
+================ BUG-123 PROBE RESULT ================
+PROXIED :3000 #1       eof_reason=still_open   kill->eof=never  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=None
+DIRECT :8000 #1        eof_reason=peer_closed  kill->eof=   0.3s  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=RemoteProtocolError
+PROXIED :3000 #2       eof_reason=still_open   kill->eof=never  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=None
+DIRECT :8000 #2        eof_reason=peer_closed  kill->eof=   0.3s  terminal=False events=13   chunks_pre_kill=3 backend_at_eof=exited err=RemoteProtocolError
+
+backend restored: running

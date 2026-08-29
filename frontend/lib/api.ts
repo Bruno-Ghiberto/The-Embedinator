@@ -328,8 +328,15 @@ export async function getHealth(): Promise<HealthStatus> {
   return res.json();
 }
 
-export async function getStats(): Promise<SystemStats> {
-  const res = await fetch(`${API_BASE}/api/stats`);
+export async function getStats(params?: {
+  session_id?: string;
+}): Promise<SystemStats> {
+  const searchParams = new URLSearchParams();
+  if (params?.session_id) searchParams.set("session_id", params.session_id);
+  const query = searchParams.toString();
+  const res = await fetch(
+    `${API_BASE}/api/stats${query ? `?${query}` : ""}`,
+  );
   if (!res.ok) await throwApiError(res);
   return res.json();
 }

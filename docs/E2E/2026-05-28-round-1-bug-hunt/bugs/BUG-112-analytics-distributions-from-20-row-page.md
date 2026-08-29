@@ -1,8 +1,12 @@
 # BUG-112: Query Analytics distributions computed from the 20-row page, not all queries
 
+> **FIXED 2026-08-05** by spec-31 Batch 1, task 1.5 — commit `4736465`. The filed root-cause
+> hypothesis held; the fix required a backend `/api/stats` change. See [Resolution](#resolution).
+
 - **Severity**: MAJOR
 - **Layer**: Frontend
 - **Discovered**: 2026-07-11T20:10:00Z in Phase 6 (P6-S3)
+- **Fixed**: 2026-08-05 (spec-31 task 1.5, commit `4736465`)
 - **Phase scenario**: P6-S3
 - **BLOCKER-PATCHED**: no
   <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
@@ -33,3 +37,31 @@ Both charts are a client-side re-slice of the current 20-row trace page; changin
 
 ## Notes
 Related: BUG-111 (missing budget visualization on the same panel), BUG-113 (bucket range, same LatencyChart component).
+
+## Resolution
+
+**FIXED** — spec-31 Batch 1, task 1.5. Commit `4736465`, 12 files.
+
+The filed root-cause hypothesis was confirmed. Both charts were a client-side re-slice of the
+current 20-row `useTraces` page, so "Query Analytics" described one page and called it the system.
+The panel read High-dominant (8/8/4) while `avg_confidence` across all 1008 traces was 31.1 — Low.
+Paging the table silently changed the "analytics", and nothing labelled the sample as partial.
+
+**Filed as a frontend bug, but the fix is backend-first.** The counts now come from `/api/stats`,
+computed in a single SQL aggregate with conditional `SUM`s over every matching row — not by
+fetching more rows and re-slicing them client-side, which would only have moved the ceiling.
+
+Design decisions worth recording:
+
+- **Bucket boundaries and their display labels live together in the backend**, so the two cannot
+  drift apart. The frontend keeps only the tier → colour map, keyed by tier *name* rather than
+  position, so a reordered response cannot paint "Low" green.
+- **`/api/stats` gains an optional `session_id`** that narrows the trace aggregates only. Without
+  it, honouring the trace table's session filter would have been traded for a second lie — "every
+  session" presented as the filtered one. It is part of the SWR cache key in the new `useStats`
+  hook, or switching filters would serve the previous session's distribution.
+- Collection, document and chunk counts are unaffected by the filter. The new response fields are
+  additive; `CollectionStats` reads the same endpoint and is unchanged apart from an explicit
+  fetcher arity.
+
+**Evidence**: backend 1548 passed, 0 failed (baseline 1542 + 6 new). Frontend 74 passed.

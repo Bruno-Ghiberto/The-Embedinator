@@ -3275,7 +3275,7 @@
     },
     {
       "id": "BUG-123",
-      "title": "UNCONFIRMED: proxy may hold client stream open after upstream socket dies",
+      "title": "proxy holds client stream open after upstream socket dies",
       "severity": "MAJOR",
       "layer": "Infrastructure",
       "phase": 7,
@@ -3304,11 +3304,21 @@
       },
       "root_cause_hypothesis": "UNCONFIRMED — hypothesis only, deliberately not asserted. Candidate mechanism: the Next.js `rewrites()` proxy does not propagate upstream socket termination to the downstream client for a streaming response, so the client observes an open-but-silent connection instead of EOF. Evidence FOR: two independent readers saw no EOF for 189s on the proxied path (frontend-inspector), while a direct-to-`:8000` client terminated promptly under the same backend kill (team-lead, P7-S1d). Evidence AGAINST / limits: this is ONE observation on each path, gathered for other purposes; neither run was designed to isolate the proxy variable, no re-kill was performed to confirm reproducibility, and other differences existed between the runs (browser fetch reader vs `curl`, different turn states). Cross-ref BUG-054, which independently locates a separate defect in the same proxy layer (~30s idle timeout), making a shared proxy-configuration root cause plausible but unproven.",
       "triage": {
-        "decision": "v1.1-defer",
+        "decision": "v1.0-fix",
         "github_issue_url": "https://github.com/Bruno-Ghiberto/The-Embedinator/issues/172",
-        "rationale": "Registered UNCONFIRMED on two single observations that were not controlled for the proxy variable; it warrants a dedicated isolation probe in spec-31 rather than a v1.0 fix to a mechanism not yet established."
+        "rationale": "The isolation probe the original deferral asked for has been run (spec-31 task 1.6) and the mechanism is established, so the sole ground for deferring no longer holds. Fix lands as spec-31 task 2.4 (D3 Branch T).",
+        "superseded_rationale": "Registered UNCONFIRMED on two single observations that were not controlled for the proxy variable; it warrants a dedicated isolation probe in spec-31 rather than a v1.0 fix to a mechanism not yet established."
       },
-      "notes": "Reporters: frontend-inspector (proxied observation, flagged by its author as a hypothesis needing corroboration and explicitly not re-killed to isolate) + team-lead (direct-to-`:8000` counter-observation at P7-S1d).\n\n**Registered deliberately as UNCONFIRMED, per team-lead ruling.** The title carries the UNCONFIRMED marker so the qualification cannot be lost if the title is read in isolation — e.g. in an issue list or a summary table. This phase's binding standard is that a clean result counts only if the engineering behind it can be cited; the same discipline is applied in reverse here, and a defect is not asserted on evidence that has not isolated its variable.\n\n**Why it is registered at all rather than dropped**: if confirmed it is a SECOND, INDEPENDENT defect from BUG-074. BUG-074 is that `api.ts:158-160` wedges when EOF arrives; this is that EOF may never arrive in the first place. Both were observed in the same 189s window. Fixing BUG-074 alone would therefore not resolve the observed hang, which is exactly the kind of conclusion that would be lost if this evidence were discarded.\n\n**Recommended next step (spec-31)**: a dedicated probe — identical query and turn state, killed twice, once proxied and once direct, with EOF timing recorded on both — to isolate the proxy variable and either confirm or retract this record."
+      "notes": "Reporters: frontend-inspector (proxied observation, flagged by its author as a hypothesis needing corroboration and explicitly not re-killed to isolate) + team-lead (direct-to-`:8000` counter-observation at P7-S1d).\n\n**Registered deliberately as UNCONFIRMED, per team-lead ruling.** The title carries the UNCONFIRMED marker so the qualification cannot be lost if the title is read in isolation — e.g. in an issue list or a summary table. This phase's binding standard is that a clean result counts only if the engineering behind it can be cited; the same discipline is applied in reverse here, and a defect is not asserted on evidence that has not isolated its variable.\n\n**Why it is registered at all rather than dropped**: if confirmed it is a SECOND, INDEPENDENT defect from BUG-074. BUG-074 is that `api.ts:158-160` wedges when EOF arrives; this is that EOF may never arrive in the first place. Both were observed in the same 189s window. Fixing BUG-074 alone would therefore not resolve the observed hang, which is exactly the kind of conclusion that would be lost if this evidence were discarded.\n\n**Recommended next step (spec-31)**: a dedicated probe — identical query and turn state, killed twice, once proxied and once direct, with EOF timing recorded on both — to isolate the proxy variable and either confirm or retract this record.",
+      "confirmed_at": "2026-08-05T22:26:05Z",
+      "confirmation": {
+        "task": "spec-31 task 1.6 isolation probe",
+        "verdict": "CONFIRMED",
+        "artifact": "BUG-123-PROBE-VERDICT.md",
+        "evidence": "public-evidence/BUG-123-isolation-probe.log",
+        "result": "proxied :3000 -> eof_reason=still_open (no EOF within 120s) on 2/2 runs; direct :8000 -> eof_reason=peer_closed in 0.3s on 2/2 runs; client, reader, query, turn state and kill point held fixed",
+        "consequences": "scope 38 -> 39; triage v1.1-defer -> v1.0-fix; D3 Branch T activates (task 2.4)"
+      }
     },
     {
       "id": "BUG-124",
@@ -3534,7 +3544,7 @@
       "COSMETIC": 6
     },
     "blocker_patched_count": 0,
-    "v1_0_fix_count": 39,
-    "v1_1_defer_count": 16
+    "v1_0_fix_count": 40,
+    "v1_1_defer_count": 15
   }
 }

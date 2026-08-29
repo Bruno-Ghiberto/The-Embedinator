@@ -5,6 +5,7 @@ import { HealthDashboard } from "@/components/HealthDashboard";
 import { TraceTable } from "@/components/TraceTable";
 import { CollectionStats } from "@/components/CollectionStats";
 import { useTraces } from "@/hooks/useTraces";
+import { useStats } from "@/hooks/useStats";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Recharts components are lazy-loaded and gated behind a user toggle.
@@ -50,6 +51,16 @@ export default function ObservabilityClient() {
     session_id: sessionFilterParam,
   });
 
+  // The distributions come from the aggregate endpoint, not from the paged trace
+  // array above — bucketing `traces` client-side described 20 rows and called it
+  // "Query Analytics" (BUG-112). The session filter is forwarded so the charts
+  // still answer the same question the table is showing.
+  const {
+    stats,
+    isLoading: statsLoading,
+    isError: statsError,
+  } = useStats({ session_id: sessionFilterParam });
+
   const handleSessionFilterChange = (value: string) => {
     setSessionFilter(value);
     setOffset(0);
@@ -82,13 +93,13 @@ export default function ObservabilityClient() {
         {showCharts ? (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
-              {tracesLoading ? (
+              {statsLoading ? (
                 <div className="flex h-[275px] items-center justify-center text-sm text-muted-foreground">
-                  Loading traces...
+                  Loading statistics...
                 </div>
-              ) : tracesError ? (
+              ) : statsError ? (
                 <p className="text-sm text-destructive">
-                  Failed to load trace data.
+                  Failed to load query statistics.
                 </p>
               ) : (
                 <Suspense
@@ -96,18 +107,18 @@ export default function ObservabilityClient() {
                     <Skeleton className="h-[250px] w-full rounded-lg" />
                   }
                 >
-                  <LatencyChart traces={traces ?? []} />
+                  <LatencyChart buckets={stats?.latency_buckets ?? []} />
                 </Suspense>
               )}
             </div>
             <div className="rounded-lg border border-border bg-background p-4 shadow-sm">
-              {tracesLoading ? (
+              {statsLoading ? (
                 <div className="flex h-[275px] items-center justify-center text-sm text-muted-foreground">
-                  Loading traces...
+                  Loading statistics...
                 </div>
-              ) : tracesError ? (
+              ) : statsError ? (
                 <p className="text-sm text-destructive">
-                  Failed to load trace data.
+                  Failed to load query statistics.
                 </p>
               ) : (
                 <Suspense
@@ -115,7 +126,9 @@ export default function ObservabilityClient() {
                     <Skeleton className="h-[250px] w-full rounded-lg" />
                   }
                 >
-                  <ConfidenceDistribution traces={traces ?? []} />
+                  <ConfidenceDistribution
+                    buckets={stats?.confidence_buckets ?? []}
+                  />
                 </Suspense>
               )}
             </div>
