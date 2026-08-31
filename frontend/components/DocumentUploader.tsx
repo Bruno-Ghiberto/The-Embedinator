@@ -116,7 +116,7 @@ export default function DocumentUploader({
       for (const file of acceptedFiles) {
         // Client-side size guard
         if (file.size > UPLOAD_CONSTRAINTS.maxSizeBytes) {
-          errors.push(`${file.name} exceeds the 50 MB limit.`);
+          errors.push(`${file.name} exceeds the 100 MB limit.`);
           continue;
         }
 
@@ -173,7 +173,7 @@ export default function DocumentUploader({
               <span className="text-primary font-medium">browse</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              PDF, Markdown, TXT, RST — max 50 MB
+              PDF, Markdown, TXT, RST — max 100 MB
             </p>
           </div>
         )}

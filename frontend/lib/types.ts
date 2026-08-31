@@ -62,6 +62,7 @@ export interface ChatMessage {
   clarification?: string;
   isStreaming: boolean;
   isError?: boolean;
+  errorCode?: string;
   traceId?: string;
 }
 
@@ -240,7 +241,7 @@ export interface ChatRequest {
 // ─── Upload Constraints ───────────────────────────────────────────────────
 
 export const UPLOAD_CONSTRAINTS = {
-  maxSizeBytes: 50 * 1024 * 1024,
+  maxSizeBytes: 100 * 1024 * 1024,
   allowedExtensions: ["pdf", "md", "txt", "rst"] as const,
   accept: {
     "application/pdf": [".pdf"],
