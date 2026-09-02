@@ -154,6 +154,7 @@ export function streamChat(
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let sawTerminal = false;
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -175,6 +176,7 @@ export function streamChat(
                 callbacks.onToken(event.text);
                 break;
               case "clarification":
+                sawTerminal = true;
                 callbacks.onClarification?.(event.question);
                 break;
               case "citation":
@@ -190,13 +192,21 @@ export function streamChat(
                 callbacks.onGroundedness?.(event);
                 break;
               case "done":
+                sawTerminal = true;
                 callbacks.onDone(event.latency_ms, event.trace_id);
                 break;
               case "error":
+                sawTerminal = true;
                 callbacks.onError(event.message, event.code, event.trace_id);
                 break;
             }
           }
+        }
+        if (!sawTerminal && !controller.signal.aborted) {
+          callbacks.onError(
+            "Stream ended without completion",
+            "STREAM_TRUNCATED",
+          );
         }
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
