@@ -20,7 +20,7 @@ from backend.agent._request_context import selected_collections_var
 from backend.agent.conversation_graph import build_conversation_graph
 from backend.agent.schemas import ChatRequest
 from backend.config import settings
-from backend.errors import CircuitOpenError
+from backend.errors import CircuitOpenError, LLMDeadlineExceeded
 from langgraph.errors import GraphRecursionError
 
 logger = structlog.get_logger().bind(component=__name__)
@@ -368,6 +368,22 @@ async def chat(body: ChatRequest, request: Request):
                         "type": "error",
                         "message": "A required service is temporarily unavailable. Please try again in a few seconds.",
                         "code": "CIRCUIT_OPEN",
+                        "trace_id": trace_id,
+                    }
+                )
+                + "\n"
+            )
+        except LLMDeadlineExceeded as e:
+            logger.warning("http_chat_llm_deadline", session_id=session_id, detail=str(e))
+            yield (
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": (
+                            "The language model did not respond within "
+                            f"{settings.llm_call_timeout_seconds:g}s. Please retry."
+                        ),
+                        "code": "LLM_TIMEOUT",
                         "trace_id": trace_id,
                     }
                 )

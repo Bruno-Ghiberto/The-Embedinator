@@ -517,3 +517,114 @@ class TestBuildModifiedState:
         assert result["top_k_retrieval"] == 40
         assert result["payload_filters"] is None
         assert result["top_k_rerank"] == 10
+
+
+# ---------------------------------------------------------------------------
+# BUG-088 — the in-flight LLM deadline must reach the caller (RED)
+#
+# Production change that makes these pass: replace each `await llm.ainvoke(...)`
+# in meta_reasoning_nodes.py with `await invoke_with_deadline(...)` and place
+# `except LLMDeadlineExceeded: raise` before the node's catch-all; the research
+# graph's meta_reasoning_mapper gets the same clause so a deadline inside the
+# subgraph is not converted into FR-017's infrastructure-error answer.
+# ---------------------------------------------------------------------------
+
+_DEADLINE_TEST_TIMEOUT = 0.05
+_TEST_LEVEL_BUDGET = 2.0
+
+
+class _HangingLLMCall:
+    """Stands in for the object a node calls `ainvoke` on. Never resolves."""
+
+    def __init__(self) -> None:
+        self.cancelled = False
+        self.started = False
+
+    async def ainvoke(self, *_args, **_kwargs):
+        import asyncio
+
+        self.started = True
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+
+
+class TestLLMDeadlinePropagation:
+    """BUG-088: a stalled meta-reasoning LLM call must not outlive the deadline."""
+
+    @pytest.mark.asyncio
+    async def test_generate_alternative_queries_propagates_the_deadline(self, monkeypatch):
+        """meta_reasoning_nodes.py:67 — alternative-query generation runs under the deadline."""
+        import asyncio
+
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        state = _make_meta_state()
+        config = _make_config(llm=hang)
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(generate_alternative_queries(state, config), _TEST_LEVEL_BUDGET)
+
+        assert hang.cancelled, "the in-flight generate_alternative_queries call must be cancelled"
+
+    @pytest.mark.asyncio
+    async def test_report_uncertainty_propagates_the_deadline(self, monkeypatch):
+        """meta_reasoning_nodes.py:366 — the uncertainty report runs under the deadline."""
+        import asyncio
+
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        state = _make_meta_state(
+            retrieved_chunks=[_chunk(collection="physics")],
+            mean_relevance_score=0.1,
+            meta_attempt_count=2,
+        )
+        config = _make_config(llm=hang)
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(report_uncertainty(state, config), _TEST_LEVEL_BUDGET)
+
+        assert hang.cancelled, "the in-flight report_uncertainty call must be cancelled"
+
+    @pytest.mark.asyncio
+    async def test_research_graph_meta_mapper_reraises_the_deadline(self, monkeypatch):
+        """research_graph.py:80-82 — the mapper must NOT convert a deadline into FR-017 text.
+
+        Every other exception from the subgraph still becomes the infrastructure-error
+        answer; a deadline must reach chat.py so the turn ends with LLM_TIMEOUT.
+        """
+        import asyncio
+
+        from backend.agent.research_graph import build_research_graph
+        from backend.errors import LLMDeadlineExceeded
+
+        class _DeadlineMetaGraph:
+            async def ainvoke(self, _input, config=None):
+                raise LLMDeadlineExceeded("LLM call exceeded its deadline")
+
+        graph = build_research_graph(tools=[], meta_reasoning_graph=_DeadlineMetaGraph())
+        mapper = graph.nodes["meta_reasoning"].bound
+
+        state = _make_state_for_mapper()
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(mapper.ainvoke(state, {"configurable": {}}), _TEST_LEVEL_BUDGET)
+
+
+def _make_state_for_mapper() -> dict:
+    """Minimal ResearchState slice the meta_reasoning_mapper reads."""
+    return {
+        "sub_question": "What is X?",
+        "retrieved_chunks": [],
+        "stage_timings": {},
+    }

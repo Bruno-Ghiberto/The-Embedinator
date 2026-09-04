@@ -25,10 +25,11 @@ from backend.agent.prompts import (
     ORCHESTRATOR_SYSTEM,
     ORCHESTRATOR_USER,
 )
+from backend.agent.llm_deadline import invoke_with_deadline
 from backend.agent.schemas import Citation, RetrievedChunk, SubAnswer
 from backend.agent.state import ResearchState
 from backend.config import settings
-from backend.errors import LLMCallError
+from backend.errors import LLMCallError, LLMDeadlineExceeded
 
 logger = structlog.get_logger().bind(component=__name__)
 
@@ -61,13 +62,15 @@ async def _maybe_summarize_research_messages(
     recent_messages = messages[-4:]
 
     try:
-        summary_response = await llm.ainvoke(
+        summary_response = await invoke_with_deadline(
+            llm,
             [
                 SystemMessage(
                     content="Briefly summarize the key findings from this research session in 2-3 sentences:"
                 ),
                 *messages_to_summarize,
-            ]
+            ],
+            site="summarize_research_messages",
         )
         summary_msg = SystemMessage(content=f"Research session summary: {summary_response.content}")
         log.info(
@@ -79,6 +82,8 @@ async def _maybe_summarize_research_messages(
         # Return RemoveMessage markers for old messages + summary + recent
         removals = [RemoveMessage(id=m.id) for m in messages_to_summarize if hasattr(m, "id") and m.id]
         return removals + [summary_msg] + list(recent_messages)
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.debug("agent_research_summarize_failed", error=type(exc).__name__)
         return messages
@@ -187,7 +192,9 @@ async def orchestrator(state: ResearchState, config: Optional[RunnableConfig] = 
     # Use trimmed messages as conversation context alongside the prompt
     invoke_messages = [system_msg] + list(trimmed_messages) + [user_msg]
     try:
-        response = await llm_with_tools.ainvoke(invoke_messages)
+        response = await invoke_with_deadline(llm_with_tools, invoke_messages, site="orchestrator")
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.warning("agent_orchestrator_llm_failed", error=type(exc).__name__)
         _duration_ms = round((time.perf_counter() - _t0) * 1000, 1)
@@ -526,11 +533,13 @@ async def compress_context(state: ResearchState, config: Optional[RunnableConfig
     chunks_text = "\n\n---\n\n".join(f"[{c.collection} | {c.source_file}] {c.text}" for c in state["retrieved_chunks"])
 
     try:
-        response = await llm.ainvoke(
+        response = await invoke_with_deadline(
+            llm,
             [
                 SystemMessage(content=COMPRESS_CONTEXT_SYSTEM),
                 HumanMessage(content=f"Compress the following retrieved context:\n\n{chunks_text}"),
-            ]
+            ],
+            site="compress_context",
         )
 
         # Build sources map: "[N] source_file:page" for citation reconstruction
@@ -571,6 +580,8 @@ async def compress_context(state: ResearchState, config: Optional[RunnableConfig
             },
         }
 
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.warning("agent_compress_context_failed", error=type(exc).__name__)
         # Preserve existing contract: failure returns {} so the reducer makes no state change.
@@ -683,13 +694,17 @@ async def collect_answer(state: ResearchState, config: Optional[RunnableConfig] 
         }
 
     try:
-        response = await llm.ainvoke(
+        response = await invoke_with_deadline(
+            llm,
             [
                 SystemMessage(content=COLLECT_ANSWER_SYSTEM.format(passages=passages_text)),
                 HumanMessage(content=f"Sub-question: {state['sub_question']}"),
-            ]
+            ],
+            site="collect_answer",
         )
         answer_text = response.content
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.warning("agent_collect_answer_llm_failed", error=type(exc).__name__)
         # Fallback: summarize chunks directly

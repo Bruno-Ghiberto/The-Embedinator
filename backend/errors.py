@@ -21,6 +21,15 @@ class LLMCallError(EmbeddinatorError):
     """LLM inference call failed."""
 
 
+class LLMDeadlineExceeded(LLMCallError, TimeoutError):
+    """An in-flight LLM call exceeded ``llm_call_timeout_seconds`` (BUG-088).
+
+    Also a ``TimeoutError`` so LangGraph's default ``RetryPolicy`` predicate (which
+    excludes the ``OSError`` family) never retries it — a retried deadline would run
+    three times longer than the deadline it exists to enforce.
+    """
+
+
 class EmbeddingError(EmbeddinatorError):
     """Embedding generation failed."""
 

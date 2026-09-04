@@ -456,3 +456,128 @@ class TestToolsNodeBaseExceptionHandling:
             "got empty messages — indicates outer except caught TypeError instead of "
             "the loop handling the BaseException"
         )
+
+
+# ---------------------------------------------------------------------------
+# BUG-088 — the in-flight LLM deadline must reach the caller (RED)
+#
+# Production change that makes these pass: replace each `await ...ainvoke(...)`
+# in research_nodes.py with `await invoke_with_deadline(...)` and place
+# `except LLMDeadlineExceeded: raise` before the node's catch-all.
+# ---------------------------------------------------------------------------
+
+_DEADLINE_TEST_TIMEOUT = 0.05
+_TEST_LEVEL_BUDGET = 2.0
+
+
+class _HangingLLMCall:
+    """Stands in for the object a node calls `ainvoke` on. Never resolves."""
+
+    def __init__(self) -> None:
+        self.cancelled = False
+        self.started = False
+
+    async def ainvoke(self, *_args, **_kwargs):
+        import asyncio
+
+        self.started = True
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+
+
+class TestLLMDeadlinePropagation:
+    """BUG-088: a stalled research LLM call must not outlive the deadline."""
+
+    @pytest.mark.asyncio
+    async def test_maybe_summarize_research_messages_propagates_the_deadline(self, monkeypatch):
+        """research_nodes.py:64 — ENH-008 summarisation must run under the deadline."""
+        import asyncio
+
+        from langchain_core.messages import HumanMessage
+
+        from backend.agent.research_nodes import _maybe_summarize_research_messages
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        messages = [HumanMessage(content=f"m{i}") for i in range(20)]
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(
+                _maybe_summarize_research_messages(messages, hang, MagicMock()),
+                _TEST_LEVEL_BUDGET,
+            )
+
+        assert hang.cancelled, "the in-flight summarisation call must be cancelled"
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_propagates_the_deadline(self, monkeypatch):
+        """research_nodes.py:190 — the orchestrator tool-selection call must run under the deadline.
+
+        The hang is installed on the llm's OWN `ainvoke`, not behind `bind_tools`:
+        `research_nodes.py:164` is `llm_with_tools = llm.bind_tools(tools_list) if tools_list
+        else llm`, so with the empty tool list this suite uses elsewhere `bind_tools` is never
+        called and a `bind_tools`-only mock leaves the bare MagicMock to be awaited — its
+        TypeError is swallowed by the node's fallback and the deadline is never reached.
+        """
+        import asyncio
+
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        llm = MagicMock()
+        llm.ainvoke = hang.ainvoke
+
+        state = _make_state()
+        config = {"configurable": {"llm": llm, "tools": []}}
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(orchestrator(state, config=config), _TEST_LEVEL_BUDGET)
+
+        assert hang.cancelled, "the in-flight orchestrator call must be cancelled"
+
+    @pytest.mark.asyncio
+    async def test_compress_context_propagates_the_deadline(self, monkeypatch):
+        """research_nodes.py:529 — context compression must run under the deadline."""
+        import asyncio
+
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        state = _make_state(retrieved_chunks=[_chunk(chunk_id=f"c{i}") for i in range(3)])
+        config = {"configurable": {"llm": hang}}
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(compress_context(state, config=config), _TEST_LEVEL_BUDGET)
+
+        assert hang.cancelled, "the in-flight compress_context call must be cancelled"
+
+    @pytest.mark.asyncio
+    async def test_collect_answer_propagates_the_deadline(self, monkeypatch):
+        """research_nodes.py:686 — answer synthesis must run under the deadline."""
+        import asyncio
+
+        from backend.config import settings
+        from backend.errors import LLMDeadlineExceeded
+
+        monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+        hang = _HangingLLMCall()
+        state = _make_state(retrieved_chunks=[_chunk(rerank_score=0.8)])
+        config = {"configurable": {"llm": hang}}
+
+        with pytest.raises(LLMDeadlineExceeded):
+            await asyncio.wait_for(collect_answer(state, config=config), _TEST_LEVEL_BUDGET)
+
+        assert hang.cancelled, "the in-flight collect_answer call must be cancelled"
