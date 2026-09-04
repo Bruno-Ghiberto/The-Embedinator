@@ -7,6 +7,7 @@ import operator
 from typing import Annotated, TypedDict
 
 from langgraph.graph.message import add_messages
+from langgraph.managed import RemainingSteps
 
 from backend.agent.schemas import (
     Citation,
@@ -56,6 +57,7 @@ class ConversationState(TypedDict):
     confidence_score: Annotated[int, _keep_last]
     iteration_count: Annotated[int, _keep_last]
     stage_timings: Annotated[dict, _merge_dicts]
+    remaining_steps: RemainingSteps
 
 
 class ResearchState(TypedDict):

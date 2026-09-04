@@ -5,9 +5,31 @@ Edge functions determine which node to execute next based on the current state.
 
 from __future__ import annotations
 
+from langgraph.graph import END
 from langgraph.types import Send
 
 from backend.agent.state import ConversationState, ResearchState
+
+#: Stop a clarification cycle this many supersteps before the recursion limit would trip
+#: (the LangGraph docs' RemainingSteps pattern) — the proactive bound; ``recursion_limit``
+#: in chat.py stays the reactive backstop.
+REMAINING_STEPS_FLOOR = 2
+
+
+def route_after_clarification(state: ConversationState) -> str:
+    """BUG-082: decide where a turn goes after ``request_clarification``.
+
+    The node only calls ``interrupt()`` when ``rewrite_query`` produced a ``query_analysis``.
+    On the direct "ambiguous" route it has none, returns its fallback answer, and the old
+    unconditional edge sent that answer back to ``classify_intent`` to be re-classified until
+    the recursion limit. End the turn when the fallback fired, and end it before the limit on
+    any remaining cycle; otherwise continue to re-classify the user's clarification.
+    """
+    if state.get("query_analysis") is None:
+        return END
+    if state["remaining_steps"] <= REMAINING_STEPS_FLOOR:
+        return END
+    return "classify_intent"
 
 
 def route_intent(state: ConversationState) -> str:

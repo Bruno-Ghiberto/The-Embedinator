@@ -117,3 +117,49 @@ def test_should_clarify_none_query_analysis_returns_false():
     """Defensive guard: None query_analysis must return False, not raise."""
     state = _make_state(query_analysis=None, iteration_count=0)
     assert should_clarify(state) is False
+
+
+# ---------------------------------------------------------------------------
+# BUG-082 — route_after_clarification bounds the ambiguous cycle (RED)
+#
+# Production change that makes these pass: a new `route_after_clarification`
+# in backend/agent/edges.py plus `REMAINING_STEPS_FLOOR = 2`, wired at
+# conversation_graph.py:82 as a conditional edge.
+# ---------------------------------------------------------------------------
+
+
+def test_route_after_clarification_ends_when_the_fallback_fired():
+    """query_analysis is None => request_clarification returned its fallback answer.
+
+    Re-classifying that answer is what loops the turn to the recursion limit.
+    """
+    from langgraph.graph import END
+
+    from backend.agent.edges import route_after_clarification
+
+    state = _make_state(query_analysis=None, remaining_steps=50)
+    assert route_after_clarification(state) == END
+
+
+def test_route_after_clarification_returns_to_classify_on_the_interrupt_path():
+    """A real clarification round (analysis present, budget left) keeps the loop."""
+    from backend.agent.edges import route_after_clarification
+
+    state = _make_state(
+        query_analysis=_make_query_analysis(is_clear=False, clarification_needed="Which API?"),
+        remaining_steps=50,
+    )
+    assert route_after_clarification(state) == "classify_intent"
+
+
+def test_route_after_clarification_ends_at_the_remaining_steps_floor():
+    """The proactive net: end gracefully before LangGraph raises GraphRecursionError."""
+    from langgraph.graph import END
+
+    from backend.agent.edges import REMAINING_STEPS_FLOOR, route_after_clarification
+
+    state = _make_state(
+        query_analysis=_make_query_analysis(is_clear=False, clarification_needed="Which API?"),
+        remaining_steps=REMAINING_STEPS_FLOOR,
+    )
+    assert route_after_clarification(state) == END

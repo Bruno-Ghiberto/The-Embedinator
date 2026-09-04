@@ -170,3 +170,37 @@ async def test_stall_gate_outlived_the_deadline_it_asserts(backend_server, fake_
         "measuring the harness rather than the backend.\n"
         f"  observed: {_signature(result)}"
     )
+
+
+async def test_backend_bounds_the_ambiguous_intent_cycle(backend_server, fake_ollama):
+    """BUG-082 — **Must be RED on unmodified code.**
+
+    ``always_ambiguous`` makes every structured-output call classify the message as
+    ``ambiguous`` with ``is_clear: false``. The direct route (``classify_intent`` ->
+    ``request_clarification`` with ``query_analysis`` still ``None``) takes the node's
+    fallback branch, which returns an answer and is then sent straight back to
+    ``classify_intent`` by the unconditional edge at ``conversation_graph.py:82``.
+    The turn cycles until ``recursion_limit`` 100 and ends with an ``error``
+    (``RECURSION_LIMIT``) — the user's question is never answered.
+
+    After task 2.7 the conditional edge ends the turn on the first pass and the
+    fallback answer reaches the client as ``chunk`` + ``done``.
+    """
+    fake_ollama.set_mode(Mode.ALWAYS_AMBIGUOUS)
+
+    result = await read_ndjson_stream(
+        backend_server.base_url,
+        CHAT_PATH,
+        json=CHAT_BODY,
+        idle_timeout=60.0,
+        total_timeout=120.0,
+    )
+
+    assert result.terminal_type == "done", (
+        "BUG-082: an ambiguous message cycled classify_intent -> request_clarification "
+        "instead of terminating with the fallback answer.\n"
+        f"  observed: {_signature(result)}"
+    )
+    assert result.text().strip(), (
+        f"the fallback answer must reach the client, not just a terminal frame.\n  observed: {_signature(result)}"
+    )
