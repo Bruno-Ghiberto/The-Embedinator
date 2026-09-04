@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { type SWRConfiguration } from "swr";
 import type {
   BackendStatus,
   BackendHealthResponse,
@@ -30,6 +30,21 @@ const POLL_INTERVAL_MS = 5000;
 // no error and the UI shows a stale green for the whole hang. Bounding the request
 // converts that silence into an honest "unreachable".
 const PROBE_TIMEOUT_MS = 3000;
+
+// BUG-124: while `error` is latched SWR suspends `refreshInterval` polling and hands the
+// schedule to `onErrorRetry`, whose default is exponential backoff with jitter
+// (5 s x 2^n, n <= 8). A backend that was down for ~3 min is then re-probed only every
+// 2-8 min, so the banner and composer stay locked long after /api/health is healthy
+// again (measured: 197 s on 2026-09-02). A health poller has one cadence in every state.
+const retryAtPollInterval: NonNullable<SWRConfiguration["onErrorRetry"]> = (
+  _err,
+  _key,
+  _config,
+  revalidate,
+  opts,
+) => {
+  setTimeout(() => revalidate(opts), POLL_INTERVAL_MS);
+};
 
 async function fetchHealth(url: string): Promise<BackendHealthResponse> {
   const controller = new AbortController();
@@ -61,7 +76,11 @@ export function BackendStatusProvider({
   const { data, error } = useSWR<BackendHealthResponse>(
     "/api/health",
     fetchHealth,
-    { refreshInterval: POLL_INTERVAL_MS, revalidateOnFocus: false },
+    {
+      refreshInterval: POLL_INTERVAL_MS,
+      revalidateOnFocus: false,
+      onErrorRetry: retryAtPollInterval,
+    },
   );
 
   const state = useMemo((): BackendStatus => {
