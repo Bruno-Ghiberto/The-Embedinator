@@ -1,0 +1,5 @@
+2026-09-04T12:55:25.503Z probe_start outage=190s
+2026-09-04T12:55:26.024Z backend_stopped
+2026-09-04T12:58:36.026Z docker_start_issued
+2026-09-04T12:58:46.415Z backend_healthy
+2026-09-04T12:58:46.416Z probe_docker_half_done

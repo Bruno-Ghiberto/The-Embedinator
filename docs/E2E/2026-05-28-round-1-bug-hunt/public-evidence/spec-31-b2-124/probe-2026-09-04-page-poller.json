@@ -1,0 +1,11 @@
+{
+  "installedAt": "2026-09-04T12:57:42.942Z",
+  "bannerAtInstall": "Connecting to backend...",
+  "composerDisabledAtInstall": true,
+  "connectedAt": "2026-09-04T12:58:42.442Z",
+  "composerEnabledAt": "2026-09-04T12:58:42.442Z",
+  "readAt": "2026-09-04T12:58:49.420Z",
+  "banner": "Backend connected",
+  "composerDisabled": false,
+  "method": "100 ms setInterval installed via Playwright page.evaluate on http://localhost:3000/chat; stamps the first moment [role=status] contains 'Backend connected' and the first moment the composer textarea is enabled (same wall clock as the docker stamps: same host)."
+}

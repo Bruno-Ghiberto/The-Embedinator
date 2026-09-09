@@ -5,11 +5,19 @@
 > see [`../BUG-123-PROBE-VERDICT.md`](../BUG-123-PROBE-VERDICT.md). Triage moved
 > `v1.1-defer` → `v1.0-fix`; scope 38 → 39; design decision D3 **Branch T** activates.
 >
-> **STATUS: OPEN — confirmation is not a fix.** Batch 1 established the mechanism and nothing
-> more. The fix is spec-31 **task 2.4** (Batch 2): a client-side idle watchdog in
-> `frontend/hooks/useStreamChat.ts`, bound by
-> `STREAM_IDLE_TIMEOUT_MS < experimental.proxyTimeout`. This record must NOT be counted as
-> closed in the Phase 9.3 sweep until that lands.
+> **STATUS: OPEN — the symptom is bounded, the proxy is not.** Batch 1 established the mechanism
+> and nothing more. Task **2.4** shipped in `8b7d640` (Batch 2, unit 1): the client-side idle
+> watchdog in `frontend/hooks/useStreamChat.ts`, `STREAM_IDLE_TIMEOUT_MS = 120_000`, strictly
+> inside `experimental.proxyTimeout`. On 2026-09-02 the live stack carrying that image terminated
+> a dead proxied stream with a visible error state and a Retry at **+129 s** after
+> `docker kill embedinator-backend`
+> ([`../public-evidence/spec-31-b2-gc2/browser-probe-2026-09-02.md`](../public-evidence/spec-31-b2-gc2/browser-probe-2026-09-02.md)).
+> That bounds what the user experiences; it does not fix this record. The proxy still never
+> delivers EOF, so the transport-level defect is untouched and a reader without a watchdog would
+> still hang. Formal closure waits for the Batch 2 exit gate's re-probe on the final images
+> (LAUNCH §7): proxied `:3000` must reach a terminal event well inside the 120 s budget instead of
+> `still_open`. This record must NOT be counted as closed in the Phase 9.3 sweep until that
+> re-probe is recorded.
 
 - **Severity**: MAJOR
 - **Layer**: Infrastructure

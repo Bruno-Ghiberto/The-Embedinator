@@ -1,0 +1,15 @@
+   0.000s  + 0.000s  session
+   0.118s  + 0.118s  status
+   1.060s  + 0.942s  status
+  52.171s  +51.110s  status
+  53.568s  + 1.397s  status
+  54.597s  + 1.029s  status
+  54.649s  + 0.053s  status
+  55.736s  + 1.087s  status
+  55.777s  + 0.041s  chunk
+  55.777s  + 0.000s  confidence
+  55.778s  + 0.001s  done
+
+frames=11  MAX GAP=51.110s (before 'status')  TOTAL=55.779s  LAST='done'
+OLD 30s CUT EXERCISED: YES
+VERDICT: TERMINAL REACHED — PASS

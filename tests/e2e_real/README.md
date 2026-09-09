@@ -68,9 +68,7 @@ and a green suite is not evidence for any of them.
 
 ### 1. It does not gate the proxy / upload class
 
-BUG-054 and BUG-040 are **one defect**, and it is a **size cap**, not a timeout.
-
-Measured on the live Docker stack, 2026-08-04:
+**Uploads are cut by a size cap.** Measured on the live Docker stack, 2026-08-04:
 
 | Size | Path | Duration | Result |
 |---|---|---|---|
@@ -78,16 +76,33 @@ Measured on the live Docker stack, 2026-08-04:
 | 12.6 MB | direct `:8000` | 41.0s | 202 |
 | **8.0 MB** | **via proxy `:3000`** | **39.0s** | **202** |
 
-The third row is the discriminator: a **39-second proxied request succeeded**. There is no
-~30s idle timeout. The trigger is Next's `proxyClientMaxBodySize` 10 MB default; the original
-`30028 ms` was simply how long a 26.1 MB transfer took before hitting the cap.
+The third row is the discriminator: a **39-second proxied request succeeded**, so uploads were
+never being cut by a clock. The trigger is Next's `proxyClientMaxBodySize` 10 MiB default; the
+original `30028 ms` was simply how long a 26.1 MB transfer took before hitting the cap.
 
-The earlier exit gate asserted a 30s proxy cut. It was deleted rather than adjusted, because a
-gate built on a refuted premise is worse than no gate.
+**But `proxyTimeout` is real, and this section used to deny it.** It is a socket-**inactivity**
+timer on the proxied request, default `30000` ms, and it only accepts a finite number (`0` falls
+back to 30000, `null` is stripped by the config merge). An upload keeps bytes flowing and can
+never go idle, which is why the 39-second row above is not evidence against it. A chat waiting for
+a cold model's first frame sends nothing at all and trips it: on the live stack on 2026-08-31 a
+cold proxied chat hung for more than two minutes with no terminal frame while Ollama's own log put
+the first LLM call at 31.1s (recorded in the `8b7d640` commit body; the raw capture was not
+retained — the in-repo capture is the forced 51.1s gap in
+`docs/E2E/2026-05-28-round-1-bug-hunt/public-evidence/spec-31-b2-gc2/pause-gap.log`, which reached
+`done` at 55.8s on the fixed configuration). **BUG-054 needed both keys** — `proxyTimeout` for the chat half and
+`proxyClientMaxBodySize` for the upload half — and both shipped in `8b7d640`. BUG-054 and BUG-040
+are neighbours in the same proxy configuration, not one defect.
 
-- **Regression cover**: task 2.2 — *import* `next.config.ts` and assert
-  `proxyClientMaxBodySize === 104_857_600`. Never regex the file.
-- **Behavioural evidence**: the Docker stack, plus the Phase 8.2 operator transcript.
+The earlier exit gate asserted a 30s proxy cut *on uploads*. It was deleted rather than adjusted,
+because a gate built on a refuted premise is worse than no gate — and because this harness cannot
+gate the surviving half either: its proxy fixture is `next dev`, which applies no idle cut at all.
+Only the standalone/Docker path exhibits the timer.
+
+- **Regression cover**: task 2.2 — *import* `next.config.ts` and assert both keys:
+  `proxyClientMaxBodySize === 104_857_600` exactly, and `proxyTimeout` a finite number of at least
+  300 000 ms with `STREAM_IDLE_TIMEOUT_MS` strictly inside it. Never regex the file.
+- **Behavioural evidence**: the Docker stack, plus the Phase 8.2 operator transcript. A green run
+  of this suite is not GC-2 evidence; the live cold retest is.
 
 ### 2. It does not gate the client-side stream class
 
