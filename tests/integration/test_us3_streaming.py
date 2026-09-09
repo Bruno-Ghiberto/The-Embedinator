@@ -75,8 +75,25 @@ def _fake_checkpoint_conn():
 
 
 @pytest.fixture
-def streaming_app(tmp_path):
-    """Create a test app configured for streaming tests."""
+def streaming_app(tmp_path, monkeypatch):
+    """Create a test app configured for streaming tests.
+
+    Self-contained on purpose: the lifespan builds TWO Qdrant clients — the
+    `QdrantClientWrapper` patched below, and the `QdrantStorage` that
+    `backend/main.py` imports inside the lifespan function (main.py:536-540)
+    and exposes as `app.state.qdrant_storage`, which is the one
+    `POST /api/collections` reaches (backend/api/collections.py:45,81).
+    Patching only the first sends the collection created here to whatever
+    Qdrant answers on `settings.qdrant_port`: green on a developer box with the
+    dev stack up, a setup error in CI where there is none, and an empty
+    leftover collection in the live store either way. `settings.sqlite_path` is
+    redirected into `tmp_path` for the same reason — the basename must stay
+    `embedinator.db`, since main.py:560 derives the checkpoint path from it.
+    """
+    from backend.config import settings
+
+    monkeypatch.setattr(settings, "sqlite_path", str(tmp_path / "embedinator.db"))
+
     mock_checkpointer = MemorySaver()
     mock_checkpointer.setup = AsyncMock()
     mock_checkpointer.conn = _fake_checkpoint_conn()
@@ -98,6 +115,12 @@ def streaming_app(tmp_path):
         ]
     )
 
+    # The second Qdrant path — see the fixture docstring.
+    mock_storage = AsyncMock()
+    mock_storage.create_collection = AsyncMock()
+    mock_storage.delete_collection = AsyncMock()
+    mock_storage.close = AsyncMock()
+
     mock_embed = AsyncMock()
     mock_embed.embed_single = AsyncMock(return_value=[0.1] * 768)
 
@@ -117,6 +140,7 @@ def streaming_app(tmp_path):
 
     with (
         patch("backend.main.QdrantClientWrapper", return_value=mock_qdrant),
+        patch("backend.storage.qdrant_client.QdrantStorage", return_value=mock_storage),
         patch("backend.main.ProviderRegistry", return_value=mock_registry),
         patch("langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver") as mock_saver_cls,
     ):
