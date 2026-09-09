@@ -1,8 +1,8 @@
 """The backend NDJSON wire contract — what the Python harness can honestly gate.
 
 This file replaces the original Batch 0 exit gate, which asserted that the Next
-proxy cuts an idle stream at 30s. That premise was **falsified** on 2026-08-04 by
-a three-arm experiment on the live Docker stack:
+proxy cuts an idle **upload** at 30s. That premise was **falsified** on 2026-08-04
+by a three-arm experiment on the live Docker stack:
 
 ===========  =================  ==========  ======================================
 Size         Path               Duration    Result
@@ -12,16 +12,30 @@ Size         Path               Duration    Result
 **8.0 MB**   **via proxy**        **39.0s** **202**
 ===========  =================  ==========  ======================================
 
-The third arm is the discriminator: a **39-second** proxied request *succeeded*.
-There is no ~30s idle timeout. The trigger is **size** — Next's
-``proxyClientMaxBodySize`` 10 MB default. BUG-054 and BUG-040 are one defect, and
-the fix is ``proxyClientMaxBodySize``, not ``proxyTimeout``.
+The third arm is the discriminator: a **39-second** proxied request *succeeded*,
+so uploads were never being cut by a clock. Their trigger is **size** — Next's
+``proxyClientMaxBodySize`` 10 MiB default.
 
-Consequently the proxy-timeout assertions were deleted rather than adjusted: they
-encoded a hypothesis the evidence refutes, and a gate built on a refuted premise
-is worse than no gate. BUG-054's regression cover is task 2.2's static
-``next.config.ts`` import assertion; its *behavioural* evidence is the Docker
-stack plus the Phase 8.2 operator transcript.
+``proxyTimeout`` is nevertheless real, and an earlier revision of this docstring
+denied it. It is a socket-**inactivity** timer on the proxied request, default
+30000 ms. An upload keeps bytes flowing and can never go idle, which is why the
+39-second arm above is not evidence against it. A chat waiting for a cold model's
+first frame sends nothing at all and trips it: on the live stack on 2026-08-31 a
+cold proxied chat hung for more than two minutes with no terminal frame while
+Ollama's own log put the first LLM call at 31.1s (recorded in the ``8b7d640``
+commit body; the raw capture was not retained — the in-repo capture is the forced
+51.1s gap in
+``docs/E2E/2026-05-28-round-1-bug-hunt/public-evidence/spec-31-b2-gc2/pause-gap.log``,
+which reached ``done`` at 55.8s on the fixed configuration). BUG-054 needed
+**both** keys and BUG-040 needed the size one, shipped together in ``8b7d640``.
+
+The proxy-timeout assertions were still deleted rather than adjusted: they
+encoded the refuted upload premise, and this harness cannot gate the surviving
+chat half either — its proxy fixture is ``next dev``, which applies no idle cut
+at all, so only the standalone/Docker path exhibits the timer. BUG-054's
+regression cover is task 2.2's static ``next.config.ts`` import assertion (both
+keys); its *behavioural* evidence is the Docker stack plus the Phase 8.2
+operator transcript.
 
 What survives here is the contract this harness genuinely owns: **a backend
 stream that ends must say how it ended, and a backend stream that cannot end must
