@@ -148,3 +148,8 @@ abort condition matters: a user Stop must stay silent, not raise an error the us
 - Starting a New Chat mid-stream never aborts the live stream, so the orphan's terminal frame can
   still clear `isStreaming` for a newer turn. Pre-existing, not introduced here; parked for Batch 5
   (tasks 5.2 and 5.4).
+- When partial content has already streamed, `STREAM_STALLED` is never shown as text:
+  `useStreamChat.ts:59` writes `content: msg.content || message`, so the stall sentence replaces the
+  bubble only when nothing arrived. Observed 2026-09-09 at the Batch 2 exit gate — the terminal
+  state is still carried by the error styling, the `Retry` control and `errorCode`, but the reason
+  the answer stopped is not stated. UX follow-up.

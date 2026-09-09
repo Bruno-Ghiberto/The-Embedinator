@@ -1,0 +1,6 @@
+2026-09-09T13:32:12.827Z probe_start hold=200s
+2026-09-09T13:32:13.110Z backend_killed
+2026-09-09T13:35:33.112Z docker_start_issued
+2026-09-09T13:35:33.299Z backend_started
+2026-09-09T13:35:43.578Z backend_healthy
+2026-09-09T13:35:43.579Z probe_docker_half_done
