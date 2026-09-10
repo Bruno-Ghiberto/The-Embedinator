@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     max_iterations: int = 3  # spec-26: FR-005 iter2 cap research loop — smoke bench (aa9c875) showed orchestrator p50 = 14.6s across 4 calls (58% of total latency); cap at 3 prevents iteration explosion. See docs/benchmarks/aa9c875-smoke-instrumented.json.
     max_tool_calls: int = 8
     max_loop_seconds: int = 300  # BUG-008: wall-clock deadline for research loop
+    # BUG-088: the only bound that can interrupt an in-flight LLM await. Must stay ABOVE the
+    # measured cold first call (31.1 s, GC-2) and BELOW the client watchdog
+    # (frontend/hooks/useStreamChat.ts STREAM_IDLE_TIMEOUT_MS = 120 s) so the honest error
+    # reaches the user before the client gives up, and below the harness budget (180 s).
+    llm_call_timeout_seconds: float = 90.0
     confidence_threshold: int = 60  # 0–100 scale
     compression_threshold: float = 0.75
     meta_reasoning_max_attempts: int = 2

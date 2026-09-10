@@ -1,4 +1,4 @@
-.PHONY: help setup build-rust dev-infra dev-backend dev-frontend dev up down pull-models test test-cov test-frontend clean clean-all
+.PHONY: help setup build-rust dev-infra dev-backend dev-frontend dev up down pull-models test test-cov test-frontend clean clean-all check
 
 help:  ## Show all available targets with descriptions
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -48,3 +48,6 @@ clean:  ## Remove runtime data (data/ directory contents)
 clean-all: down  ## Full teardown: stop containers, remove volumes and build outputs
 	docker compose down -v
 	rm -rf data/ ingestion-worker/target/ frontend/.next/
+
+check:  ## Run every deterministic gate (pre-commit, typecheck, lint, vitest)
+	bash scripts/check-all.sh

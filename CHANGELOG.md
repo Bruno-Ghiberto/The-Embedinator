@@ -96,6 +96,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Confidence scoring upgraded from simple relevance average to 5-signal evidence-based computation
 - Docker Compose healthchecks now probe `/api/health/live` instead of `/api/health`. The latter is a readiness probe gated on model availability, so a missing model would hold the backend container unhealthy and prevent the frontend from starting at all — leaving no UI instead of a UI reporting the problem
 - Backend status polling uses a single 5s interval in every state, replacing an adaptive schedule that slowed to 30s while healthy
+- The Next.js proxy's idle timeout (`proxyTimeout`) is raised from its 30s default to 600s, and its request body cap (`proxyClientMaxBodySize`) from 10 MiB to 100 MiB. `proxyTimeout` is a socket-inactivity timer, not a total-duration one: a cold model taking ~31s to produce its first token is 31s of silence on the wire, which the default cut off. The body cap now matches the backend's upload limit (BUG-054, BUG-040)
+- Upload size limit in the UI raised from 50 MB to 100 MB, matching what the backend has always enforced (BUG-040)
+- The chat client now watches a stream for silence (`STREAM_IDLE_TIMEOUT_MS`, 120s). A stream that goes quiet ends with an error message and a Retry button instead of spinning forever, using the new client error codes `STREAM_STALLED` and `STREAM_TRUNCATED`; Retry is disabled while a turn is streaming, so one turn has one owner (BUG-074, BUG-119)
+- Every in-flight LLM call on a chat turn is bounded by a wall-clock deadline via the new `llm_call_timeout_seconds` setting (default 90s, environment variable `LLM_CALL_TIMEOUT_SECONDS`). On expiry the turn ends with an NDJSON `error` frame carrying the new code `LLM_TIMEOUT` (BUG-088)
+- Health polling keeps its 5s cadence while the backend is unreachable. Recovery is no longer governed by SWR's exponential backoff, which grew with the length of the outage (BUG-124)
+- A message the intent classifier scores as ambiguous now ends the turn with an answer instead of sending its own fallback answer back to be re-classified (BUG-082)
 
 ### Fixed
 
@@ -103,10 +109,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Aggregate health no longer reports `healthy` while a required Ollama model is missing, so a system that cannot actually serve a query no longer advertises itself as ready (BUG-026)
 - Model availability checks now normalize Ollama's `:latest` tag suffix. A correctly installed default stack was previously reported as missing its embedding model on every start (BUG-025)
 - The status banner now reflects backend degradation within one ~5s polling cycle instead of up to 30s. Health requests are also bounded by a 3s timeout, so a hung backend can no longer hold the UI on stale green indefinitely. Because backend status also gates the chat input, this previously allowed users to submit into a backend that could not serve them (BUG-034)
+- The UI now leaves its unreachable state within one 5s poll interval of the backend coming back. Recovery was previously scheduled by SWR's exponential backoff, so the longer the outage, the longer users stayed locked out of a backend that was already healthy — 197s measured on a 190s outage, against a filed estimate of 31-60s (BUG-124)
 
 **Observability**
 - The trace-detail stage-timings chart now plots every recorded stage. Research orchestrator and tool timings were stored as bare numbers and rendered as empty bars, so on a 26s turn the chart showed a 1.9s stage as dominant while hiding the real 18.1s bottleneck (BUG-102)
 - Query Analytics latency and confidence distributions are now computed across all queries via `/api/stats` instead of re-slicing the visible 20-row page. The panel previously read high-confidence while the true average across all traces was low, and paging the table silently changed the "analytics" (BUG-112)
+
+**Streaming & deadlines**
+- A chat stream that ends without a terminal event no longer leaves the UI streaming forever. Both halves of the defect are fixed: a stream that goes silent is ended by a client-side idle watchdog after 120s, and a stream whose connection closes without a `done` or `error` event now reports one. Both were needed, because the proxy does not deliver a connection close to the browser at all (BUG-074)
+- A permanently dead conversation is now visibly distinct from one that is still being worked on, and no longer accepts further input through a Retry button while a turn is in flight. The health banner recovering after an outage no longer implies that an in-flight conversation survived it (BUG-119)
+- A single in-flight LLM call can no longer run unbounded. Neither the provider's own request timeout nor the research loop's wall-clock cap could interrupt a call already awaiting a frozen socket; one such call was observed running 553s. The turn now ends at the deadline with an error the user can act on, and releases its concurrency slot (BUG-088)
+- An ambiguous message no longer loops between intent classification and clarification until the request dies. The turn ends with the clarification answer, and a step bound keeps any remaining cycle away from the graph's recursion limit (BUG-082)
+- A chat stream whose backend dies mid-answer now ends in the browser instead of spinning indefinitely. The Next.js proxy's behaviour is unchanged — it still never signals the browser that the connection is gone — so it is the client-side idle watchdog that ends the dead stream, 120s after the last piece of the answer arrived, leaving an error state and a Retry (BUG-123)
+
+**Uploads & proxy**
+- Chat requests are no longer cut off after ~30s of silence by the Next.js proxy. The first chat after startup — when the model is still loading — waits ~31s for its first token and was being killed by the proxy's default idle timeout, with no error that named the cause (BUG-054)
+- The three size limits that disagreed (UI 50 MB, proxy 10 MiB, backend 100 MB) now agree at 100 MB, so the UI no longer rejects a file the backend accepts (BUG-040)
 
 ---
 

@@ -12,9 +12,11 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 from typing import Optional
 
+from backend.agent.llm_deadline import invoke_with_deadline
 from backend.agent.prompts import GENERATE_ALT_QUERIES_SYSTEM, REPORT_UNCERTAINTY_SYSTEM
 from backend.agent.state import MetaReasoningState
 from backend.config import settings
+from backend.errors import LLMDeadlineExceeded
 
 logger = structlog.get_logger().bind(component=__name__)
 
@@ -64,11 +66,13 @@ async def generate_alternative_queries(
             sub_question=sub_question,
             chunk_summaries=chunk_summaries,
         )
-        response = await llm.ainvoke(
+        response = await invoke_with_deadline(
+            llm,
             [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"Generate 3 alternative queries for: {sub_question}"},
-            ]
+            ],
+            site="generate_alternative_queries",
         )
 
         # Parse: expect numbered list or newline-separated
@@ -86,6 +90,8 @@ async def generate_alternative_queries(
         log.info("agent_alt_queries_generated", count=len(alternatives))
         return {"alternative_queries": alternatives}
 
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.warning("agent_alt_queries_failed", error=type(exc).__name__)
         return {"alternative_queries": [sub_question]}
@@ -363,17 +369,21 @@ async def report_uncertainty(
         assert config is not None
         llm = config["configurable"]["llm"]
         prompt = REPORT_UNCERTAINTY_SYSTEM
-        response = await llm.ainvoke(
+        response = await invoke_with_deadline(
+            llm,
             [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": context},
-            ]
+            ],
+            site="report_uncertainty",
         )
         answer = response.content.strip()
         uncertainty_reason = (
             f"Mean relevance {mean_score:.3f} below threshold after {attempt} "
             f"recovery attempt(s). Collections: {', '.join(collections_searched)}."
         )
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         # Fallback: static template without LLM
         log.warning("agent_uncertainty_llm_failed", error=type(exc).__name__)

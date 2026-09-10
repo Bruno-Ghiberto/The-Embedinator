@@ -596,3 +596,230 @@ def test_request_clarification_appends_human_message():
     assert last.content == user_response
     # Original message preserved plus new HumanMessage
     assert len(new_messages) == 2
+
+
+# ---------------------------------------------------------------------------
+# BUG-088 — the in-flight LLM deadline must reach the caller (RED)
+#
+# Every test below drives a node whose LLM never answers and asserts the node
+# propagates LLMDeadlineExceeded instead of hanging or swallowing it into a
+# fallback. On the unmodified tree each fails either with the test-level
+# asyncio.TimeoutError (the node hangs forever) or with a returned fallback dict.
+#
+# Production change that makes them pass: replace each `await ...ainvoke(...)`
+# with `await invoke_with_deadline(...)` and place `except LLMDeadlineExceeded:
+# raise` before the node's catch-all.
+# ---------------------------------------------------------------------------
+
+_DEADLINE_TEST_TIMEOUT = 0.05
+_TEST_LEVEL_BUDGET = 2.0
+
+
+class _HangingLLMCall:
+    """Stands in for the object a node calls `ainvoke` on. Never resolves."""
+
+    def __init__(self) -> None:
+        self.cancelled = False
+        self.started = False
+
+    async def ainvoke(self, *_args, **_kwargs):
+        self.started = True
+        try:
+            await __import__("asyncio").Event().wait()
+        except __import__("asyncio").CancelledError:
+            self.cancelled = True
+            raise
+
+
+def _hanging_structured_llm(hang: _HangingLLMCall) -> MagicMock:
+    """An llm whose `with_structured_output(...)` returns the hanging call."""
+    llm = MagicMock()
+    llm.with_structured_output = MagicMock(return_value=hang)
+    return llm
+
+
+@pytest.mark.asyncio
+async def test_classify_intent_propagates_the_llm_deadline(monkeypatch):
+    """nodes.py:215 — structured_llm.ainvoke must run under the deadline."""
+    import asyncio
+
+    from backend.config import settings
+    from backend.errors import LLMDeadlineExceeded
+
+    monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+    hang = _HangingLLMCall()
+    state = _make_state(messages=[HumanMessage(content="Explain the privacy policy")])
+    config = {"configurable": {"llm": _hanging_structured_llm(hang)}}
+
+    with pytest.raises(LLMDeadlineExceeded):
+        await asyncio.wait_for(classify_intent(state, config=config), _TEST_LEVEL_BUDGET)
+
+    assert hang.cancelled, "the in-flight classify_intent call must be cancelled"
+
+
+@pytest.mark.asyncio
+async def test_rewrite_query_first_attempt_propagates_the_llm_deadline(monkeypatch):
+    """nodes.py:291 — the first rewrite attempt must run under the deadline."""
+    import asyncio
+
+    from backend.config import settings
+    from backend.errors import LLMDeadlineExceeded
+
+    monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+    hang = _HangingLLMCall()
+    state = _make_state(messages=[HumanMessage(content="Tell me about the docs")])
+    config = {"configurable": {"llm": _hanging_structured_llm(hang)}}
+
+    with pytest.raises(LLMDeadlineExceeded):
+        await asyncio.wait_for(rewrite_query(state, config=config), _TEST_LEVEL_BUDGET)
+
+    assert hang.cancelled, "the in-flight rewrite_query call must be cancelled"
+
+
+@pytest.mark.asyncio
+async def test_rewrite_query_retry_attempt_propagates_the_llm_deadline(monkeypatch):
+    """nodes.py:315 — the retry attempt must run under the deadline too.
+
+    The first attempt fails with a real ValidationError (the documented retry
+    trigger); the retry then hangs and must surface as LLMDeadlineExceeded
+    rather than falling through to the hardcoded fallback QueryAnalysis.
+    """
+    import asyncio
+
+    from pydantic import ValidationError as _PydanticValidationError
+
+    from backend.config import settings
+    from backend.errors import LLMDeadlineExceeded
+
+    monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+    try:
+        QueryAnalysis.model_validate({"is_clear": "definitely not a bool"})
+        raise AssertionError("expected a ValidationError from the malformed payload")
+    except _PydanticValidationError as exc:
+        validation_error = exc
+
+    hang = _HangingLLMCall()
+    calls = {"n": 0}
+
+    async def _fail_then_hang(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise validation_error
+        return await hang.ainvoke(*args, **kwargs)
+
+    structured = MagicMock()
+    structured.ainvoke = _fail_then_hang
+    llm = MagicMock()
+    llm.with_structured_output = MagicMock(return_value=structured)
+
+    state = _make_state(messages=[HumanMessage(content="Tell me about the docs")])
+
+    with pytest.raises(LLMDeadlineExceeded):
+        await asyncio.wait_for(rewrite_query(state, config={"configurable": {"llm": llm}}), _TEST_LEVEL_BUDGET)
+
+    assert calls["n"] == 2, "the retry attempt must have been reached"
+    assert hang.cancelled, "the in-flight retry call must be cancelled"
+
+
+@pytest.mark.asyncio
+async def test_verify_groundedness_degrades_on_a_stalled_llm_deadline(monkeypatch):
+    """nodes.py:543 — Ruling R17: a post-answer deadline DEGRADES, it does not fail the turn.
+
+    `verify_groundedness` runs after `final_response` exists. Losing a housekeeping
+    check is a far smaller harm than discarding the answer the user waited for, so the
+    node keeps no `except LLMDeadlineExceeded: raise` clause: the deadline still fires
+    (the call is wrapped), and the node's existing catch-all handles it like any other
+    infrastructure failure — including incrementing the inference breaker, so repeated
+    stalls still open the circuit.
+    """
+    import asyncio
+
+    from backend.agent import nodes as nodes_module
+    from backend.agent.schemas import RetrievedChunk
+    from backend.config import settings
+
+    monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+    monkeypatch.setattr(nodes_module.settings, "groundedness_check_enabled", True)
+    # The module-level inference breaker is global state; isolate it so this test
+    # measures the node and never leaks a failure count into others. The failure
+    # recorder is a counting spy, not a no-op: the breaker increment is part of the
+    # contract this test pins.
+    failures = {"n": 0}
+
+    def _spy_record_failure():
+        failures["n"] += 1
+
+    monkeypatch.setattr(nodes_module, "_check_inference_circuit", lambda: None)
+    monkeypatch.setattr(nodes_module, "_record_inference_failure", _spy_record_failure)
+    monkeypatch.setattr(nodes_module, "_record_inference_success", lambda: None)
+
+    chunk = RetrievedChunk(
+        chunk_id="c1",
+        text="Evidence supporting the claim.",
+        source_file="test.md",
+        breadcrumb="sec1",
+        parent_id="p1",
+        collection="col1",
+        dense_score=0.8,
+        sparse_score=0.3,
+        rerank_score=0.9,
+    )
+    sub_answer = SubAnswer(
+        sub_question="What is X?",
+        answer="X is Y.",
+        citations=[_make_citation()],
+        chunks=[chunk],
+        confidence_score=80,
+    )
+    state = _make_state(final_response="X is Y.", sub_answers=[sub_answer])
+
+    hang = _HangingLLMCall()
+    config = {"configurable": {"llm": _hanging_structured_llm(hang)}}
+
+    result = await asyncio.wait_for(nodes_module.verify_groundedness(state, config=config), _TEST_LEVEL_BUDGET)
+
+    # Exactly the shape nodes.py's `except Exception` branch returns (:617-630).
+    assert set(result.keys()) == {"groundedness_result", "stage_timings"}, result
+    assert result["groundedness_result"] is None
+    verification = result["stage_timings"]["grounded_verification"]
+    assert verification["failed"] is True, verification
+    assert isinstance(verification["duration_ms"], float)
+
+    assert hang.cancelled, "the in-flight verify_groundedness call must be cancelled"
+    assert failures["n"] == 1, (
+        "a deadline is an inference failure — the breaker must be incremented so "
+        f"repeated stalls still open the circuit (recorded {failures['n']} times)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_summarize_history_degrades_on_a_stalled_llm_deadline(monkeypatch):
+    """nodes.py:765 — Ruling R17: the other post-answer site degrades too.
+
+    History compression is housekeeping that runs after the answer exists. On a
+    stalled call the node returns `{}` from its existing catch-all (:800-802) — the
+    messages are simply left uncompressed — instead of destroying the turn.
+    """
+    import asyncio
+
+    from backend.config import settings
+
+    monkeypatch.setattr(settings, "llm_call_timeout_seconds", _DEADLINE_TEST_TIMEOUT, raising=False)
+
+    messages = [
+        HumanMessage(content="Message 1"),
+        AIMessage(content="Response 1"),
+        HumanMessage(content="Message 2"),
+        AIMessage(content="Response 2"),
+    ]
+    state = _make_state(messages=messages, llm_model="qwen2.5:7b")
+    hang = _HangingLLMCall()
+
+    with patch("langchain_core.messages.utils.count_tokens_approximately", return_value=30_000):
+        result = await asyncio.wait_for(summarize_history(state, llm=hang), _TEST_LEVEL_BUDGET)
+
+    assert result == {}, "the catch-all returns {} — the messages are left uncompressed"
+    assert hang.cancelled, "the in-flight summarize_history call must be cancelled"

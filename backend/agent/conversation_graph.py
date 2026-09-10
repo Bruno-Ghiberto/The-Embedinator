@@ -14,7 +14,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
-from backend.agent.edges import route_after_rewrite, route_intent
+from backend.agent.edges import route_after_clarification, route_after_rewrite, route_intent
 from backend.agent.nodes import (
     aggregate_answers,
     classify_intent,
@@ -79,7 +79,7 @@ def build_conversation_graph(
         },
     )
     graph.add_edge("handle_collection_mgmt", END)
-    graph.add_edge("request_clarification", "classify_intent")
+    graph.add_conditional_edges("request_clarification", route_after_clarification, ["classify_intent", END])
     graph.add_conditional_edges("rewrite_query", route_after_rewrite, ["request_clarification", "research"])
     graph.add_edge("research", "aggregate_answers")
     graph.add_edge("aggregate_answers", "verify_groundedness")

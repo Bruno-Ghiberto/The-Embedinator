@@ -49,8 +49,13 @@ class TestErrorHierarchy:
         exception_classes = [
             cls for _, cls in members if issubclass(cls, Exception) and cls.__module__ == errors_module.__name__
         ]
-        assert len(exception_classes) == 12, (
-            f"Expected 12 exception classes (1 base + 11 subclasses), "
+        # spec-31 unit 4 / BUG-088: LLMDeadlineExceeded(LLMCallError, TimeoutError).
+        # It is deliberately NOT in REQUIRED_SUBCLASS_NAMES — that set drives
+        # test_all_subclasses_extend_embedinator_error_directly, and this class extends
+        # LLMCallError (plus TimeoutError, so LangGraph's retry predicate skips it),
+        # not EmbeddinatorError directly.
+        assert len(exception_classes) == 13, (
+            f"Expected 13 exception classes (1 base + 11 direct subclasses + LLMDeadlineExceeded), "
             f"found {len(exception_classes)}: {[c.__name__ for c in exception_classes]}"
         )
 

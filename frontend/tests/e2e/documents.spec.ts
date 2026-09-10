@@ -2,7 +2,7 @@
  * T045 — Documents page E2E tests
  *
  * Covers:
- *  - File > 50 MB: size error shown, NO ingest API request made
+ *  - File > 100 MB: size error shown, NO ingest API request made
  *  - .exe file: extension error shown, NO ingest API request made
  *  - Valid PDF upload → progress shown → "Completed" badge
  *
@@ -38,7 +38,7 @@ test.describe("Documents page — file upload validation and progress", () => {
     await page.waitForSelector('[aria-label="File upload drop zone"]');
   });
 
-  test(">50 MB file shows size error without calling the ingest API", async ({
+  test(">100 MB file shows size error without calling the ingest API", async ({
     page,
   }) => {
     let ingestCalled = false;
@@ -50,20 +50,20 @@ test.describe("Documents page — file upload validation and progress", () => {
       },
     );
 
-    // 50 MB + 1 byte exceeds UPLOAD_CONSTRAINTS.maxSizeBytes (50 * 1024 * 1024).
+    // 100 MB + 1 byte exceeds UPLOAD_CONSTRAINTS.maxSizeBytes (100 * 1024 * 1024).
     // Playwright's setInputFiles rejects in-memory buffers > 50 MB, so write
     // the oversized file to disk and pass the path instead.
     const tmpPath = path.join(os.tmpdir(), `large-e2e-${Date.now()}.pdf`);
-    fs.writeFileSync(tmpPath, Buffer.alloc(50 * 1024 * 1024 + 1));
+    fs.writeFileSync(tmpPath, Buffer.alloc(100 * 1024 * 1024 + 1));
     try {
       await page.locator('input[type="file"]').setInputFiles(tmpPath);
     } finally {
       fs.unlinkSync(tmpPath);
     }
 
-    // Error message contains "50 MB"
+    // Error message contains "100 MB"
     await expect(page.locator('p[role="alert"]')).toBeVisible({ timeout: 3000 });
-    await expect(page.locator('p[role="alert"]')).toContainText("50 MB");
+    await expect(page.locator('p[role="alert"]')).toContainText("100 MB");
 
     // No network call was made to the ingest endpoint
     expect(ingestCalled).toBe(false);

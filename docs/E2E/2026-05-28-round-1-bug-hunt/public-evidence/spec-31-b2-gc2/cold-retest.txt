@@ -1,0 +1,49 @@
+## 1a build frontend (14:41:01Z)
+#16 exporting manifest sha256:74d216f5317d905a70dfdd7cbf06161f059402f97c614d64fd083e53a8ddc504 done
+#16 exporting config sha256:8fa49354d1ff5ea25664d01173ee4479c97c8b004c6563dfdc6217fd7d24fe8b done
+#16 exporting attestation manifest sha256:e1a4c7b717fb7245ee26b8341f25f9c77fe5cc7bd6a5e58a14caf6cdc00f0b05 0.0s done
+#16 exporting manifest list sha256:f9f91668671b82b1cc5e492e97ad94fe2b9d6ab27e4605554482992ab4f29a3e done
+#16 naming to docker.io/library/the-embedinator-frontend:latest done
+#16 unpacking to docker.io/library/the-embedinator-frontend:latest
+#16 unpacking to docker.io/library/the-embedinator-frontend:latest 0.3s done
+#16 DONE 1.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image the-embedinator-frontend Built 
+build exit: 0
+## 1b recreate frontend
+ Container embedinator-frontend Recreate 
+ Container embedinator-frontend Recreated 
+ Container embedinator-frontend Starting 
+ Container embedinator-frontend Started 
+frontend healthy after 6s
+## 1d baked config (must be 600000 / 104857600)
+"proxyTimeout":600000
+"proxyClientMaxBodySize":104857600
+image created: 2026-08-31T11:41:10.282514791-03:00
+## 2 unload VRAM (stop/start ollama, volume untouched)
+ollama up after 2s
+loaded before chat: {"models":[]}
+collection: 98f17b66-d023-4c51-9a49-baea44455ab4
+## 5 COLD first chat through :3000 (14:41:19Z)
+   0.000s  + 0.000s  session
+   1.436s  + 1.436s  status
+   2.438s  + 1.002s  status
+   9.271s  + 6.833s  status
+   9.890s  + 0.619s  status
+  10.924s  + 1.034s  status
+  10.968s  + 0.044s  status
+  11.959s  + 0.991s  status
+  11.997s  + 0.038s  chunk
+  11.997s  + 0.000s  confidence
+  11.998s  + 0.001s  done
+
+frames=11  MAX GAP=6.833s (before 'status')  TOTAL=11.999s  LAST='done'
+VERDICT: TERMINAL REACHED — PASS
+pipeline exit (curl via pipefail): 0
+## 7 post-checks
+loaded after chat: ['qwen2.5:7b', 'nomic-embed-text:latest']
+frontend 'Failed to proxy' count (last 30m): 0
+backend log lines with done trace_id cf0c2a96-568f-49ed-9a1e-37ec00fb0712: 24
+## done (14:41:31Z)

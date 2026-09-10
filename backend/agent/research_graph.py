@@ -25,6 +25,7 @@ from backend.agent.research_nodes import (
     tools_node,
 )
 from backend.agent.state import ResearchState
+from backend.errors import LLMDeadlineExceeded
 
 logger = structlog.get_logger().bind(component=__name__)
 
@@ -79,6 +80,8 @@ def build_research_graph(
             # Invoke the compiled MetaReasoningGraph subgraph
             try:
                 result = await meta_reasoning_graph.ainvoke(meta_input, config=config)
+            except LLMDeadlineExceeded:
+                raise
             except Exception as exc:
                 # FR-017: infrastructure error during subgraph -> report_uncertainty
                 logger.warning("agent_meta_reasoning_infra_error", error=str(exc))

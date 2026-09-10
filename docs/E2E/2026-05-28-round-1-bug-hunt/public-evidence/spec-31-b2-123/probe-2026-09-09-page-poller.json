@@ -1,0 +1,503 @@
+{
+  "installed": "2026-09-09T13:30:38.865Z",
+  "events": [
+    {
+      "t": "2026-09-09T13:30:38.865Z",
+      "ev": "frame",
+      "detail": {
+        "len": 288,
+        "tail": "uld understand?Are there any specific recommendations or action items?"
+      }
+    },
+    {
+      "t": "2026-09-09T13:30:38.865Z",
+      "ev": "stop_button_present",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:30:38.865Z",
+      "ev": "stalled_paragraph_present",
+      "detail": {
+        "present": false,
+        "text": null
+      }
+    },
+    {
+      "t": "2026-09-09T13:30:38.866Z",
+      "ev": "retry_button_present",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:30:38.866Z",
+      "ev": "banner_text",
+      "detail": "Backend connected"
+    },
+    {
+      "t": "2026-09-09T13:30:38.866Z",
+      "ev": "composer_disabled",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:31:50.667Z",
+      "ev": "frame",
+      "detail": {
+        "len": 406,
+        "tail": "y major topic covered across these documents, with examples from each."
+      }
+    },
+    {
+      "t": "2026-09-09T13:31:50.766Z",
+      "ev": "frame",
+      "detail": {
+        "len": 137,
+        "tail": "y major topic covered across these documents, with examples from each."
+      }
+    },
+    {
+      "t": "2026-09-09T13:31:50.766Z",
+      "ev": "stop_button_present",
+      "detail": true
+    },
+    {
+      "t": "2026-09-09T13:32:12.066Z",
+      "ev": "frame",
+      "detail": {
+        "len": 195,
+        "tail": "s from each.The provided passages do not contain any information about"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.166Z",
+      "ev": "frame",
+      "detail": {
+        "len": 255,
+        "tail": "tion about topics such as summarization or detailed paragraphs related"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.266Z",
+      "ev": "frame",
+      "detail": {
+        "len": 299,
+        "tail": "etailed paragraphs related to various subjects as requested in the sub"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.366Z",
+      "ev": "frame",
+      "detail": {
+        "len": 340,
+        "tail": "jects as requested in the sub-question. The retrieved documents [2], ["
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.466Z",
+      "ev": "frame",
+      "detail": {
+        "len": 373,
+        "tail": "stion. The retrieved documents [2], [3], and [4] are primarily focused"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.566Z",
+      "ev": "frame",
+      "detail": {
+        "len": 399,
+        "tail": "ents [2], [3], and [4] are primarily focused on a title \"PROCESAMIENTO"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.666Z",
+      "ev": "frame",
+      "detail": {
+        "len": 424,
+        "tail": "e primarily focused on a title \"PROCESAMIENTO DE SU CARNE, ELABORACIÓN"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.766Z",
+      "ev": "frame",
+      "detail": {
+        "len": 447,
+        "tail": "a title \"PROCESAMIENTO DE SU CARNE, ELABORACIÓN DE SUBPRODUCTOS CÁRNIC"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:12.866Z",
+      "ev": "frame",
+      "detail": {
+        "len": 474,
+        "tail": "U CARNE, ELABORACIÓN DE SUBPRODUCTOS CÁRNICOS N.C.P.\", which is likely"
+      }
+    },
+    {
+      "t": "2026-09-09T13:32:19.166Z",
+      "ev": "banner_text",
+      "detail": "Connecting to backend..."
+    },
+    {
+      "t": "2026-09-09T13:34:12.866Z",
+      "ev": "frame",
+      "detail": {
+        "len": 479,
+        "tail": "NE, ELABORACIÓN DE SUBPRODUCTOS CÁRNICOS N.C.P.\", which is likelyRetry"
+      }
+    },
+    {
+      "t": "2026-09-09T13:34:12.866Z",
+      "ev": "stop_button_present",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:34:12.866Z",
+      "ev": "retry_button_present",
+      "detail": true
+    },
+    {
+      "t": "2026-09-09T13:34:12.866Z",
+      "ev": "composer_disabled",
+      "detail": true
+    },
+    {
+      "t": "2026-09-09T13:35:41.166Z",
+      "ev": "banner_text",
+      "detail": "Backend connected"
+    },
+    {
+      "t": "2026-09-09T13:35:41.166Z",
+      "ev": "composer_disabled",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:36:10.369Z",
+      "ev": "frame",
+      "detail": {
+        "len": 137,
+        "tail": "y major topic covered across these documents, with examples from each."
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:10.369Z",
+      "ev": "stop_button_present",
+      "detail": true
+    },
+    {
+      "t": "2026-09-09T13:36:10.369Z",
+      "ev": "retry_button_present",
+      "detail": false
+    },
+    {
+      "t": "2026-09-09T13:36:24.566Z",
+      "ev": "frame",
+      "detail": {
+        "len": 173,
+        "tail": "ocuments, with examples from each.The passages provided do not contain"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:24.666Z",
+      "ev": "frame",
+      "detail": {
+        "len": 227,
+        "tail": "d do not contain any detailed summaries or discussions of major topics"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:24.766Z",
+      "ev": "frame",
+      "detail": {
+        "len": 258,
+        "tail": "ummaries or discussions of major topics that can be used to answer the"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:24.866Z",
+      "ev": "frame",
+      "detail": {
+        "len": 299,
+        "tail": "hat can be used to answer the sub-question. All of the given documents"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:24.966Z",
+      "ev": "frame",
+      "detail": {
+        "len": 344,
+        "tail": "ll of the given documents are short and appear to contain only section"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.066Z",
+      "ev": "frame",
+      "detail": {
+        "len": 409,
+        "tail": "ction headers related to meat processing without providing substantial"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.166Z",
+      "ev": "frame",
+      "detail": {
+        "len": 446,
+        "tail": "ing without providing substantial content on various topics.\nPassage ["
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.266Z",
+      "ev": "frame",
+      "detail": {
+        "len": 486,
+        "tail": "t on various topics.\nPassage [1] discusses chunking techniques in text"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.366Z",
+      "ev": "frame",
+      "detail": {
+        "len": 544,
+        "tail": "ques in text processing, explaining how overlapping chunks are created"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.466Z",
+      "ev": "frame",
+      "detail": {
+        "len": 583,
+        "tail": " overlapping chunks are created for large texts but does not cover any"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.566Z",
+      "ev": "frame",
+      "detail": {
+        "len": 622,
+        "tail": "ge texts but does not cover any major topics from the other documents."
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.666Z",
+      "ev": "frame",
+      "detail": {
+        "len": 641,
+        "tail": "ot cover any major topics from the other documents.\nPassages [2], [3],"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.766Z",
+      "ev": "frame",
+      "detail": {
+        "len": 670,
+        "tail": "m the other documents.\nPassages [2], [3], and [4] seem to be identical"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.866Z",
+      "ev": "frame",
+      "detail": {
+        "len": 717,
+        "tail": "4] seem to be identical or nearly identical, containing only a partial"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:25.967Z",
+      "ev": "frame",
+      "detail": {
+        "len": 742,
+        "tail": "r nearly identical, containing only a partial header: \"Y PROCESAMIENTO"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.068Z",
+      "ev": "frame",
+      "detail": {
+        "len": 762,
+        "tail": "containing only a partial header: \"Y PROCESAMIENTO DE SU CARNE, ELABOR"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.166Z",
+      "ev": "frame",
+      "detail": {
+        "len": 786,
+        "tail": "l header: \"Y PROCESAMIENTO DE SU CARNE, ELABORACIÓN DE SUBPRODUCTOS CÁ"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.266Z",
+      "ev": "frame",
+      "detail": {
+        "len": 802,
+        "tail": "CESAMIENTO DE SU CARNE, ELABORACIÓN DE SUBPRODUCTOS CÁRNICOS N.C.P.\" ("
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.366Z",
+      "ev": "frame",
+      "detail": {
+        "len": 840,
+        "tail": " SUBPRODUCTOS CÁRNICOS N.C.P.\" (likely translated as \"AND MEAT PROCESS"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.466Z",
+      "ev": "frame",
+      "detail": {
+        "len": 863,
+        "tail": "N.C.P.\" (likely translated as \"AND MEAT PROCESSING, PRODUCTION OF CARN"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.566Z",
+      "ev": "frame",
+      "detail": {
+        "len": 880,
+        "tail": "ranslated as \"AND MEAT PROCESSING, PRODUCTION OF CARNIC SUBPRODUCNCTS,"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.666Z",
+      "ev": "frame",
+      "detail": {
+        "len": 911,
+        "tail": "NG, PRODUCTION OF CARNIC SUBPRODUCNCTS, N.C.P.\"). This header does not"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.766Z",
+      "ev": "frame",
+      "detail": {
+        "len": 966,
+        "tail": "header does not provide any detailed content on meat processing or sub"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.866Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1004,
+        "tail": "ontent on meat processing or subproduct elaboration.\nGiven the lack of"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:26.966Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1052,
+        "tail": "ion.\nGiven the lack of relevant information across all passages, it is"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.066Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1095,
+        "tail": " across all passages, it is not possible to provide a summary of major"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.167Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1147,
+        "tail": "a summary of major topics based on these documents alone. The provided"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.266Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1193,
+        "tail": "ents alone. The provided texts do not contain enough detail to fulfill"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.366Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1235,
+        "tail": "ain enough detail to fulfill the request for a multi-paragraph summary"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.466Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1267,
+        "tail": " request for a multi-paragraph summary.\n[Declined: No passage provides"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.567Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1329,
+        "tail": "provides sufficient information about any major topics related to meat"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.666Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1379,
+        "tail": "pics related to meat processing or subproduct elaboration as requested"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.767Z",
+      "ev": "frame",
+      "detail": {
+        "len": 1413,
+        "tail": "oduct elaboration as requested in the sub-question.]4 sourcesLow (33%)"
+      }
+    },
+    {
+      "t": "2026-09-09T13:36:27.767Z",
+      "ev": "stop_button_present",
+      "detail": false
+    }
+  ],
+  "last": {
+    "len": 1413,
+    "stop": false,
+    "stalled": false,
+    "retry": false,
+    "banner": "Backend connected",
+    "composerDisabled": false
+  },
+  "timer": null,
+  "readings": [
+    {
+      "t": "2026-09-09T13:35:14.499Z",
+      "note": "React state of the assistant bubble read from the fiber after the watchdog fired",
+      "isError": true,
+      "errorCode": "STREAM_STALLED",
+      "isStreaming": false,
+      "contentLen": 337,
+      "renderedText": "partial answer preserved (useStreamChat.failStream uses `msg.content || message`, so the literal 'The response stalled: no data for 120s.' string renders only when nothing had streamed yet)"
+    },
+    {
+      "t": "2026-09-09T13:37:16.586Z",
+      "note": "final bubble after Retry",
+      "isError": false,
+      "errorCode": null,
+      "isStreaming": true,
+      "contentLen": 1268,
+      "citations": 4,
+      "destructiveBubbles": 0
+    },
+    {
+      "t": "2026-09-09T13:37:41.918Z",
+      "note": "CORRECTION to the previous reading: the fiber first walked was the stale work-in-progress tree. Read from fiber.alternate (the committed tree) the final bubble is isError=false, errorCode=null, isStreaming=false, contentLen=1268, citations=4; no Stop button, no Retry button, footer shows '4 sources / Low (33%)' -> the retried turn ended with a done event."
+    }
+  ],
+  "retryClickAt": "2026-09-09T13:36:07.652Z",
+  "summary": {
+    "tLastFrameBeforeKill": "2026-09-09T13:32:12.866Z",
+    "tTerminalWatchdog": "2026-09-09T13:34:12.866Z",
+    "tRetryClicked": "2026-09-09T13:36:07.652Z",
+    "tRetryStreamStart": "2026-09-09T13:36:10.369Z",
+    "tRetryDone": "2026-09-09T13:36:27.767Z",
+    "tBannerRecovered": "2026-09-09T13:35:41.166Z"
+  },
+  "clearedAt": "2026-09-09T13:37:41.918Z"
+}

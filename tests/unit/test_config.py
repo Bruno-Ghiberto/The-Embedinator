@@ -78,3 +78,43 @@ def test_supported_llm_models_default():
     assert "llama3.1:8b" in s.supported_llm_models
     assert "mistral:7b" in s.supported_llm_models
     assert "gemma4:e4b" not in s.supported_llm_models
+
+
+# ---------------------------------------------------------------------------
+# BUG-088 — the LLM deadline setting and its value bracket (RED)
+#
+# Production change that makes these pass: `llm_call_timeout_seconds: float = 90.0`
+# on backend.config.Settings (env `LLM_CALL_TIMEOUT_SECONDS`).
+# ---------------------------------------------------------------------------
+
+
+def test_llm_call_timeout_default_is_ninety_seconds():
+    assert Settings().llm_call_timeout_seconds == 90.0
+
+
+def test_llm_call_timeout_sits_inside_the_measured_bracket():
+    """The deadline must be longer than a real cold call and shorter than every
+    watchdog downstream of it, or the honest error never reaches anyone.
+
+    Lower bound  31.1s — GC-2 measured cold first LLM call (engram #4435) **on
+                         `qwen2.5:7b`**, the model the frontend actually sends today
+                         (BUG-095, Batch 3) — NOT on `Settings.default_llm_model`
+                         (`qwen3:14b`), which is larger and would measure slower.
+                         Phase 8 re-measures on the default model; if that number
+                         exceeds this bound, the bound moves, not the assertion's intent.
+    Upper bound 120.0s — STREAM_IDLE_TIMEOUT_MS in frontend/hooks/useStreamChat.ts:
+                         a longer backend deadline lets the client watchdog fire first.
+    """
+    value = Settings().llm_call_timeout_seconds
+    assert 31.1 < value < 120.0
+
+
+def test_llm_call_timeout_is_under_the_harness_deadline_budget():
+    """DEADLINE_BUDGET_S in tests/e2e_real/test_wire_contract.py: above it the
+    harness cannot tell "terminated late" from "never terminated"."""
+    assert Settings().llm_call_timeout_seconds < 180.0
+
+
+def test_llm_call_timeout_env_override(monkeypatch):
+    monkeypatch.setenv("LLM_CALL_TIMEOUT_SECONDS", "45")
+    assert Settings().llm_call_timeout_seconds == 45.0

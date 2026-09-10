@@ -1,0 +1,2 @@
+2026-09-04T15:19:14.502Z probe_start hold=150s
+2026-09-04T15:19:14.527Z ollama_paused

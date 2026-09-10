@@ -219,8 +219,7 @@ function ChatPageContent() {
       llm_model: llmModel,
       embed_model: embedModel,
     });
-  }, [messages, setMessages, sendMessage, selectedCollectionIds, llmModel, embedModel],
-  );
+  }, [messages, setMessages, sendMessage, selectedCollectionIds, llmModel, embedModel]);
 
   const handleNewChat = useCallback(() => {
     setMessages([]);
@@ -362,7 +361,7 @@ function ChatPageContent() {
           messages={messages}
           isStreaming={isStreaming}
           onSubmit={handleSubmit}
-          onRetry={handleRetry}
+          onRetry={isStreaming ? undefined : handleRetry}
         />
       )}
       {/* ChatInput: hidden when no collections exist */}

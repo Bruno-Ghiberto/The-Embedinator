@@ -1,8 +1,14 @@
 # BUG-054: ~30s proxy idle timeout silently cuts large uploads and cold-start chats
 
+> **FIXED 2026-08-31** by spec-31 Batch 2, tasks 2.1 + 2.2 (unit 1) — commit `8b7d640`. The filed
+> root-cause hypothesis **held in part**: the upload half was refuted (uploads were cut by a size
+> cap, BUG-040's mechanism, not by a timer), the cold-chat half held and named the timer correctly.
+> See [Resolution](#resolution) below.
+
 - **Severity**: CRITICAL
 - **Layer**: Infrastructure
 - **Discovered**: 2026-06-11T16:22:00Z in Phase 2 (P2-S6)
+- **Fixed**: 2026-08-31 (spec-31 tasks 2.1 + 2.2, commit `8b7d640`)
 - **Phase scenario**: P2-S6
 - **BLOCKER-PATCHED**: no
   <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
@@ -25,6 +31,14 @@ The Next.js dev server (or proxy layer in front of FastAPI) enforces a ~30-secon
 - Public evidence: public-evidence/BUG-054-proxy-timeout.txt (tracked)
 
 ## Root-cause hypothesis
+
+**⚠ PARTIALLY REFUTED 2026-08-04 — the upload half of this paragraph is wrong.** Uploads were not
+cut by a timer; they were truncated by the proxy's 10 MiB `proxyClientMaxBodySize` default, and a
+39-second proxied upload completed successfully. The chat half — a real ~30 s socket-inactivity
+timer on the proxied request — is correct and is what the 2026-07-03 and 2026-07-28 updates below
+established. The text is retained verbatim because it was the filed reasoning; see
+[Resolution](#resolution) for the measurement that separates the two halves.
+
 The Next.js API proxy (or its default 30-second `bodyParser` / response-limit timeout) kills large multipart uploads before the FastAPI handler completes reading the body. FastAPI sees an abrupt connection close, emits a bare `http_request status=400`, but structlog never records an `error` event because the handler never entered structured error handling. The proxy synthesises or propagates the 400 upstream; the UI's throwApiError then further degrades the message (BUG-050).
 
 ## Triage (filled in Phase 8 for MAJOR+)
@@ -52,3 +66,61 @@ Affects files requiring > 30 s to upload through the proxy; threshold is connect
 **SEVERITY ESCALATED MAJOR -> CRITICAL AND TITLE REPLACED, 2026-07-28 (team-lead ruling, apply-7).** Title was "Large UI uploads fail at 30-second proxy timeout", which understated a defect that is no longer about uploads; it now reads `~30s proxy idle timeout silently cuts large uploads and cold-start chats` (72 chars, within the 80-char schema limit). Layer stays `Infrastructure` — the direct-to-`:8000` control isolates the cut to the proxy layer. The public issue label requires the corresponding MAJOR -> CRITICAL edit.
 
 **FURTHER BROADENING (frontend-inspector, 2026-07-28)**: the wedge reproduced on a WARM model at turn 4, running **383s with no timeout firing at any layer**. Combined with the earlier warm 49.3s `OutputParserException` gap (BUG-069), this establishes the trigger is not cold-start-specific at all: ANY slow first node trips it, and at least two independent causes are now evidenced — cold model load, and accumulated-history classifier degradation. Escalation basis: the first chat after startup, or after ~5 minutes idle (Ollama `keep_alive` ~5min), is silently cut with no error — close to the modal first-run path on a demo.
+
+## Resolution
+
+**FIXED** — spec-31 Batch 2, tasks 2.1 and 2.2 (unit 1). Commit `8b7d640`, 9 files, +529/−29,
+shared with BUG-040 and BUG-074's Branch T.
+
+**The filed hypothesis held in part, and the record's two halves turned out to have two different
+mechanisms.**
+
+*The upload half was refuted* on 2026-08-04, before this fix, by a three-arm measurement on the
+live Docker stack: 12.6 MB through the proxy failed at 63.5 s; the same file direct to `:8000`
+returned 202 at 41.0 s; **8.0 MB through the proxy returned 202 at 39.0 s**. A 39-second proxied
+request completing is incompatible with a ~30 s cut on the upload path. Uploads were being
+truncated by Next's `proxyClientMaxBodySize` 10 MiB default — BUG-040's mechanism, a size cap, not
+a timer. The original `30028 ms` was how long a 26.1 MB transfer ran before reaching that cap.
+
+*The cold-chat half held*, and the 2026-07-28 broadening ("any first node slower than ~30 s trips
+it") was the accurate reading. `experimental.proxyTimeout` is real: a socket-**inactivity** timer
+on the proxied request, default 30 000 ms. It only accepts a finite number — `0` falls back to
+30000 and `null` is stripped by the config merge — so it can be raised but not disabled. An upload
+keeps bytes flowing and can never go idle; a chat waiting for a cold model's first frame sends
+nothing on the wire and does. That is why the same layer cut one and not the other.
+
+**What changed.** `frontend/next.config.ts` now sets `experimental.proxyTimeout: 600_000` and
+`experimental.proxyClientMaxBodySize: 104_857_600`. Both keys were required — one per half of this
+record. No mechanism was added: these are two configuration values on a proxy that already
+existed, and the only new mechanism in the same commit is BUG-074's client watchdog, justified in
+that record.
+
+**Evidence.**
+
+- Static regression, `frontend/tests/unit/next-config.test.ts`: imports `next.config.ts` (never
+  regexes it) and asserts `proxyClientMaxBodySize === 104_857_600` exactly, `proxyTimeout` finite
+  and ≥ 300 000 ms, and `STREAM_IDLE_TIMEOUT_MS` strictly inside the proxy window. Necessary, not
+  sufficient — it pins the values, it cannot demonstrate the timer.
+- Frontend suite after unit 1: **96 passed** (74 before).
+- Live stack, GC-2 proxy half — a chat through `:3000` with a forced **51.110 s** silent gap
+  (`docker pause embedinator-backend` mid-turn) reached `done` at **55.778 s** on the new
+  configuration; the 30 s default provably cut this:
+  [`../public-evidence/spec-31-b2-gc2/pause-gap.log`](../public-evidence/spec-31-b2-gc2/pause-gap.log)
+  and `pause-gap.ndjson`.
+- Live stack, cold retest on the same configuration — model unloaded, first chat at `:3000`, max
+  gap 6.833 s, `done` at 11.999 s, and the baked config verified inside the image
+  (`"proxyTimeout":600000`, `"proxyClientMaxBodySize":104857600`):
+  [`../public-evidence/spec-31-b2-gc2/cold-retest.txt`](../public-evidence/spec-31-b2-gc2/cold-retest.txt).
+
+**Still open / follow-ups.**
+
+- The three caps agree only by literal duplication (`frontend/lib/types.ts`,
+  `frontend/next.config.ts`, `backend/config.py`); raising one alone reopens BUG-040.
+- `proxyClientMaxBodySize` counts the raw multipart envelope while the UI and the backend count the
+  file, so a file within a few hundred bytes of 100 MiB passes the client guard and is truncated by
+  the proxy.
+- `proxyTimeout` is inactivity-based, so an upload that stalls upstream now waits up to 600 s for
+  the proxy's 500 instead of 30 s. Chat is bounded by the 120 s client watchdog (BUG-074) and, from
+  unit 4, by the backend's 90 s in-flight LLM deadline (BUG-088).
+- Only the standalone/Docker path exhibits this timer — `next dev` applies no idle cut — so a green
+  `tests/e2e_real` run is not evidence for this record; the live stack is.

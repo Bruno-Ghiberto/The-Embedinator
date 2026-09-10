@@ -26,11 +26,15 @@ class TestConversationStateSchema:
     """Verify ConversationState TypedDict fields and types."""
 
     def test_field_count(self):
-        """ConversationState must have exactly 14 fields (13 original + stage_timings from spec-14)."""
+        """ConversationState must have exactly 15 fields.
+
+        13 original + stage_timings (spec-14) + remaining_steps
+        (spec-31 unit 4 / BUG-082: RemainingSteps managed value).
+        """
         from backend.agent.state import ConversationState
 
         hints = get_type_hints(ConversationState)
-        assert len(hints) == 14, f"Expected 14 fields, got {len(hints)}: {list(hints.keys())}"
+        assert len(hints) == 15, f"Expected 15 fields, got {len(hints)}: {list(hints.keys())}"
 
     def test_required_fields_present(self):
         from backend.agent.state import ConversationState
@@ -51,6 +55,7 @@ class TestConversationStateSchema:
             "confidence_score",
             "iteration_count",
             "stage_timings",  # FR-005 spec-14
+            "remaining_steps",  # spec-31 unit 4 / BUG-082: RemainingSteps managed value
         }
         assert required == set(hints.keys()), (
             f"Missing: {required - set(hints.keys())}; Extra: {set(hints.keys()) - required}"

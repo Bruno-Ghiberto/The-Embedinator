@@ -1,8 +1,14 @@
 # BUG-074: Stream close without a done event leaves the chat stuck streaming forever
 
+> **FIXED 2026-09-02** by spec-31 Batch 2, tasks 2.4 and 2.3 (units 1 and 2) — commits `8b7d640`
+> (Branch T, the idle watchdog) and `a29f4aa` (Branch E, the missing-terminal check). Closed only
+> now because both branches were required. The filed root-cause hypothesis held, and the error
+> code it proposed was renamed. See [Resolution](#resolution) below.
+
 - **Severity**: CRITICAL
 - **Layer**: Frontend
 - **Discovered**: 2026-07-03T00:00:00Z in Phase 3 (Q-014, P3 exit-checklist)
+- **Fixed**: 2026-09-02 (spec-31 tasks 2.4 + 2.3, commits `8b7d640` and `a29f4aa`)
 - **Phase scenario**: P3-S7
 - **BLOCKER-PATCHED**: no
   <!-- after patching: yes — commit <SHA>, Pilot Y at <ISO-8601> -->
@@ -37,6 +43,11 @@ Cross-refs: BUG-073 (the backend counterpart — the server-side cancellation th
 
 Fix surface: track a `receivedTerminalEvent` flag in the reader loop — if it exits without having seen `done`, `error`, or `clarification`, call `onError("Stream ended unexpectedly", "STREAM_INCOMPLETE")`; additionally add a client-side idle timeout so a silent stream cannot hang indefinitely regardless of cause.
 
+**⚠ NAME CORRECTED IN SHIPPING, 2026-09-02.** The code proposed above is `STREAM_INCOMPLETE`; the
+code that shipped is **`STREAM_TRUNCATED`** (design D3 / task 2.3), with the message "Stream ended
+without completion". Both halves of the proposed fix surface shipped, in the order given: the
+client-side idle timeout as Branch T (`STREAM_STALLED`), the terminal-event check as Branch E.
+
 **UPDATE 2026-07-03 (P4-S4 repro)**: same stuck-stream symptom reproduced after the BUG-082 unbounded ambiguous-intent loop was cancelled at the ~30s idle cutoff — empty skeleton + Stop button stuck active, no `done` event ever received, matching the mechanism above exactly. Confirms the frontend has no defense against a silent close regardless of the backend-side root cause (slow research loop, per the original finding, OR an intent-routing infinite loop, per BUG-082). Cross-ref BUG-082.
 
 **P4-S4 final-state CAVEAT (2026-07-03, frontend-inspector late passive read)**: the stuck-skeleton was observed FOREGROUND only ~2 min before the tab was backgrounded ~4h (Pilot EOD). The state later surfaced "Stream read error: network error" + Retry via `net::ERR_NETWORK_IO_SUSPENDED` (trace `56c94450`, reqid 447 — status 200 then response body discarded by DevTools), which is a Chrome backgrounded-tab IO-suspension artifact, NOT the product's natural foreground recovery. So this instance does NOT cleanly prove "stuck-forever" on the foreground timeline — the ~2min foreground stuck window is consistent with BUG-074, but the eventual error is a backgrounding artifact. Re-observe the foreground stuck-timeline on the P4-S4 re-run.
@@ -66,3 +77,79 @@ Fix surface: track a `receivedTerminalEvent` flag in the reader loop — if it e
 | already completed (S1c) | 20 | 1 | complete |
 
 **What this establishes, and it cuts both ways.** Graph state IS durably persisted up to the last completed superstep — 13 checkpoints survived an unclean SIGKILL, and that half is genuinely engineered and works. But the GENERATED ANSWER TEXT is not persisted: tokens stream to the client and are checkpointed only when their superstep completes, so the 7 chunks the user watched exist solely in the browser DOM — not in any checkpoint, not in a trace row. The sharp consequence, which directly sharpens P7-S5: **a resume restores 13 checkpoints of state and still cannot reproduce the one thing the user actually saw.** "The checkpoint survived" and "the user's turn is recoverable" are different claims, and this is the empirical separation of the two. Artifacts: traces/P7-S1d-mid-generation-kill.md, traces/P7-S1d-stream.ndjson, traces/P7-S1d-at-kill.ndjson.
+
+## Resolution
+
+**FIXED** — spec-31 Batch 2, tasks 2.4 (Branch T) and 2.3 (Branch E). Commit `8b7d640`
+(2026-08-31, 9 files, +529/−29, shared with BUG-054 and BUG-040) and commit `a29f4aa` (2026-09-02,
+4 files, +510/−3, shared with BUG-119). The record was held open until both landed.
+
+**The filed hypothesis held, verbatim and in both files it named.** `api.ts`'s reader loop broke on
+transport EOF without calling any terminal callback, so `onDone`/`onError` never ran, so
+`useStreamChat`'s `setIsStreaming(false)` never ran; the `AbortController` was wired only to user
+abort and unmount. The inspector's control case is what made the boundary exact: a non-OK HTTP
+status already cleared the spinner and offered Retry correctly. The defect was never "error
+handling is missing"; it was that error handling did not cover transport termination.
+
+**Two branches were required, and the reason is BUG-123.** Branch E's check runs *after* the read
+loop exits — and on the proxied path that loop never exits, because the proxy never delivers EOF.
+Branch T is what ends a stream that the transport will not end. Neither branch alone closes the
+user-visible symptom, which is exactly what BUG-123 predicted before either shipped.
+
+**Branch T — `frontend/hooks/useStreamChat.ts`.** `STREAM_IDLE_TIMEOUT_MS = 120_000` (at least twice
+the 31.1 s cold first call measured on the live stack — the floor `next-config.test.ts` asserts;
+120 s is nearly four times it. The largest warm gap was 14.8 s, and the value sits strictly inside
+`proxyTimeout`'s 600 s). The timer is armed before the request leaves, re-armed on every progress
+frame, and disarmed on `done`/`error`/`clarification`, on abort and on unmount. On expiry it aborts
+the controller first — `api.ts` swallows the resulting `AbortError`, so nothing can touch the
+bubble afterwards — then reports `STREAM_STALLED` with the partial content preserved. A
+`watchedStreamIdRef` ownership check keeps the shared timer bound to the newest stream, so a Retry
+on an older bubble cannot disarm a live one; that defect was found in review of this commit and
+fixed inside it.
+
+*Why nothing could be deleted or relaxed instead:* no layer below the client can end a stream that
+is ESTAB with no upstream socket. The proxy holds it open (BUG-123) and cannot be disabled, only
+given a longer window; and a backend heartbeat would make a hung turn look alive rather than end
+it. A client-side timer is the only place where "no bytes for 120 s" is observable.
+
+**Branch E — `frontend/lib/api.ts`.** A `sawTerminal` flag is set by the `done`, `error` and
+`clarification` line handlers. If the loop exits without it, and the client did not abort, the
+reader calls `onError("Stream ended without completion", "STREAM_TRUNCATED")` exactly once. The
+abort condition matters: a user Stop must stay silent, not raise an error the user caused.
+
+**Evidence.**
+
+- Branch T: `frontend/tests/unit/use-stream-chat-stall.test.ts` drives the real `api.ts` with a
+  stubbed fetch and proves exactly one terminal error; `frontend/tests/unit/hooks.test.ts` covers
+  arm / re-arm / disarm / ownership. Frontend suite after unit 1: **96 passed** (74 before).
+- Branch E: `frontend/tests/unit/api.test.ts` (+238 lines) and the page-level
+  `frontend/tests/unit/chat-page-single-owner.test.tsx`, which runs the real page, the real hook
+  and the real `api.ts` together. Frontend suite after unit 2: **105 passed**.
+- Live stack, Branch T, 2026-09-02 — `docker kill embedinator-backend` mid-turn at `:3000`: the
+  page still rendered "Stop generation" at +85 s and, at **+129 s**, rendered
+  `"The response stalled: no data for 120s."` with a Retry button. The watchdog ended a dead
+  proxied stream inside its 120 s budget measured from the last received frame:
+  [`../public-evidence/spec-31-b2-gc2/browser-probe-2026-09-02.md`](../public-evidence/spec-31-b2-gc2/browser-probe-2026-09-02.md).
+- Branch E has **no browser-level proof through the proxy, by construction**: the proxy never
+  delivers EOF (BUG-123), so the code path Branch E guards is not reachable at `:3000`. Its
+  integration evidence is the page-level vitest test named above.
+
+**Still open / follow-ups.**
+
+- Watchdog ownership is never released after a terminal frame, so a post-`done` progress frame
+  (the backend emits none today) would re-arm the timer for a finished bubble. Hardening candidate;
+  needs its own RED test.
+- A non-2xx response whose body then stalls ≥ 120 s reports `UNKNOWN` rather than `STREAM_STALLED`:
+  `res.json()` swallows the abort and the error path overwrites the code. The terminal state is
+  still correct; only the code is unstable on that narrow path.
+- A `done`/`error` frame arriving without a trailing newline is dropped by the line splitter and
+  now reports `STREAM_TRUNCATED`. Unreachable — every emit site in `backend/api/chat.py` appends
+  `\n` — and recorded rather than fixed.
+- Starting a New Chat mid-stream never aborts the live stream, so the orphan's terminal frame can
+  still clear `isStreaming` for a newer turn. Pre-existing, not introduced here; parked for Batch 5
+  (tasks 5.2 and 5.4).
+- When partial content has already streamed, `STREAM_STALLED` is never shown as text:
+  `useStreamChat.ts:59` writes `content: msg.content || message`, so the stall sentence replaces the
+  bubble only when nothing arrived. Observed 2026-09-09 at the Batch 2 exit gate — the terminal
+  state is still carried by the error styling, the `Retry` control and `errorCode`, but the reason
+  the answer stopped is not stated. UX follow-up.

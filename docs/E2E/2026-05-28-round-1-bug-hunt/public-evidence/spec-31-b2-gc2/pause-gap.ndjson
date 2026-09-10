@@ -1,0 +1,11 @@
+0.000	{"type": "session", "session_id": "6c492733-43d6-4221-8483-f391a69dd33b"}
+0.118	{"type": "status", "node": "classify_intent"}
+1.060	{"type": "status", "node": "rewrite_query"}
+52.171	{"type": "status", "node": "orchestrator"}
+53.568	{"type": "status", "node": "tools"}
+54.597	{"type": "status", "node": "orchestrator"}
+54.649	{"type": "status", "node": "tools"}
+55.736	{"type": "status", "node": "orchestrator"}
+55.777	{"type": "chunk", "text": "I could not find any relevant information to answer: \"Summarize the key findings in this collection in two sentences.\". The indexed documents may not cover this topic.\n\n*Note: Confidence score is 0/100. The retrieved information may be incomplete or partially relevant to your question.*"}
+55.777	{"type": "confidence", "score": 0}
+55.778	{"type": "done", "latency_ms": 55792, "trace_id": "ffb38837-cfa8-4eb1-9aa7-fc4de199b8a3"}

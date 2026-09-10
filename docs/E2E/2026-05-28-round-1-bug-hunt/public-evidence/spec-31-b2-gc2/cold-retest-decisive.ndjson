@@ -1,0 +1,11 @@
+0.000	{"type": "session", "session_id": "fc499ec6-38e8-491b-a080-d8ccd0e85734"}
+3.158	{"type": "status", "node": "classify_intent"}
+4.091	{"type": "status", "node": "rewrite_query"}
+10.836	{"type": "status", "node": "orchestrator"}
+11.486	{"type": "status", "node": "tools"}
+12.547	{"type": "status", "node": "orchestrator"}
+12.588	{"type": "status", "node": "tools"}
+13.649	{"type": "status", "node": "orchestrator"}
+13.691	{"type": "chunk", "text": "I could not find any relevant information to answer: \"What are the main topics covered in this collection?\". The indexed documents may not cover this topic.\n\n*Note: Confidence score is 0/100. The retrieved information may be incomplete or partially relevant to your question.*"}
+13.691	{"type": "confidence", "score": 0}
+13.692	{"type": "done", "latency_ms": 13733, "trace_id": "7953e9be-2e3f-462a-96bb-a814f79ea17f"}

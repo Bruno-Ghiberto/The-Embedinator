@@ -485,3 +485,241 @@ describe("Citation.source_removed field preservation", () => {
     expect(passedCitations[1].source_removed).toBe(false);
   });
 });
+
+// ─── streamChat — stream termination contract (BUG-074 Branch E) ──────────────
+//
+// Branch E: a chat stream whose body closes without a terminal NDJSON frame
+// (`done` | `error` | `clarification`) must not end silently — the reader has
+// to report it once as STREAM_TRUNCATED. A stream the CLIENT aborted (Stop,
+// unmount, the unit-1 idle watchdog) is NOT truncation and keeps today's
+// silence; the watchdog reports STREAM_STALLED itself.
+
+/** Encode one NDJSON line (trailing newline included) as bytes. */
+function ndjsonLine(event: object): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(event) + "\n");
+}
+
+describe("streamChat — stream termination contract (BUG-074 Branch E)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // RED (BUG-074 Branch E). Fails on the unmodified tree: the reader loop does
+  // `if (done) break;` and falls out of the try with no callback at all.
+  // Would fail again if production stopped tracking whether a terminal frame
+  // was seen, or stopped reporting the un-terminated end.
+  test("stream ends with NO terminal frame: onError once with STREAM_TRUNCATED, onDone never", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      makeNdjsonResponse([
+        { type: "chunk", text: "partial " },
+        { type: "chunk", text: "answer" },
+      ]),
+    );
+
+    const { callbacks, onError, onDone, onClarification, onToken } =
+      makeCallbacks();
+    streamChat(BASE_REQUEST, callbacks);
+    await flush();
+
+    // The frames that DID arrive are still delivered.
+    expect(onToken).toHaveBeenCalledTimes(2);
+    // Exactly one terminal callback, and it is the truncation report.
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toBe("Stream ended without completion");
+    expect(onError.mock.calls[0][1]).toBe("STREAM_TRUNCATED");
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onClarification).not.toHaveBeenCalled();
+  });
+
+  // GUARD — expected to PASS on the unmodified tree.
+  // Would fail if production reported STREAM_TRUNCATED after a `done` frame
+  // (i.e. forgot to treat `done` as terminal, or reported unconditionally).
+  test("GUARD: EOF after a done frame is clean — onDone once, onError never", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      makeNdjsonResponse([
+        { type: "chunk", text: "complete answer" },
+        { type: "done", latency_ms: 120, trace_id: "t-done" },
+      ]),
+    );
+
+    const { callbacks, onDone, onError } = makeCallbacks();
+    streamChat(BASE_REQUEST, callbacks);
+    await flush();
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledWith(120, "t-done");
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  // GUARD — expected to PASS on the unmodified tree.
+  // `clarification` is terminal: the backend returns right after emitting it
+  // (chat.py:212-218) and never sends `done`. Would fail if production treated
+  // a clarification-ended stream as truncated.
+  test("GUARD: EOF after a clarification frame is clean — onClarification once, onError never", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      makeNdjsonResponse([
+        { type: "clarification", question: "Which report do you mean?" },
+      ]),
+    );
+
+    const { callbacks, onClarification, onError, onDone } = makeCallbacks();
+    streamChat(BASE_REQUEST, callbacks);
+    await flush();
+
+    expect(onClarification).toHaveBeenCalledTimes(1);
+    expect(onClarification).toHaveBeenCalledWith("Which report do you mean?");
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  // GUARD — expected to PASS on the unmodified tree.
+  // Would fail if production appended a second STREAM_TRUNCATED report after a
+  // server `error` frame already ended the stream (double terminal callback).
+  test("GUARD: EOF after a server error frame reports exactly once, never a second STREAM_TRUNCATED", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      makeNdjsonResponse([
+        { type: "chunk", text: "partial" },
+        {
+          type: "error",
+          message: "Retrieval circuit is open",
+          code: "CIRCUIT_OPEN",
+          trace_id: "t-circuit",
+        },
+      ]),
+    );
+
+    const { callbacks, onError, onDone } = makeCallbacks();
+    streamChat(BASE_REQUEST, callbacks);
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      "Retrieval circuit is open",
+      "CIRCUIT_OPEN",
+      "t-circuit",
+    );
+    expect(
+      onError.mock.calls.filter((c) => c[1] === "STREAM_TRUNCATED"),
+    ).toHaveLength(0);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  // GUARD — expected to PASS on the unmodified tree.
+  // Abort is not truncation. Would fail if production reported
+  // STREAM_TRUNCATED for a stream the client aborted (Stop / unmount / the
+  // unit-1 idle watchdog, which reports STREAM_STALLED itself and would be
+  // overwritten). Asserts only the ABSENCE of STREAM_TRUNCATED, so today's
+  // abort behaviour — whatever it is — stays untouched.
+  test("GUARD: a client abort mid-stream is not truncation — no STREAM_TRUNCATED", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_url: string, init: RequestInit) => {
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(ndjsonLine({ type: "chunk", text: "partial" }));
+            // Never closes on its own; errors the way undici does on abort.
+            (init.signal as AbortSignal).addEventListener("abort", () => {
+              controller.error(new DOMException("aborted", "AbortError"));
+            });
+          },
+        });
+        return Promise.resolve(
+          new Response(stream, {
+            status: 200,
+            headers: { "Content-Type": "application/x-ndjson" },
+          }),
+        );
+      },
+    );
+
+    const { callbacks, onError, onToken } = makeCallbacks();
+    const controller = streamChat(BASE_REQUEST, callbacks);
+    await flush();
+    expect(onToken).toHaveBeenCalledWith("partial");
+
+    controller.abort();
+    await flush();
+
+    expect(
+      onError.mock.calls.filter((c) => c[1] === "STREAM_TRUNCATED"),
+    ).toHaveLength(0);
+  });
+
+  // GUARD for the `!controller.signal.aborted` half of the post-loop check.
+  // Every other abort test in this repo ERRORS the body, which leaves the loop
+  // through `catch` and never reaches that check — so only a body that CLOSES
+  // cleanly on abort exercises it. Deleting `&& !controller.signal.aborted`
+  // from the post-loop `if` makes this test fail: the loop would break on a
+  // clean EOF with sawTerminal still false and report STREAM_TRUNCATED over the
+  // watchdog's own STREAM_STALLED.
+  test("GUARD: a stream whose body closes cleanly on abort is not truncation — no STREAM_TRUNCATED", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_url: string, init: RequestInit) => {
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(ndjsonLine({ type: "chunk", text: "partial" }));
+            // Closes, does not error: the reader sees a normal end-of-stream
+            // and falls out of the loop instead of throwing an AbortError.
+            (init.signal as AbortSignal).addEventListener("abort", () => {
+              controller.close();
+            });
+          },
+        });
+        return Promise.resolve(
+          new Response(stream, {
+            status: 200,
+            headers: { "Content-Type": "application/x-ndjson" },
+          }),
+        );
+      },
+    );
+
+    const { callbacks, onError, onDone, onToken } = makeCallbacks();
+    const controller = streamChat(BASE_REQUEST, callbacks);
+    await flush();
+    expect(onToken).toHaveBeenCalledWith("partial");
+
+    controller.abort();
+    await flush();
+
+    expect(
+      onError.mock.calls.filter((c) => c[1] === "STREAM_TRUNCATED"),
+    ).toHaveLength(0);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  // GUARD — expected to PASS on the unmodified tree.
+  // Would fail if production reported the read error AND then a second
+  // STREAM_TRUNCATED for the same stream (count 2), or swallowed it (count 0).
+  test("GUARD: a read error with no terminal frame is reported exactly once, not silently", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(ndjsonLine({ type: "chunk", text: "partial" }));
+          },
+          // Fires once the queued chunk has been read: a mid-stream read
+          // failure that is NOT an abort and carries no terminal frame.
+          pull(controller) {
+            controller.error(new Error("network reset mid-stream"));
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/x-ndjson" } },
+      ),
+    );
+
+    const { callbacks, onError, onDone, onToken } = makeCallbacks();
+    streamChat(BASE_REQUEST, callbacks);
+    await flush();
+
+    expect(onToken).toHaveBeenCalledWith("partial");
+    expect(onError).toHaveBeenCalledTimes(1);
+    // Not silent: a non-empty message and a non-empty code reach the caller.
+    expect(onError.mock.calls[0][0]).toBeTruthy();
+    expect(onError.mock.calls[0][1]).toBeTruthy();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+});

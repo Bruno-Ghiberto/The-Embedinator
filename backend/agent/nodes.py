@@ -29,9 +29,11 @@ from backend.agent.prompts import (
     SUMMARIZE_HISTORY_SYSTEM,
     VERIFY_PROMPT,
 )
+from backend.agent.llm_deadline import invoke_with_deadline
 from backend.agent.schemas import GroundednessResult, IntentClassification, QueryAnalysis
 from backend.agent.state import ConversationState
 from backend.config import settings
+from backend.errors import LLMDeadlineExceeded
 
 logger = structlog.get_logger().bind(component=__name__)
 
@@ -212,11 +214,13 @@ async def classify_intent(state: ConversationState, config: Optional[RunnableCon
 
         # ENH-002: Structured output replaces manual JSON parsing
         structured_llm = llm.with_structured_output(IntentClassification, method="json_mode")
-        result: IntentClassification = await structured_llm.ainvoke(
+        result: IntentClassification = await invoke_with_deadline(
+            structured_llm,
             [
                 SystemMessage(content=CLASSIFY_INTENT_SYSTEM),
                 HumanMessage(content=user_prompt),
-            ]
+            ],
+            site="classify_intent",
         )
 
         intent = result.intent
@@ -233,6 +237,8 @@ async def classify_intent(state: ConversationState, config: Optional[RunnableCon
             },
         }
 
+    except LLMDeadlineExceeded:
+        raise
     except Exception as exc:
         log.warning("agent_classify_intent_failed", exc_info=True, defaulting_to="rag_query", error=type(exc).__name__)
         return {
@@ -288,7 +294,7 @@ async def rewrite_query(state: ConversationState, config: Optional[RunnableConfi
 
     # First attempt
     try:
-        analysis = await structured_llm.ainvoke(messages)
+        analysis = await invoke_with_deadline(structured_llm, messages, site="rewrite_query")
         tier_params = TIER_PARAMS.get(analysis.complexity_tier, TIER_PARAMS["lookup"])
         log.info(
             "agent_query_analyzed",
@@ -297,6 +303,8 @@ async def rewrite_query(state: ConversationState, config: Optional[RunnableConfi
             complexity=analysis.complexity_tier,
         )
         return {"query_analysis": analysis, "retrieval_params": tier_params}
+    except LLMDeadlineExceeded:
+        raise
     except (ValidationError, Exception) as first_err:
         log.warning("agent_rewrite_query_first_attempt_failed", error=type(first_err).__name__)
 
@@ -312,7 +320,7 @@ async def rewrite_query(state: ConversationState, config: Optional[RunnableConfi
     ]
 
     try:
-        analysis = await structured_llm.ainvoke(retry_messages)
+        analysis = await invoke_with_deadline(structured_llm, retry_messages, site="rewrite_query_retry")
         tier_params = TIER_PARAMS.get(analysis.complexity_tier, TIER_PARAMS["lookup"])
         log.info(
             "agent_query_analyzed_on_retry",
@@ -321,6 +329,8 @@ async def rewrite_query(state: ConversationState, config: Optional[RunnableConfi
             complexity=analysis.complexity_tier,
         )
         return {"query_analysis": analysis, "retrieval_params": tier_params}
+    except LLMDeadlineExceeded:
+        raise
     except (ValidationError, Exception) as second_err:
         log.warning("agent_rewrite_query_fallback", error=type(second_err).__name__)
 
@@ -540,7 +550,8 @@ async def verify_groundedness(state: ConversationState, config: Optional[Runnabl
 
         prompt = VERIFY_PROMPT.format(context=context, answer=final_response)
         structured_llm = llm.with_structured_output(GroundednessResult, method="json_mode")
-        result: GroundednessResult = await structured_llm.ainvoke(prompt)
+        # BUG-088 / R17: the answer already exists — a stalled verdict degrades instead of failing the turn.
+        result: GroundednessResult = await invoke_with_deadline(structured_llm, prompt, site="verify_groundedness")
 
         _record_inference_success()
 
@@ -762,11 +773,14 @@ async def summarize_history(state: ConversationState, **kwargs: Any) -> dict:
     history_text = "\n".join(f"{type(m).__name__}: {m.content}" for m in trimmed_old)
 
     try:
-        summary_response = await llm.ainvoke(
+        # BUG-088 / R17: the answer already exists — a stalled compression degrades instead of failing the turn.
+        summary_response = await invoke_with_deadline(
+            llm,
             [
                 SystemMessage(content=SUMMARIZE_HISTORY_SYSTEM),
                 HumanMessage(content=f"Please summarize these conversation messages:\n\n{history_text}"),
-            ]
+            ],
+            site="summarize_history",
         )
         summary = summary_response.content
         compressed_messages = [SystemMessage(content=summary)] + list(recent_messages)
