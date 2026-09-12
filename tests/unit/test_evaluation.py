@@ -1,5 +1,5 @@
-"""Tests for backend.evaluation — TREC I/O, per-query retrieval metrics, and
-paired permutation significance testing.
+"""Tests for backend.evaluation — TREC I/O, per-query retrieval metrics,
+paired permutation significance testing, and golden-set labeling helpers.
 
 Metric and significance-test fixtures are hand-computed (see inline comments)
 so a failure points at a wrong formula, not a wrong assumption about the
@@ -8,11 +8,22 @@ fixture itself.
 
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 
 import pytest
 
+from backend.evaluation.labeling import (
+    GoldenQuestion,
+    NeedsReview,
+    ParsedJudgeGrade,
+    build_pool,
+    csv_rows_to_qrels,
+    golden_questions_from_records,
+    merge_chunk_metadata,
+    parse_judge_response,
+)
 from backend.evaluation.metrics import (
     evaluate,
     hit_at_k,
@@ -214,3 +225,139 @@ def test_paired_permutation_test_rejects_mismatched_lengths() -> None:
 def test_paired_permutation_test_rejects_empty_input() -> None:
     with pytest.raises(ValueError):
         paired_permutation_test([], [], n_permutations=100, seed=0)
+
+
+# ---------------------------------------------------------------------------
+# Labeling helpers
+# ---------------------------------------------------------------------------
+
+
+def test_golden_questions_from_records_excludes_null_source_doc() -> None:
+    # Records as yaml.safe_load returns them for golden-qa.yaml (a top-level list).
+    records = [
+        {
+            "id": "Q-001",
+            "category": "factoid",
+            "question_es": "pregunta uno",
+            "reference_answer_es": "respuesta uno",
+            "source_doc": "NAG-200.pdf, NAG-235.pdf",
+            "source_section": "§1.1",
+            "notes": "nota",
+            "authored_by": "scaffold-reviewed",
+            "follow_up_of": None,
+            "expected_behavior": "answer",
+        },
+        {
+            "id": "Q-018",
+            "category": "out-of-scope",
+            "question_es": "pregunta fuera de alcance",
+            "reference_answer_es": "respuesta",
+            "source_doc": None,
+            "source_section": None,
+            "notes": "nota",
+            "authored_by": "user",
+            "follow_up_of": None,
+            "expected_behavior": "decline",
+        },
+    ]
+    questions = golden_questions_from_records(records)
+    assert [q.id for q in questions] == ["Q-001"]
+    assert questions[0].source_doc == ["NAG-200.pdf", "NAG-235.pdf"]
+
+
+def test_merge_chunk_metadata_keeps_first_seen_entry_per_chunk_id() -> None:
+    first = {"c1": {"source_file": "NAG-200.pdf", "page": 1, "text": "from hybrid sidecar"}}
+    second = {
+        "c1": {"source_file": "NAG-200.pdf", "page": 1, "text": "from dense sidecar — must lose"},
+        "c2": {"source_file": "NAG-235.pdf", "page": 3, "text": "only in dense sidecar"},
+    }
+    merged = merge_chunk_metadata([first, second])
+    assert merged["c1"]["text"] == "from hybrid sidecar"
+    assert merged["c2"]["text"] == "only in dense sidecar"
+
+
+def _golden_question(**overrides: object) -> GoldenQuestion:
+    defaults: dict[str, object] = dict(
+        id="Q-001",
+        category="factoid",
+        question_es="pregunta",
+        reference_answer_es="respuesta",
+        source_doc=["NAG-200.pdf"],
+        source_section="§1.1",
+        notes="",
+        authored_by="scaffold-reviewed",
+        follow_up_of=None,
+        expected_behavior="answer",
+    )
+    defaults.update(overrides)
+    return GoldenQuestion(**defaults)  # type: ignore[arg-type]
+
+
+def test_build_pool_unions_top_depth_ids_across_runs_without_duplicates() -> None:
+    golden_by_id = {"Q-001": _golden_question()}
+    runs = {
+        "hybrid": {
+            "Q-001": [
+                RunEntry(doc_id="c1", rank=1, score=0.9, tag="hybrid"),
+                RunEntry(doc_id="c2", rank=2, score=0.8, tag="hybrid"),
+                RunEntry(doc_id="c3", rank=3, score=0.1, tag="hybrid"),  # beyond depth=2
+            ]
+        },
+        "dense": {
+            "Q-001": [
+                RunEntry(doc_id="c2", rank=1, score=0.7, tag="dense"),  # already pooled from hybrid
+                RunEntry(doc_id="c4", rank=2, score=0.6, tag="dense"),
+            ]
+        },
+    }
+    chunk_metadata = {
+        "c1": {"source_file": "NAG-200.pdf", "page": 1, "text": "texto uno"},
+        "c2": {"source_file": "NAG-200.pdf", "page": 2, "text": "texto dos"},
+        "c4": {"source_file": "NAG-235.pdf", "page": 3, "text": "texto cuatro"},
+    }
+    pool = build_pool(runs, depth=2, chunk_metadata=chunk_metadata, golden_by_id=golden_by_id)
+    ids = [row.chunk_id for row in pool]
+    assert ids == ["c1", "c2", "c4"]  # c3 excluded by depth=2; c2 not duplicated
+    assert all(row.qid == "Q-001" for row in pool)
+    assert all(row.question_es == "pregunta" for row in pool)
+
+
+def test_parse_judge_response_valid_json() -> None:
+    parsed = parse_judge_response(json.dumps({"grade": 2, "reason": "matches the reference answer"}))
+    assert isinstance(parsed, ParsedJudgeGrade)
+    assert parsed.grade == 2
+    assert parsed.reason == "matches the reference answer"
+
+
+def test_parse_judge_response_needs_review_on_malformed_json() -> None:
+    parsed = parse_judge_response("not json at all")
+    assert isinstance(parsed, NeedsReview)
+
+
+def test_parse_judge_response_needs_review_on_out_of_range_grade() -> None:
+    parsed = parse_judge_response(json.dumps({"grade": 5, "reason": "x"}))
+    assert isinstance(parsed, NeedsReview)
+
+
+def test_parse_judge_response_needs_review_on_missing_reason() -> None:
+    parsed = parse_judge_response(json.dumps({"grade": 1}))
+    assert isinstance(parsed, NeedsReview)
+
+
+def test_csv_rows_to_qrels_builds_grade_map() -> None:
+    rows = [
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "2", "reason": "", "source_file": "", "page": "", "snippet": ""},
+        {"qid": "Q-001", "chunk_id": "c2", "grade": "0", "reason": "", "source_file": "", "page": "", "snippet": ""},
+    ]
+    assert csv_rows_to_qrels(rows) == {"Q-001": {"c1": 2, "c2": 0}}
+
+
+def test_csv_rows_to_qrels_raises_on_blank_or_needs_review_grade() -> None:
+    rows = [
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "", "reason": "", "source_file": "", "page": "", "snippet": ""},
+        {"qid": "Q-001", "chunk_id": "c2", "grade": "?", "reason": "", "source_file": "", "page": "", "snippet": ""},
+    ]
+    with pytest.raises(ValueError) as excinfo:
+        csv_rows_to_qrels(rows)
+    assert "c1" in str(excinfo.value)
+    assert "c2" in str(excinfo.value)
