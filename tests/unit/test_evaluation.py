@@ -1,7 +1,9 @@
-"""Tests for backend.evaluation — TREC I/O and per-query retrieval metrics.
+"""Tests for backend.evaluation — TREC I/O, per-query retrieval metrics, and
+paired permutation significance testing.
 
-Metric fixtures are hand-computed (see inline comments) so a failure points at
-a wrong formula, not a wrong assumption about the fixture itself.
+Metric and significance-test fixtures are hand-computed (see inline comments)
+so a failure points at a wrong formula, not a wrong assumption about the
+fixture itself.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from backend.evaluation.metrics import (
     ndcg_at_k,
     recall_at_k,
 )
+from backend.evaluation.significance import paired_permutation_test
 from backend.evaluation.trec import RunEntry, read_qrels, read_run, write_qrels, write_run
 
 # ---------------------------------------------------------------------------
@@ -161,3 +164,53 @@ def test_evaluate_ignores_run_only_qids() -> None:
     }
     result = evaluate(qrels, run, ks=[1])
     assert "Q-999" not in result.per_query
+
+
+# ---------------------------------------------------------------------------
+# paired_permutation_test
+# ---------------------------------------------------------------------------
+
+
+def test_paired_permutation_test_identical_inputs_give_p_one() -> None:
+    result = paired_permutation_test([0.5, 0.7, 0.9], [0.5, 0.7, 0.9], n_permutations=10000, seed=0)
+    assert result.method == "exact"  # 2**3 = 8 <= 10000
+    assert result.p_value == pytest.approx(1.0)
+
+
+def test_paired_permutation_test_exact_branch_hand_computed() -> None:
+    """a - b = [4, 2, 0]; observed |mean diff| = 2.0.
+
+    Of the 8 sign-flip vectors over (i0, i1, i2), i2's diff is 0 so its sign
+    never changes the sum — only the 4 (i0, i1) combinations matter, each
+    counted twice:
+      (+,+) -> mean=+2.0 -> extreme (x2, i2 either sign)
+      (+,-) -> mean=+0.667 -> not extreme
+      (-,+) -> mean=-0.667 -> not extreme
+      (-,-) -> mean=-2.0 -> extreme (x2)
+    4 of 8 sign vectors are extreme -> p = 0.5.
+    """
+    a = [5.0, 3.0, 1.0]
+    b = [1.0, 1.0, 1.0]
+    result = paired_permutation_test(a, b, n_permutations=10000, seed=0)
+    assert result.method == "exact"
+    assert result.p_value == pytest.approx(0.5)
+
+
+def test_paired_permutation_test_monte_carlo_branch_is_seed_deterministic() -> None:
+    a = [0.9, 0.4, 0.6, 0.8, 0.5, 0.7]
+    b = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    assert 2 ** len(a) > 32  # forces the Monte Carlo branch below
+    first = paired_permutation_test(a, b, n_permutations=32, seed=42)
+    second = paired_permutation_test(a, b, n_permutations=32, seed=42)
+    assert first.method == "monte_carlo"
+    assert first.p_value == second.p_value
+
+
+def test_paired_permutation_test_rejects_mismatched_lengths() -> None:
+    with pytest.raises(ValueError):
+        paired_permutation_test([1.0, 2.0], [1.0], n_permutations=100, seed=0)
+
+
+def test_paired_permutation_test_rejects_empty_input() -> None:
+    with pytest.raises(ValueError):
+        paired_permutation_test([], [], n_permutations=100, seed=0)
