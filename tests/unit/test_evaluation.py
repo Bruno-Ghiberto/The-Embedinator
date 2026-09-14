@@ -322,6 +322,34 @@ def test_build_pool_unions_top_depth_ids_across_runs_without_duplicates() -> Non
     assert all(row.question_es == "pregunta" for row in pool)
 
 
+def test_build_pool_rejects_pooled_chunks_without_usable_text() -> None:
+    """A chunk with no text would be graded 0 by the judge, fabricating a true negative."""
+    golden_by_id = {"Q-001": _golden_question()}
+    runs = {
+        "hybrid": {
+            "Q-001": [
+                RunEntry(doc_id="c1", rank=1, score=0.9, tag="hybrid"),
+                RunEntry(doc_id="c2", rank=2, score=0.8, tag="hybrid"),
+                RunEntry(doc_id="c3", rank=3, score=0.7, tag="hybrid"),
+                RunEntry(doc_id="c4", rank=4, score=0.6, tag="hybrid"),
+            ]
+        }
+    }
+    chunk_metadata: dict[str, dict[str, object]] = {
+        "c1": {"source_file": "NAG-200.pdf", "page": 1, "text": "texto uno"},  # the only healthy chunk
+        "c2": {"source_file": "NAG-200.pdf", "page": 2, "text": None},
+        "c3": {"source_file": "NAG-200.pdf", "page": 3},  # no "text" key at all
+        "c4": {"source_file": "NAG-235.pdf", "page": 4, "text": "   "},
+    }
+    with pytest.raises(ValueError) as excinfo:
+        build_pool(runs, depth=4, chunk_metadata=chunk_metadata, golden_by_id=golden_by_id)
+    message = str(excinfo.value)
+    assert "c2" in message
+    assert "c3" in message
+    assert "c4" in message
+    assert "c1" not in message
+
+
 def test_parse_judge_response_valid_json() -> None:
     parsed = parse_judge_response(json.dumps({"grade": 2, "reason": "matches the reference answer"}))
     assert isinstance(parsed, ParsedJudgeGrade)

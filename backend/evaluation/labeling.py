@@ -121,6 +121,9 @@ def build_pool(
     Raises:
         ValueError: a pooled chunk id has no entry in `chunk_metadata` — the
             judge could not grade a chunk whose text is unknown.
+        ValueError: a pooled chunk's metadata carries no usable text (the `text`
+            key is missing, None, or whitespace-only) — the judge would grade
+            the blank chunk 0 and fabricate a true negative in the qrels.
     """
     pooled: dict[str, dict[str, None]] = {}  # qid -> insertion-ordered set of chunk ids
     for run in runs.values():
@@ -134,6 +137,17 @@ def build_pool(
     missing = sorted({chunk_id for ids in pooled.values() for chunk_id in ids if chunk_id not in chunk_metadata})
     if missing:
         raise ValueError(f"no chunk metadata for pooled chunk ids: {', '.join(missing)}")
+
+    blank = sorted(
+        {
+            chunk_id
+            for ids in pooled.values()
+            for chunk_id in ids
+            if not str(chunk_metadata[chunk_id].get("text") or "").strip()
+        }
+    )
+    if blank:
+        raise ValueError(f"no text for pooled chunk ids: {', '.join(blank)}")
 
     rows: list[PoolRow] = []
     for qid in sorted(pooled):
