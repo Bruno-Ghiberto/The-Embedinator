@@ -15,10 +15,12 @@ from pathlib import Path
 import pytest
 
 from backend.evaluation.labeling import (
+    REVIEW_FIELDS,
     GoldenQuestion,
     NeedsReview,
     ParsedJudgeGrade,
     build_pool,
+    complete_review_rows,
     csv_rows_to_qrels,
     golden_questions_from_records,
     merge_chunk_metadata,
@@ -389,3 +391,64 @@ def test_csv_rows_to_qrels_raises_on_blank_or_needs_review_grade() -> None:
         csv_rows_to_qrels(rows)
     assert "c1" in str(excinfo.value)
     assert "c2" in str(excinfo.value)
+
+
+# ---------------------------------------------------------------------------
+# complete_review_rows — recovering a review CSV from an interrupted judge run
+# ---------------------------------------------------------------------------
+
+_REVIEW_HEADER = "qid,chunk_id,grade,reason,source_file,page,snippet\n"
+_COMPLETE_ROW = "Q-001,c1,2,razon uno,NAG-200.pdf,1,texto uno\n"
+
+
+def test_complete_review_rows_keeps_every_row_of_an_intact_file() -> None:
+    rows, dropped = complete_review_rows(
+        _REVIEW_HEADER + _COMPLETE_ROW + "Q-001,c2,0,razon dos,NAG-200.pdf,2,texto dos\n"
+    )
+    assert dropped == []
+    assert [row["chunk_id"] for row in rows] == ["c1", "c2"]
+    assert sorted(rows[0]) == sorted(REVIEW_FIELDS)
+
+
+def test_complete_review_rows_drops_a_last_row_without_a_trailing_newline() -> None:
+    rows, dropped = complete_review_rows(_REVIEW_HEADER + _COMPLETE_ROW + 'Q-001,c2,1,"partial reas')
+    assert dropped == ["Q-001/c2"]
+    assert [row["chunk_id"] for row in rows] == ["c1"]
+    assert rows[0]["snippet"] == "texto uno"  # rows before the last are untouched
+
+
+def test_complete_review_rows_drops_a_last_row_missing_fields_despite_a_newline() -> None:
+    rows, dropped = complete_review_rows(_REVIEW_HEADER + _COMPLETE_ROW + "Q-001,c2,1,razon dos\n")
+    assert dropped == ["Q-001/c2"]
+    assert [row["chunk_id"] for row in rows] == ["c1"]
+
+
+def test_complete_review_rows_drops_a_last_row_whose_open_quote_swallowed_the_newline() -> None:
+    # The kill landed inside a quoted reason, so the record's own newline is part of the field.
+    rows, dropped = complete_review_rows(_REVIEW_HEADER + _COMPLETE_ROW + 'Q-001,c2,1,"razon cortada\n')
+    assert dropped == ["Q-001/c2"]
+    assert [row["chunk_id"] for row in rows] == ["c1"]
+
+
+def test_complete_review_rows_reports_an_unreadable_tail_without_qid_and_chunk_id() -> None:
+    rows, dropped = complete_review_rows(_REVIEW_HEADER + _COMPLETE_ROW + "Q-0")
+    assert dropped == ["unreadable tail"]
+    assert [row["chunk_id"] for row in rows] == ["c1"]
+
+
+def test_complete_review_rows_accepts_crlf_terminated_text() -> None:
+    """`csv.DictWriter` writes CRLF, so a real review.csv reaches the helper CRLF-terminated."""
+    rows, dropped = complete_review_rows(
+        _REVIEW_HEADER.replace("\n", "\r\n") + _COMPLETE_ROW.replace("\n", "\r\n") + 'Q-001,c2,1,"razon cort'
+    )
+    assert dropped == ["Q-001/c2"]
+    assert [row["chunk_id"] for row in rows] == ["c1"]
+    assert rows[0]["snippet"] == "texto uno"
+
+
+def test_complete_review_rows_reports_a_truncated_header() -> None:
+    assert complete_review_rows(_REVIEW_HEADER.rstrip("\n")) == ([], ["partial header"])
+
+
+def test_complete_review_rows_on_empty_text() -> None:
+    assert complete_review_rows("") == ([], [])

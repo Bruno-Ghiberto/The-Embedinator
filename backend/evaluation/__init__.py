@@ -13,11 +13,13 @@ lives in scripts/retrieval_eval.py.
 from __future__ import annotations
 
 from backend.evaluation.labeling import (
+    REVIEW_FIELDS,
     GoldenQuestion,
     NeedsReview,
     ParsedJudgeGrade,
     PoolRow,
     build_pool,
+    complete_review_rows,
     csv_rows_to_qrels,
     golden_questions_from_records,
     merge_chunk_metadata,
@@ -35,11 +37,13 @@ from backend.evaluation.significance import PermutationTestResult, paired_permut
 from backend.evaluation.trec import Qrels, Run, RunEntry, read_qrels, read_run, write_qrels, write_run
 
 __all__ = [
+    "REVIEW_FIELDS",
     "GoldenQuestion",
     "NeedsReview",
     "ParsedJudgeGrade",
     "PoolRow",
     "build_pool",
+    "complete_review_rows",
     "csv_rows_to_qrels",
     "golden_questions_from_records",
     "merge_chunk_metadata",

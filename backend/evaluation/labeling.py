@@ -8,6 +8,8 @@ everything else.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -208,6 +210,47 @@ def parse_judge_response(raw: str) -> ParsedJudgeGrade | NeedsReview:
     if not isinstance(reason, str):
         return NeedsReview(raw_response=raw, error="reason must be a string")
     return ParsedJudgeGrade(grade=grade, reason=reason)
+
+
+REVIEW_FIELDS: list[str] = ["qid", "chunk_id", "grade", "reason", "source_file", "page", "snippet"]
+
+
+def _describe_partial_row(record: Mapping[Any, Any]) -> str:
+    qid, chunk_id = record.get("qid"), record.get("chunk_id")
+    if isinstance(qid, str) and qid and isinstance(chunk_id, str) and chunk_id:
+        return f"{qid}/{chunk_id}"
+    return "unreadable tail"
+
+
+def complete_review_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
+    """Split review-CSV text into its complete rows and the partial tail, if any.
+
+    A judge run killed mid-write leaves the CSV ending in a truncated record:
+    no trailing newline, a record short of `REVIEW_FIELDS`, or an unterminated
+    quoted field that swallowed the record's own newline. Appending the next
+    judgment to such a file glues two records together — one judgment is lost,
+    one is corrupted, and `csv_rows_to_qrels` accepts both without complaint.
+    This helper isolates that damage so the caller can rewrite the file and
+    re-judge the affected pair.
+
+    Only the LAST record is ever examined and dropped; earlier records are
+    returned untouched. Returns `(rows, dropped)`, where `dropped` is empty or
+    holds one short description of what was discarded: "<qid>/<chunk_id>" when
+    the truncated record still carries both, "partial header" when the file
+    stops inside its header line, "unreadable tail" otherwise.
+    """
+    if not text:
+        return [], []
+    records = list(csv.DictReader(io.StringIO(text)))
+    ends_cleanly = text.endswith("\n")
+    if not records:
+        return [], [] if ends_cleanly else ["partial header"]
+    last = records[-1]
+    truncated = not ends_cleanly or None in last or any(value is None for value in last.values())
+    if not truncated:
+        return [{str(key): str(value) for key, value in record.items()} for record in records], []
+    rows = [{str(key): str(value) for key, value in record.items()} for record in records[:-1]]
+    return rows, [_describe_partial_row(last)]
 
 
 def csv_rows_to_qrels(rows: Sequence[Mapping[str, str]]) -> Qrels:

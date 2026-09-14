@@ -55,11 +55,13 @@ if str(REPO_ROOT) not in sys.path:
 
 from backend.config import Settings  # noqa: E402
 from backend.evaluation import (  # noqa: E402
+    REVIEW_FIELDS,
     GoldenQuestion,
     NeedsReview,
     Run,
     RunEntry,
     build_pool,
+    complete_review_rows,
     csv_rows_to_qrels,
     evaluate,
     golden_questions_from_records,
@@ -80,7 +82,6 @@ DEFAULT_OUT_DIR = REPO_ROOT / "data" / "retrieval-eval"
 # its "hybrid" results are dense-only.
 DEFAULT_COLLECTION = "emb-61b0dd9f-05b9-4bed-a502-fae360bc65ed"
 CONFIGS = ("hybrid", "hybrid_rerank", "dense", "sparse")
-REVIEW_FIELDS = ["qid", "chunk_id", "grade", "reason", "source_file", "page", "snippet"]
 SNIPPET_CHARS = 300
 # 2**18 enumerates every sign vector exactly for up to 18 queries (the current
 # golden set); larger sets fall back to seeded Monte Carlo with this many draws.
@@ -345,8 +346,24 @@ def cmd_judge(args: argparse.Namespace) -> int:
         rows = [row for row in rows if row["qid"] in wanted]
     done: set[tuple[str, str]] = set()
     if out.exists() and out.stat().st_size > 0:
-        with out.open(newline="", encoding="utf-8") as handle:
-            done = {(row["qid"], row["chunk_id"]) for row in csv.DictReader(handle)}
+        # Bytes, not read_text: a kill can land inside a multi-byte character, and strict
+        # decoding would crash before the partial row is dropped. The replacement char only
+        # ever lands in that dropped tail. Reading bytes also preserves a CRLF the judge
+        # wrote inside a quoted reason, which universal newlines would rewrite.
+        complete, dropped = complete_review_rows(out.read_bytes().decode("utf-8", errors="replace"))
+        if dropped:
+            # Appending to a truncated file would glue the next judgment onto the
+            # partial line; rewrite the file from its complete rows instead.
+            print(
+                f"judge: dropped partial row(s) left by an interrupted run: {', '.join(dropped)}; "
+                "they will be re-judged",
+                file=sys.stderr,
+            )
+            with out.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=REVIEW_FIELDS)
+                writer.writeheader()
+                writer.writerows(complete)
+        done = {(row["qid"], row["chunk_id"]) for row in complete}
     pending = [row for row in rows if (row["qid"], row["chunk_id"]) not in done]
     if args.limit is not None:
         pending = pending[: args.limit]
