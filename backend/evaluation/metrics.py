@@ -49,10 +49,19 @@ def ndcg_at_k(qrels_row: Mapping[str, int], ranked_ids: Sequence[str], k: int) -
     The ideal DCG is computed from the qrels row's own grades sorted descending
     (not limited to what was actually retrieved). Returns 0.0 when `qrels_row`
     has no relevant chunks (ideal DCG would be 0).
+
+    A doc id repeated inside the top-k is credited only at its first rank, so a
+    chunk retrieved twice cannot earn its gain twice and push nDCG above 1.0 —
+    recall/hit/mrr already count each doc id once. The repeat still occupies its
+    rank slot, so it never promotes the entries ranked below it.
     """
-    dcg = sum(
-        max(qrels_row.get(doc_id, 0), 0) / math.log2(rank + 1) for rank, doc_id in enumerate(ranked_ids[:k], start=1)
-    )
+    dcg = 0.0
+    seen: set[str] = set()
+    for rank, doc_id in enumerate(ranked_ids[:k], start=1):
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+        dcg += max(qrels_row.get(doc_id, 0), 0) / math.log2(rank + 1)
     ideal_grades = sorted((grade for grade in qrels_row.values() if grade > 0), reverse=True)[:k]
     idcg = sum(grade / math.log2(rank + 1) for rank, grade in enumerate(ideal_grades, start=1))
     return dcg / idcg if idcg > 0 else 0.0

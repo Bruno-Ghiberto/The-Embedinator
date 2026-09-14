@@ -90,6 +90,17 @@ def test_read_run_rejects_malformed_line(tmp_path: Path) -> None:
         read_run(path)
 
 
+def test_read_run_rejects_a_doc_id_repeated_within_one_qid(tmp_path: Path) -> None:
+    """A document holds exactly one rank; two ranks for one doc id is a malformed run."""
+    path = tmp_path / "run.trec"
+    path.write_text("Q-001 Q0 chunk-a 1 0.9 hybrid\nQ-002 Q0 chunk-a 1 0.7 hybrid\nQ-001 Q0 chunk-a 2 0.5 hybrid\n")
+    with pytest.raises(ValueError) as excinfo:
+        read_run(path)
+    message = str(excinfo.value)
+    assert "chunk-a" in message
+    assert "Q-001" in message  # the same doc id under a different qid is legitimate
+
+
 # ---------------------------------------------------------------------------
 # Per-query metrics — hand-computed fixtures
 # ---------------------------------------------------------------------------
@@ -141,6 +152,35 @@ def test_ndcg_at_k_ideal_order_scores_one() -> None:
 
 def test_ndcg_at_k_zero_relevant_returns_zero() -> None:
     assert ndcg_at_k({"a": 0, "b": 0}, ["a", "b"], k=2) == 0.0
+
+
+def test_ndcg_at_k_counts_a_repeated_doc_id_once() -> None:
+    """A chunk retrieved twice must not earn its gain twice — recall/hit/mrr already count it once.
+
+    "a" (grade 2) is credited at rank 1 only; the rank-2 repeat adds nothing, and
+    "b" (grade 0) at rank 3 adds nothing either:
+      dcg  = 2/log2(2)                      = 2.0
+      idcg = 2/log2(2)                      = 2.0   (ideal order: a)
+    """
+    qrels_row = {"a": 2}
+    score = ndcg_at_k(qrels_row, ["a", "a", "b"], k=10)
+    assert score <= 1.0
+    assert score == pytest.approx(1.0)
+    assert score == pytest.approx(ndcg_at_k(qrels_row, ["a", "b"], k=10))
+
+
+def test_ndcg_at_k_repeat_still_occupies_its_rank_slot() -> None:
+    """The duplicate earns no gain but does not promote what follows it.
+
+    Retrieved ["b", "b", "a"]: "b" (grade 1) is credited at rank 1, the rank-2
+    repeat adds nothing, and "a" (grade 2) stays at rank 3.
+      dcg  = 1/log2(2) + 2/log2(4)  = 1.0 + 1.0     = 2.0
+      idcg = 2/log2(2) + 1/log2(3)                  (ideal order: a, b)
+    """
+    qrels_row = {"a": 2, "b": 1}
+    dcg = 1 / math.log2(2) + 2 / math.log2(4)
+    idcg = 2 / math.log2(2) + 1 / math.log2(3)
+    assert ndcg_at_k(qrels_row, ["b", "b", "a"], k=10) == pytest.approx(dcg / idcg)
 
 
 # ---------------------------------------------------------------------------
