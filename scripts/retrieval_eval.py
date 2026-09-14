@@ -386,6 +386,21 @@ def cmd_qrels(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"qrels: {exc}", file=sys.stderr)
         return 1
+    golden_ids = {question.id for question in _load_golden()}
+    unknown = sorted(set(qrels) - golden_ids)
+    if unknown:
+        print(
+            f"qrels: {len(unknown)} qid(s) in the review are not in the golden set: {', '.join(unknown)}",
+            file=sys.stderr,
+        )
+        return 1
+    uncovered = sorted(golden_ids - set(qrels))
+    if uncovered:
+        # A partial review is legitimate while iterating, so this warns and still writes.
+        print(
+            f"qrels: WARNING {len(uncovered)} labeled golden question(s) have no judgments: {', '.join(uncovered)}",
+            file=sys.stderr,
+        )
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     write_qrels(qrels, out)
@@ -407,8 +422,24 @@ def cmd_eval(args: argparse.Namespace) -> int:
         return 2
     qrels = read_qrels(args.qrels)
     labels = [Path(path).name for path in args.run]
-    results = [evaluate(qrels, read_run(path), args.k) for path in args.run]
+    runs = [read_run(path) for path in args.run]
+    for label, run in zip(labels, runs, strict=True):
+        missing = sorted(set(qrels) - set(run))
+        if missing:
+            print(
+                f"eval: {label} has no entries for {len(missing)} qid(s) ({', '.join(missing)}); "
+                "they score 0 on every metric",
+                file=sys.stderr,
+            )
+    results = [evaluate(qrels, run, args.k) for run in runs]
     first = results[0]
+    if first.n_evaluated == 0:
+        print(
+            f"eval: no query could be evaluated: qrels has {len(qrels)} qid(s), "
+            f"{len(first.excluded_qids)} excluded for having no relevant chunk",
+            file=sys.stderr,
+        )
+        return 1
     included = [qid for qid in first.per_query if qid not in first.excluded_qids]
     print(
         f"qrels: {args.qrels}  evaluated queries n={first.n_evaluated}  excluded (no relevant chunk): {first.excluded_qids}"

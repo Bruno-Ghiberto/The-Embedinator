@@ -258,6 +258,9 @@ def csv_rows_to_qrels(rows: Sequence[Mapping[str, str]]) -> Qrels:
     page, snippet) into TREC qrels.
 
     Raises:
+        ValueError: two rows carry the same (qid, chunk_id) pair — one of them is
+            stale, and keeping either would silently discard the other. This is
+            an error even when both rows agree on the grade.
         ValueError: any row's `grade` is blank or "?" (needs-review, never
             resolved) or not an integer in {0, 1, 2} — lists every offending
             (qid, chunk_id) pair in the message; such rows are never silently
@@ -265,7 +268,14 @@ def csv_rows_to_qrels(rows: Sequence[Mapping[str, str]]) -> Qrels:
     """
     qrels: Qrels = {}
     unresolved: list[str] = []
+    duplicates: list[str] = []
+    seen: set[tuple[str, str]] = set()
     for row in rows:
+        # Tracked before the grade check so a duplicate is still caught on an unresolved row.
+        pair = (row["qid"], row["chunk_id"])
+        if pair in seen:
+            duplicates.append(f"{pair[0]}/{pair[1]}")
+        seen.add(pair)
         raw_grade = (row.get("grade") or "").strip()
         try:
             grade = int(raw_grade)
@@ -275,6 +285,8 @@ def csv_rows_to_qrels(rows: Sequence[Mapping[str, str]]) -> Qrels:
             unresolved.append(f"{row.get('qid')}/{row.get('chunk_id')} (grade={raw_grade!r})")
             continue
         qrels.setdefault(row["qid"], {})[row["chunk_id"]] = grade
+    if duplicates:
+        raise ValueError(f"{len(duplicates)} duplicate (qid, chunk_id) pair(s) in review rows: {', '.join(duplicates)}")
     if unresolved:
         raise ValueError(f"{len(unresolved)} review row(s) need a 0/1/2 grade: {', '.join(unresolved)}")
     return qrels

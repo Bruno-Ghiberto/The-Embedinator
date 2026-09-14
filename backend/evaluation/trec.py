@@ -55,8 +55,12 @@ def read_qrels(path: str | Path) -> Qrels:
     Raises:
         ValueError: a non-blank line does not have exactly 4 whitespace-separated
             fields, or the grade field is not an integer.
+        ValueError: the same (qid, doc id) pair is judged on two lines — keeping
+            either grade would silently discard the other, so the file is
+            rejected and both line numbers are named.
     """
     qrels: Qrels = {}
+    first_line: dict[tuple[str, str], int] = {}
     for line_no, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
@@ -64,6 +68,12 @@ def read_qrels(path: str | Path) -> Qrels:
         if len(fields) != 4:
             raise ValueError(f"{path}:{line_no}: expected 4 fields (qid iter docid grade), got {len(fields)}")
         qid, _iteration, doc_id, grade = fields
+        previous = first_line.get((qid, doc_id))
+        if previous is not None:
+            raise ValueError(
+                f"{path}:{line_no}: duplicate judgment for qid {qid!r} doc id {doc_id!r}, first seen at line {previous}"
+            )
+        first_line[(qid, doc_id)] = line_no
         try:
             parsed_grade = int(grade)
         except ValueError as exc:

@@ -62,6 +62,18 @@ def test_read_qrels_rejects_malformed_line(tmp_path: Path) -> None:
         read_qrels(path)
 
 
+def test_read_qrels_rejects_a_doc_id_judged_twice_for_one_qid(tmp_path: Path) -> None:
+    """Keeping the last grade would let a re-judged pair silently overwrite the reviewed one."""
+    path = tmp_path / "qrels.tsv"
+    path.write_text("Q-001 0 c1 2\nQ-001 0 c2 1\nQ-001 0 c1 0\n")
+    with pytest.raises(ValueError) as excinfo:
+        read_qrels(path)
+    message = str(excinfo.value)
+    assert "c1" in message
+    assert f"{path}:3" in message  # the offending line
+    assert "line 1" in message  # and the one it collides with
+
+
 def test_read_run_orders_entries_by_rank_within_qid(tmp_path: Path) -> None:
     path = tmp_path / "run.trec"
     # Deliberately out of rank order on disk — read_run must re-order per qid.
@@ -420,6 +432,29 @@ def test_csv_rows_to_qrels_builds_grade_map() -> None:
         {"qid": "Q-001", "chunk_id": "c2", "grade": "0", "reason": "", "source_file": "", "page": "", "snippet": ""},
     ]
     assert csv_rows_to_qrels(rows) == {"Q-001": {"c1": 2, "c2": 0}}
+
+
+def test_csv_rows_to_qrels_rejects_a_repeated_qid_chunk_id_pair() -> None:
+    """Two rows for one pair is an error even when the grades agree — one of them is stale."""
+    rows = [
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "2", "reason": "", "source_file": "", "page": "", "snippet": ""},
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "2", "reason": "", "source_file": "", "page": "", "snippet": ""},
+    ]
+    with pytest.raises(ValueError) as excinfo:
+        csv_rows_to_qrels(rows)
+    assert "Q-001/c1" in str(excinfo.value)
+
+
+def test_csv_rows_to_qrels_never_silently_drops_a_duplicate_beside_an_unresolved_grade() -> None:
+    rows = [
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "2", "reason": "", "source_file": "", "page": "", "snippet": ""},
+        {"qid": "Q-001", "chunk_id": "c1", "grade": "2", "reason": "", "source_file": "", "page": "", "snippet": ""},
+        {"qid": "Q-001", "chunk_id": "c2", "grade": "?", "reason": "", "source_file": "", "page": "", "snippet": ""},
+    ]
+    with pytest.raises(ValueError) as excinfo:
+        csv_rows_to_qrels(rows)
+    message = str(excinfo.value)
+    assert "Q-001/c1" in message or "Q-001/c2" in message
 
 
 def test_csv_rows_to_qrels_raises_on_blank_or_needs_review_grade() -> None:
