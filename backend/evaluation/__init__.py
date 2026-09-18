@@ -24,6 +24,7 @@ from backend.evaluation.labeling import (
     golden_questions_from_records,
     merge_chunk_metadata,
     parse_judge_response,
+    retrieval_eval_exclusions,
 )
 from backend.evaluation.metrics import (
     EvaluationResult,
@@ -48,6 +49,7 @@ __all__ = [
     "golden_questions_from_records",
     "merge_chunk_metadata",
     "parse_judge_response",
+    "retrieval_eval_exclusions",
     "EvaluationResult",
     "evaluate",
     "hit_at_k",

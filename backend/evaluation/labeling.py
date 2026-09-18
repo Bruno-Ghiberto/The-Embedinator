@@ -46,12 +46,16 @@ def golden_questions_from_records(records: Sequence[Mapping[str, Any]]) -> list[
     The caller parses the YAML (scripts/retrieval_eval.py); keeping YAML out of
     this package keeps `mypy backend/` free of the untyped `yaml` import.
     Entries with `source_doc: null` (out-of-scope pairs, e.g. Q-018/Q-019) are
-    excluded — they have no retrievable ground truth to grade against.
+    excluded — they have no retrievable ground truth to grade against. Entries
+    with a truthy `retrieval_eval_excluded` are also excluded — see
+    `retrieval_eval_exclusions` for the recorded reason.
     """
     questions: list[GoldenQuestion] = []
     for record in records:
         source_doc = record.get("source_doc")
         if not source_doc:
+            continue
+        if record.get("retrieval_eval_excluded"):
             continue
         follow_up_of = record.get("follow_up_of")
         questions.append(
@@ -69,6 +73,28 @@ def golden_questions_from_records(records: Sequence[Mapping[str, Any]]) -> list[
             )
         )
     return questions
+
+
+def retrieval_eval_exclusions(records: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+    """Map golden question id -> reason for records carrying a truthy `retrieval_eval_excluded`.
+
+    A record with `retrieval_eval_excluded` absent, null, or whitespace-only is
+    not an exclusion and is left out of the result. Every returned reason is
+    stripped. Excluded questions stay in the golden set (see
+    `golden_questions_from_records`) for documentation and downstream
+    consumers other than the retrieval eval; only the retrieval eval itself
+    skips them.
+    """
+    exclusions: dict[str, str] = {}
+    for record in records:
+        raw_reason = record.get("retrieval_eval_excluded")
+        if not raw_reason:
+            continue
+        reason = str(raw_reason).strip()
+        if not reason:
+            continue
+        exclusions[str(record["id"])] = reason
+    return exclusions
 
 
 @dataclass

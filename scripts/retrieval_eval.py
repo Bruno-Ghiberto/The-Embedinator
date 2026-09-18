@@ -45,6 +45,7 @@ import csv
 import json
 import sys
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -70,6 +71,7 @@ from backend.evaluation import (  # noqa: E402
     parse_judge_response,
     read_qrels,
     read_run,
+    retrieval_eval_exclusions,
     write_qrels,
     write_run,
 )
@@ -133,11 +135,19 @@ def _settings() -> Settings:
     return Settings(_env_file=REPO_ROOT / ".env")
 
 
-def _load_golden() -> list[GoldenQuestion]:
+def _load_golden_records() -> list[Mapping[str, Any]]:
     import yaml  # untyped PyYAML stays out of backend/ so `mypy backend/` remains clean
 
-    records = yaml.safe_load(GOLDEN_PATH.read_text(encoding="utf-8"))
-    return golden_questions_from_records(records)
+    return yaml.safe_load(GOLDEN_PATH.read_text(encoding="utf-8"))
+
+
+def _load_golden() -> list[GoldenQuestion]:
+    return golden_questions_from_records(_load_golden_records())
+
+
+def _load_exclusions() -> dict[str, str]:
+    """qid -> reason for questions explicitly excluded from the retrieval eval (kept in the golden set)."""
+    return retrieval_eval_exclusions(_load_golden_records())
 
 
 def _sidecar_path(run_path: Path) -> Path:
@@ -393,6 +403,19 @@ def cmd_judge(args: argparse.Namespace) -> int:
 def cmd_qrels(args: argparse.Namespace) -> int:
     with Path(args.review).open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
+    exclusions = _load_exclusions()
+    dropped_rows = [row for row in rows if row.get("qid") in exclusions]
+    if dropped_rows:
+        # Predates the exclusion: the pool and review files were built before a question was
+        # explicitly excluded, so they still carry its rows. Drop them here rather than refusing
+        # the whole review as "unknown qid" — the qid is known, just out of scope for this eval.
+        dropped_qids = sorted({row["qid"] for row in dropped_rows})
+        print(
+            f"qrels: dropped {len(dropped_rows)} judgment(s) for question(s) excluded from the retrieval eval: "
+            f"{', '.join(dropped_qids)}",
+            file=sys.stderr,
+        )
+        rows = [row for row in rows if row.get("qid") not in exclusions]
     try:
         qrels = csv_rows_to_qrels(rows)
     except ValueError as exc:

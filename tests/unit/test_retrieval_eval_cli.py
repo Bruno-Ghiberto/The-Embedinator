@@ -234,6 +234,7 @@ def test_qrels_rejects_a_review_qid_that_is_not_in_the_golden_set(
     """A qid the golden set never defined cannot be scored; writing it would hide the mismatch."""
     module = _load_cli()
     monkeypatch.setattr(module, "_load_golden", lambda: [_golden("Q-001"), _golden("Q-002")])
+    monkeypatch.setattr(module, "_load_exclusions", lambda: {})  # keep the real golden-qa.yaml out of this test
     review = tmp_path / "review.csv"
     _write_review(review, [("Q-001", "c1", "2"), ("Q-003", "c9", "1")])
     out = tmp_path / "qrels.tsv"
@@ -251,6 +252,7 @@ def test_qrels_warns_about_golden_questions_with_no_judgments_but_still_writes(
     """A partial review is legitimate while iterating — but it must not pass unremarked."""
     module = _load_cli()
     monkeypatch.setattr(module, "_load_golden", lambda: [_golden("Q-001"), _golden("Q-002")])
+    monkeypatch.setattr(module, "_load_exclusions", lambda: {})  # keep the real golden-qa.yaml out of this test
     review = tmp_path / "review.csv"
     _write_review(review, [("Q-001", "c1", "2")])
     out = tmp_path / "qrels.tsv"
@@ -260,6 +262,36 @@ def test_qrels_warns_about_golden_questions_with_no_judgments_but_still_writes(
     stderr = capsys.readouterr().err
     assert "Q-002" in stderr
     assert "no judgments" in stderr
+
+
+def test_qrels_drops_excluded_question_rows_with_a_stderr_notice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An explicitly excluded question's review rows never reach the qrels file, no unknown-qid refusal."""
+    module = _load_cli()
+    monkeypatch.setattr(module, "_load_golden", lambda: [_golden("Q-001")])
+    monkeypatch.setattr(module, "_load_exclusions", lambda: {"Q-014": "author synthesis, no chunk grounds it"})
+    review = tmp_path / "review.csv"
+    _write_review(review, [("Q-001", "c1", "2"), ("Q-014", "c9", "1"), ("Q-014", "c10", "0")])
+    out = tmp_path / "qrels.tsv"
+
+    assert module.main(["qrels", "--review", str(review), "--out", str(out)]) == 0
+    stderr = capsys.readouterr().err
+    assert "dropped 2 judgment" in stderr
+    assert "Q-014" in stderr
+    written = out.read_text(encoding="utf-8")
+    assert "Q-001" in written
+    assert "Q-014" not in written
+
+
+def test_real_golden_qa_excludes_q014_from_retrieval_eval_with_a_reason() -> None:
+    """Q-014's NAG-226/NAG-204 cross-reference is the author's synthesis; no chunk grounds it."""
+    module = _load_cli()
+    golden_ids = {question.id for question in module._load_golden()}
+    assert "Q-014" not in golden_ids
+    exclusions = module._load_exclusions()
+    assert "Q-014" in exclusions
+    assert exclusions["Q-014"].strip() != ""
 
 
 def test_eval_fails_instead_of_printing_a_table_of_nan(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

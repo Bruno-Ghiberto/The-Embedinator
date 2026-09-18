@@ -25,6 +25,7 @@ from backend.evaluation.labeling import (
     golden_questions_from_records,
     merge_chunk_metadata,
     parse_judge_response,
+    retrieval_eval_exclusions,
 )
 from backend.evaluation.metrics import (
     evaluate,
@@ -317,6 +318,51 @@ def test_golden_questions_from_records_excludes_null_source_doc() -> None:
     questions = golden_questions_from_records(records)
     assert [q.id for q in questions] == ["Q-001"]
     assert questions[0].source_doc == ["NAG-200.pdf", "NAG-235.pdf"]
+
+
+def test_golden_questions_from_records_excludes_retrieval_eval_excluded() -> None:
+    """A record with a truthy retrieval_eval_excluded is skipped, same as source_doc: null."""
+    records = [
+        {
+            "id": "Q-001",
+            "category": "factoid",
+            "question_es": "pregunta uno",
+            "reference_answer_es": "respuesta uno",
+            "source_doc": "NAG-200.pdf",
+            "source_section": "§1.1",
+            "notes": "nota",
+            "authored_by": "scaffold-reviewed",
+            "follow_up_of": None,
+            "expected_behavior": "answer",
+        },
+        {
+            "id": "Q-014",
+            "category": "analytical",
+            "question_es": "pregunta catorce",
+            "reference_answer_es": "respuesta catorce",
+            "source_doc": "NAG-204.pdf,NAG-226.pdf",
+            "source_section": "§8, §1",
+            "notes": "nota",
+            "authored_by": "scaffold-reviewed",
+            "follow_up_of": None,
+            "expected_behavior": "answer",
+            "retrieval_eval_excluded": "the cross-reference is the author's synthesis",
+        },
+    ]
+    questions = golden_questions_from_records(records)
+    assert [q.id for q in questions] == ["Q-001"]
+
+
+def test_retrieval_eval_exclusions_maps_id_to_stripped_reason() -> None:
+    """Absent, null and blank retrieval_eval_excluded values are not exclusions."""
+    records = [
+        {"id": "Q-001", "retrieval_eval_excluded": "  needs a trim  "},
+        {"id": "Q-002", "retrieval_eval_excluded": None},
+        {"id": "Q-003", "retrieval_eval_excluded": ""},
+        {"id": "Q-004", "retrieval_eval_excluded": "   "},
+        {"id": "Q-005"},
+    ]
+    assert retrieval_eval_exclusions(records) == {"Q-001": "needs a trim"}
 
 
 def test_merge_chunk_metadata_keeps_first_seen_entry_per_chunk_id() -> None:
