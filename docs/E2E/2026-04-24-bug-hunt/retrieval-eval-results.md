@@ -89,7 +89,8 @@ The reranker result survives every variant. The hybrid-over-dense result and the
 ## Known limits
 
 - n = 17. Treat every non-significant row as "unknown", not "equal".
-- Follow-up questions (Q-015 to Q-017) are retrieved standalone, without the conversation rewrite the agent applies, and the judge sees them without their parent question. They say only "esos reguladores" or "esa prueba", so the rubric's cross-norm and different-test rules cannot apply; two of the six corrections (Q-015, Q-017) are on these questions.
+- Follow-up questions (Q-015 to Q-017) are retrieved standalone, without the conversation rewrite the agent applies, so they measure raw retrieval on an underspecified query ("esos reguladores", "esa prueba").
+- The judge does not follow its own rubric on every row: it graded 1 with a reason admitting the chunk does not state the answer (Q-002, Q-015), and 2 for a different test than the one asked about (Q-017). This is why the review step before `qrels` stays. Missing conversation context is not the cause: re-judging all 110 follow-up pairs with the parent question added to the prompt changed one grade and fixed neither corrected follow-up row (Q-015 `dcf374d2` stayed 1, Q-017 `50dd6104` stayed 2).
 - Q-020 expects the agent to disambiguate, so "relevant" is not well defined for it. Its labels pick one reading.
 - The run files do not record which embedding and reranker models produced them; they are whatever `Settings` resolved from `.env` on 2026-09-11 and 2026-09-12. Collection: `emb-61b0dd9f-05b9-4bed-a502-fae360bc65ed`, the only NAG collection with BM25 sparse vectors.
 
@@ -112,4 +113,4 @@ for c in dense sparse hybrid hybrid_rerank; do .venv/bin/python scripts/retrieva
 
 ## Next step
 
-More questions, not more metrics: the first-stage retrievers stay unresolved until the golden set grows. Passing the parent question to the judge for `follow_up_of` records would remove the largest remaining source of label error.
+More questions, not more metrics: the first-stage retrievers stay unresolved until the golden set grows. Every new question needs the same path as these: judge, then a human pass over the grade-1 and grade-2 rows before `qrels`.
