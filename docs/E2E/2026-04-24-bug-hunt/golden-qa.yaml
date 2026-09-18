@@ -273,30 +273,36 @@
   category: analytical
   question_es: "¿Cómo se relacionan los requisitos de los detectores de monóxido de carbono de NAG-204 con el procedimiento de revisión técnica de NAG-226?"
   reference_answer_es: >
-    NAG-226 §8 incorpora la detección de monóxido de carbono en ambiente como
-    verificación obligatoria de la revisión técnica, clasificando los resultados
-    en correcto, defecto principal o defecto secundario según los niveles
-    detectados. Los dispositivos de detección utilizados deben cumplir con los
-    requisitos constructivos, funcionales y de ensayo establecidos en NAG-204.
-    De esta forma, NAG-204 define el instrumento de medición (su construcción,
-    alarmas, señales de fallo y métodos de ensayo) y NAG-226 prescribe su uso y
-    los criterios de aceptación durante el control periódico de instalaciones
-    existentes, conformando una cadena normativa integrada de seguridad por CO.
+    La relación es indirecta: ninguna de las dos normas cita a la otra. NAG-226
+    solo remite a NAG-200 y NAG-215, y NAG-204 no menciona la revisión técnica.
+    NAG-204 define los requisitos de construcción, funcionamiento y ensayo de
+    los aparatos eléctricos de detección de CO de funcionamiento continuo para
+    locales de uso doméstico, que alertan al ocupante ante una acumulación de
+    CO. NAG-226 §8, dentro de la revisión técnica de instalaciones internas
+    domiciliarias en servicio, exige medir la concentración de CO en el
+    ambiente con un detector de CO de ambiente con la calibración vigente, con
+    los artefactos encendidos a máxima potencia y el ambiente cerrado. Una
+    concentración menor de 15 ppm es correcta, de 15 ppm a 30 ppm es un defecto
+    secundario y por encima de 30 ppm es un defecto principal. NAG-226 no exige
+    que ese detector cumpla NAG-204.
   source_doc: "NAG-204.pdf,NAG-226.pdf"
   source_section: "§8, §1"
   notes: >
-    Pregunta cruzada H3 sobre seguridad por CO; el modelo debe articular NAG-204
-    (instrumento) con NAG-226 §8 (procedimiento de aplicación).
+    Pregunta cruzada H3 sobre seguridad por CO. Una buena respuesta describe el
+    alcance de cada norma (NAG-204 §1, NAG-226 §8) y aclara que ninguna remite a
+    la otra, sin inventar un vínculo normativo. Corregida el 2026-09-18: la
+    versión anterior afirmaba que el detector de NAG-226 §8 debía cumplir
+    NAG-204, algo que ninguna de las dos normas dice.
   authored_by: "scaffold-reviewed"
   follow_up_of: null
   expected_behavior: "answer"
   retrieval_eval_excluded: >
-    Excluded from the retrieval eval only, kept in the golden set. The
-    reference answer's central claim — that NAG-226 requires CO detection
-    devices to comply with NAG-204 — is not stated by any NAG-226 chunk in the
-    corpus (verified over the 671-pair pool on 2026-09-15). The cross-reference
-    is the author's synthesis, so no retrieved chunk can ground it and no
-    retriever can be scored on this question.
+    Excluded from the retrieval eval only, kept in the golden set. Its pool
+    was judged against an earlier reference answer that claimed NAG-226
+    requires CO detection devices to comply with NAG-204, which neither norm
+    states (checked against the full text of both on 2026-09-18). Those labels
+    do not fit the corrected answer, so re-judge this question's pool before it
+    rejoins the retrieval eval.
 
 # ---------------------------------------------------------------------------
 # FOLLOW-UP — 3 pairs (Q-015 to Q-017)
