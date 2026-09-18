@@ -285,7 +285,7 @@ def test_qrels_drops_excluded_question_rows_with_a_stderr_notice(
 
 
 def test_real_golden_qa_excludes_q014_from_retrieval_eval_with_a_reason() -> None:
-    """Q-014's NAG-226/NAG-204 cross-reference is the author's synthesis; no chunk grounds it."""
+    """Q-014's pool was judged against a since-corrected reference answer; it stays out until re-judged."""
     module = _load_cli()
     golden_ids = {question.id for question in module._load_golden()}
     assert "Q-014" not in golden_ids
