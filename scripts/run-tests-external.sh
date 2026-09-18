@@ -82,8 +82,10 @@ DEPS_HASH_FILE="$VENV_DIR/.deps-hash"
 
 # ── Shared helpers ─────────────────────────────────────────────
 # Sourced before any work so a missing library fails immediately rather than
-# after a full test run. Driven directly by scripts/lib/test-coverage-gate.sh.
+# after a full test run. Driven directly by scripts/lib/test-coverage-gate.sh
+# and scripts/lib/test-result-line.sh respectively.
 source "$SCRIPT_DIR/lib/coverage-gate.sh"
+source "$SCRIPT_DIR/lib/result-line.sh"
 
 # ── Defaults ───────────────────────────────────────────────────
 RUN_NAME=""
@@ -379,8 +381,13 @@ echo "=== Completed in ${DURATION}s (exit code: $EXIT_CODE) ===" >> "$LOG_FILE"
     [[ -n "$FILTER" ]]  && echo "Filter:   $FILTER"
     echo ""
 
-    # Extract the pytest result line (e.g. "= 334 passed, 20 skipped in 45.2s =")
-    RESULT_LINE=$(tail -20 "$LOG_FILE" | grep -E "[0-9]+ passed" | tail -1 || true)
+    # Extract the pytest result line (e.g. "= 334 passed, 20 skipped in 45.2s =",
+    # but just as well "= 2 failed, 1 warning in 0.42s =" or "= 1 error in 0.40s ="
+    # — whatever the counts are. See scripts/lib/result-line.sh: it also keeps
+    # this from ever picking up the "Completed in Ns (exit code: N)" line this
+    # script appends below, or a coverage TOTAL line, either of which can sit in
+    # the same tail window as the real one.
+    RESULT_LINE=$(pytest_result_line "$LOG_FILE" || true)
     if [[ -n "$RESULT_LINE" ]]; then
         echo "$RESULT_LINE"
         echo ""
