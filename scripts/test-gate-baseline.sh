@@ -77,6 +77,7 @@ expect() {
 
 GREEN_LINE='= 1553 passed, 34 skipped, 45 xfailed, 16 xpassed, 232 warnings in 64.89s (0:01:04) ='
 RED_LINE='=================== 3 failed, 17 passed, 1 warning in 0.49s ===================='
+ALLFAIL_LINE='========================= 2 failed, 1 warning in 0.42s ========================='
 ERR_LINE='============================== 2 errors in 0.51s ==============================='
 NONE_LINE='============================ no tests ran in 0.01s ============================='
 
@@ -91,6 +92,16 @@ expect "green baseline reports the count tuple"              0 green "passed=155
 write_run red FAILED "$(summary_body red 1 "$RED_LINE")"
 expect "failed run exits 1"                                  1 red "RED"
 expect "failed run reports failed=3"                         1 red "failed=3"
+
+# Pins the shape scripts/lib/result-line.sh now has to produce: a result line
+# with no "passed" token at all (every test failed, none passed) must still
+# gate RED, not NO-VERDICT. Before the fix, run-tests-external.sh's own
+# extraction only recognised "[0-9]+ passed" and wrote no result line for a
+# run like this one, so this exact case reached gate-baseline.sh as
+# NO-VERDICT (observed on run q014-ref-red, 2026-09-18).
+write_run allfail FAILED "$(summary_body allfail 1 "$ALLFAIL_LINE")"
+expect "all-fail run (no 'passed' token) still exits 1"      1 allfail "RED"
+expect "all-fail run reports failed=2"                       1 allfail "failed=2"
 
 write_run errs ERROR "$(summary_body errs 1 "$ERR_LINE")"
 expect "error run exits 1 and reports errors=2"              1 errs "errors=2"
