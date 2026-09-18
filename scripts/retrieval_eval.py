@@ -107,12 +107,24 @@ Candidate chunk from {source_file}, page {page}:
 {text}
 >>>
 
-Grade how useful this chunk is for answering the question:
-2 = contains information that answers the question, or a key part of the reference answer
-1 = same topic or section; supportive context but not sufficient on its own
-0 = not relevant
+Decide what this chunk does for a reader who has ONLY this chunk and must answer the question.
 
-The expected source is a hint, not a rule: a chunk from another document still earns 2 if it contains the answer.
+2 = the chunk states the answer, or states in full one of the named elements the reference answer is built from.
+
+Many questions span two norms or several provisions, so no single chunk can carry the whole answer. A chunk that fully states one required element still earns 2. Do not withhold 2 merely because the chunk leaves the rest of the reference answer uncovered, and do not require the chunk to name every norm the question mentions.
+1 = the chunk carries a real, usable piece of the answer but is not sufficient on its own.
+0 = everything else.
+
+Grade 0, not 1, in each of these cases:
+- The chunk is merely about the same document, chapter or subject matter. A shared topic is NOT relevance.
+- The chunk repeats a number, term or phrase that also appears in the reference answer, but uses it for a different concept, quantity or procedure.
+- The chunk is front matter, a title page, a table of contents, a reference or standards list, a form, an annex template or an observations sheet.
+- The chunk describes a different test, provision or requirement than the one the question asks about, even inside the correct norm.
+
+When the question names a specific norm, a chunk from a DIFFERENT norm earns 2 only if it states the answer for the norm the question named. A different norm stating its own analogous rule about its own subject is 0.
+
+In "reason", quote the exact phrase from the chunk that carries the answer. If you cannot quote such a phrase from the chunk above, the grade is 0.
+
 Respond with JSON only: {{"grade": 0, 1 or 2, "reason": "<one short sentence>"}}"""
 
 

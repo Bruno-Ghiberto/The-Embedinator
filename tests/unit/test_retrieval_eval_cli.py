@@ -8,6 +8,7 @@ real call fails fast instead of reaching a live stack.
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import importlib.util
 import json
@@ -133,6 +134,72 @@ def test_judge_resumes_when_the_kill_landed_inside_a_multi_byte_character(
     assert exit_code == 0
     assert judged_chunk_ids == ["c2", "c3"]
     _assert_resumed_cleanly(review, module)
+
+
+# ---------------------------------------------------------------------------
+# judge — the rubric the model is handed
+# ---------------------------------------------------------------------------
+
+
+class _RecordingResponse:
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict[str, Any]:
+        return {"message": {"content": '{"grade": 0, "reason": "ok"}'}}
+
+
+class _RecordingHttp:
+    """Stands in for the httpx client so the request body can be inspected offline."""
+
+    def __init__(self) -> None:
+        self.payloads: list[dict[str, Any]] = []
+
+    async def post(self, url: str, json: dict[str, Any]) -> _RecordingResponse:
+        self.payloads.append(json)
+        return _RecordingResponse()
+
+
+def _judge_prompt(row: dict[str, Any]) -> str:
+    """The exact prompt `_judge_one` sends to the judge model for one pooled pair."""
+    http = _RecordingHttp()
+    asyncio.run(_load_cli()._judge_one(http, "http://ollama.invalid", "judge-model", row))
+    (payload,) = http.payloads
+    return str(payload["messages"][0]["content"])
+
+
+def test_judge_prompt_does_not_define_a_shared_topic_as_relevant() -> None:
+    """Grade 1 as "same topic or section" graded every chunk of the right norm as relevant."""
+    assert "same topic or section" not in _judge_prompt(_pool_row("c1"))
+
+
+@pytest.mark.parametrize(
+    "clause",
+    [
+        # Q-011/Q-012/Q-014: tables of contents and unrelated tests of the right norm graded 1.
+        "A shared topic is NOT relevance.",
+        # Q-004: "0,5 bar / 4 bar" repeated from the reference answer for a different concept.
+        "uses it for a different concept, quantity or procedure",
+        "a table of contents, a reference or standards list",
+        # Q-002 -> NAG-240, Q-015 -> NAG-E209: another norm's analogous rule graded 2.
+        "A different norm stating its own analogous rule about its own subject is 0.",
+        # Cross-norm questions: no single chunk carries the whole reference answer.
+        "A chunk that fully states one required element still earns 2.",
+        # Q-004 / NAG-235 p23: the reason described content the snippet did not contain.
+        "If you cannot quote such a phrase from the chunk above, the grade is 0.",
+    ],
+)
+def test_judge_prompt_carries_the_clause_that_closes_an_observed_label_defect(clause: str) -> None:
+    assert clause in _judge_prompt(_pool_row("c1"))
+
+
+def test_judge_prompt_renders_the_pair_and_a_literal_json_example() -> None:
+    """The rubric goes through `str.format`: an unescaped brace would raise or eat the example."""
+    prompt = _judge_prompt(_pool_row("c1"))
+
+    for rendered in ("pregunta uno", "respuesta uno", "NAG-200.pdf §1.1", "NAG-200.pdf, page 1", "texto de c1"):
+        assert rendered in prompt
+    assert '{"grade": 0, 1 or 2, "reason": "<one short sentence>"}' in prompt
 
 
 # ---------------------------------------------------------------------------
