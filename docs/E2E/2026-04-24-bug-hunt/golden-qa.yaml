@@ -290,6 +290,13 @@
   authored_by: "scaffold-reviewed"
   follow_up_of: null
   expected_behavior: "answer"
+  retrieval_eval_excluded: >
+    Excluded from the retrieval eval only, kept in the golden set. The
+    reference answer's central claim — that NAG-226 requires CO detection
+    devices to comply with NAG-204 — is not stated by any NAG-226 chunk in the
+    corpus (verified over the 671-pair pool on 2026-09-15). The cross-reference
+    is the author's synthesis, so no retrieved chunk can ground it and no
+    retriever can be scored on this question.
 
 # ---------------------------------------------------------------------------
 # FOLLOW-UP — 3 pairs (Q-015 to Q-017)
