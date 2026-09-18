@@ -128,3 +128,6 @@ data/Collection-Docs/
 
 # Frontend test coverage artifacts
 frontend/coverage/
+
+# CodeGraph local index (per checkout, never shared)
+.codegraph/
